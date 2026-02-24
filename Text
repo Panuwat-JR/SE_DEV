@@ -1,0 +1,20 @@
+คำสั่งที่ต้องติดตั้ง
+npm init -y -- สร้างไฟล์ package.json
+npm install express pg cors -- ติดตั้ง express
+npm install lucide-react -- ติดตั้งไอคอนจาก Lucide
+npm create vite@latest frontend -- --template react -- สร้างโปรเจค React
+cd frontend
+npm install --ติดตั้ง React
+npm install tailwindcss @tailwindcss/vite --ติดตั้ง Tailwind CSS
+; ตั้งค่าใน Vite เปิดไฟล์ vite.config.js
+    import { defineConfig } from 'vite'
+    import react from '@vitejs/plugin-react'
+    import tailwindcss from '@tailwindcss/vite'
+    export default defineConfig({
+    plugins: [react(), tailwindcss()],
+    })
+
+; เรียกใช้ใน CSS เปิดไฟล์ src/index.css
+@import "tailwindcss";
+
+ALTER TABLE Event ADD COLUMN prize_money VARCHAR(100);  // culumn เพื่อแสดงเงินรางวัลในกิจกรรมมา
