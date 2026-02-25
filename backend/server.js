@@ -7,14 +7,13 @@ app.use(cors());
 app.use(express.json()); 
 
 // ตั้งค่าเชื่อมต่อ Database SE_DB
+// ตั้งค่าเชื่อมต่อ Database ไปที่ Neon.tech (Cloud)
 const pool = new Pool({
-  host: 'localhost',
-  port: 5555,
-  database: 'SE_DB',
-  user: 'myuser',
-  password: 'mypassword',
+  connectionString: 'postgresql://neondb_owner:npg_2g1ivEbpOMBa@ep-bitter-sunset-a12sdisi-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
-
 // ==========================================
 // 1. API ดึงข้อมูลหน้าแดชบอร์ดและกิจกรรม 
 // ==========================================
