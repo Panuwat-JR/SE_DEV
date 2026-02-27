@@ -18,7 +18,7 @@ function Sidebar() {
           <div className="text-[10px] text-gray-400">ระบบติดตามโครงการ</div>
         </div>
       </div>
-      
+
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto text-sm font-medium">
         {/* เปลี่ยนจาก <a> เป็น <Link> เพื่อให้เปลี่ยนหน้าได้ไวปรื๊ด */}
         <Link to="/" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
@@ -27,23 +27,24 @@ function Sidebar() {
         <Link to="/activities" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/activities') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <CalendarDays size={20} /> <span>กิจกรรม</span>
         </Link>
-        
+
         {/* เมนูอื่นๆ ปล่อยเป็น a ไว้ก่อน เดี๋ยวเราค่อยมาแก้ตอนสร้างหน้าเสร็จครับ */}
         <Link to="/tasks" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/tasks') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <Briefcase size={20} /> <span>งาน</span>
         </Link>
-        <a href="#" className="flex items-center gap-3 hover:text-white hover:bg-gray-800/50 px-4 py-3 rounded-xl transition-all">
+        <Link to="/teams" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/teams') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <UsersRound size={20} /> <span>ทีม</span>
-        </a>
-        <a href="#" className="flex items-center gap-3 hover:text-white hover:bg-gray-800/50 px-4 py-3 rounded-xl transition-all">
+        </Link>
+        {/* แก้จุดนี้: เปลี่ยนจาก <a> เป็น <Link> เพื่อลิงก์ไปหน้าผู้เข้าร่วม */}
+        <Link to="/participants" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/participants') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <UserCircle size={20} /> <span>ผู้เข้าร่วม</span>
-        </a>
-        <a href="#" className="flex items-center gap-3 hover:text-white hover:bg-gray-800/50 px-4 py-3 rounded-xl transition-all">
+        </Link>
+        <Link to="/employees" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/employees') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <Users size={20} /> <span>พนักงาน</span>
-        </a>
-        <a href="#" className="flex items-center gap-3 hover:text-white hover:bg-gray-800/50 px-4 py-3 rounded-xl transition-all">
+        </Link>
+        <Link to="/documents" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/documents') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <FileCheck size={20} /> <span>เอกสาร</span>
-        </a>
+        </Link>
         <a href="#" className="flex items-center gap-3 hover:text-white hover:bg-gray-800/50 px-4 py-3 rounded-xl transition-all mt-8">
           <Settings size={20} /> <span>ตั้งค่า</span>
         </a>

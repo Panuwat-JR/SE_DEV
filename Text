@@ -18,3 +18,19 @@ npm install tailwindcss @tailwindcss/vite --ติดตั้ง Tailwind CSS
 @import "tailwindcss";
 
 ALTER TABLE Event ADD COLUMN prize_money VARCHAR(100);  // culumn เพื่อแสดงเงินรางวัลในกิจกรรมมา
+
+-- 1. เพิ่มคอลัมน์ team_id เข้าไปในตาราง Document (ถ้ามีตารางนี้อยู่แล้ว)
+ALTER TABLE Document ADD COLUMN team_id BIGINT;
+
+-- 2. สร้างเส้นเชื่อม (Foreign Key) ให้ Document รู้จักกับ Team
+ALTER TABLE Document 
+ADD CONSTRAINT fk_document_team 
+FOREIGN KEY (team_id) 
+REFERENCES Team(team_id) 
+ON DELETE CASCADE;
+
+CREATE TABLE IF NOT EXISTS mapping_event_team (
+    event_id INTEGER,
+    team_id BIGINT,
+    PRIMARY KEY (event_id, team_id)
+);

@@ -8,7 +8,10 @@ import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Activities from './pages/Activities';
 import Tasks from './pages/Tasks';
-
+import Teams from './pages/Teams'; // (แก้โฟลเดอร์ให้ตรงกับที่คุณเซฟไฟล์ไว้ เช่น './components/Teams' ถ้าคุณไว้ใน components)
+import Participants from './pages/Participants';
+import Employees from './pages/Employees';
+import Documents from './pages/Documents';
 function App() {
   return (
     // <BrowserRouter> คือการเปิดใช้งานระบบ Routing
@@ -29,6 +32,11 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/activities" element={<Activities />} />
               <Route path="/tasks" element={<Tasks />} />
+              <Route path="/teams" element={<Teams />} />
+              <Route path="/participants" element={<Participants />} />
+              <Route path="/employees" element={<Employees />} />
+              <Route path="/documents" element={<Documents />} />
+              
             </Routes>
           </main>
 
