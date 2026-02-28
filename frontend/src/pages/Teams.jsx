@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Search, Filter, Users, FolderKanban, FileText, MoreVertical } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Teams = () => {
   // --- ส่วนของ Mock Data สำหรับ UI ---
@@ -79,11 +80,19 @@ const Teams = () => {
       </div>
 
       {/* Teams Grid */}
+     {/* Teams Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {teamsData.map((team) => (
-          <div key={team.id} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          // 1. เปลี่ยนจาก <div เป็น <Link และใส่ to={`/teams/${team.id}`}
+          // 2. เพิ่ม class 'block group relative cursor-pointer hover:border-blue-200 hover:shadow-lg' เพื่อให้ตอนเอาเมาส์ชี้มันดูเหมือนปุ่มที่กดได้
+          <Link 
+            to={`/teams/${team.id}`} 
+            key={team.id} 
+            className="block bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all group relative cursor-pointer"
+          >
+            {/* --- เนื้อหาข้างในเหมือนเดิมทั้งหมด --- */}
             <div className="flex justify-between items-start mb-1">
-              <h2 className="text-xl font-bold text-gray-900">{team.name}</h2>
+              <h2 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{team.name}</h2>
               <button className="text-gray-400 hover:text-gray-600">
                 <MoreVertical size={20} />
               </button>
@@ -128,7 +137,12 @@ const Teams = () => {
                 <span>{team.docsCount} เอกสาร</span>
               </div>
             </div>
-          </div>
+
+            {/* เพิ่มข้อความ 'ดูรายละเอียด' เล็กๆ ตรงมุมขวาบน จะโผล่มาตอนเอาเมาส์ชี้ (Hover) */}
+            <div className="absolute top-6 right-12 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+              ดูรายละเอียด &rarr;
+            </div>
+          </Link>
         ))}
       </div>
     </div>

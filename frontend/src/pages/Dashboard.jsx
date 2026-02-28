@@ -138,16 +138,73 @@ function Dashboard() {      //step1: สร้างกล่องเปล่�
           {/* ================= ไทม์ไลน์ ================= */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="text-lg font-bold text-gray-800 mb-6">ไทม์ไลน์โครงการล่าสุด</h2>
-            <div className="relative border-l-2 border-gray-100 ml-3 space-y-6">
-              {data.projectTimelines.map(timeline => (
-                <div key={timeline.id} className={`relative pl-6 ${timeline.status === 'pending' ? 'opacity-50' : ''}`}>
-                  <div className={`absolute -left-[11px] rounded-full p-0.5 ring-4 ring-white ${timeline.status === 'completed' ? 'bg-emerald-500 text-white' : timeline.status === 'current' ? 'bg-blue-600 text-white' : 'bg-white text-gray-300'}`}>
-                    {timeline.status === 'completed' ? <CheckCircle2 size={16} /> : timeline.status === 'current' ? <Clock size={16} /> : <CircleDashed size={16} />}
-                  </div>
-                  <h3 className={`text-sm ${timeline.status === 'current' ? 'font-bold text-blue-600' : 'font-semibold text-gray-800'}`}>{timeline.step_name}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{timeline.step_date}</p>
+            
+            {/* ชุด UI แบบ Hardcode เพื่อให้แสดงผลตรงตามรูปเป๊ะๆ (ยังไม่ผูก DB) */}
+            <div className="space-y-0">
+              
+              {/* Step 1: วางแผนโครงการ (เสร็จแล้ว - สีเขียว) */}
+              <div className="relative flex items-start gap-4 pb-6">
+                {/* เส้นเชื่อมลงมาสเต็ปถัดไป (สีเขียว) */}
+                <div className="absolute left-[11px] top-7 bottom-0 w-[2px] bg-emerald-500"></div>
+                {/* ไอคอน */}
+                <div className="relative z-10 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-4 ring-white shrink-0 mt-0.5 shadow-sm">
+                  <CheckCircle2 size={14} />
                 </div>
-              ))}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800">วางแผนโครงการ</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">1 ม.ค. 2569</p>
+                </div>
+              </div>
+
+              {/* Step 2: ขออนุมัติงบประมาณ (เสร็จแล้ว - สีเขียว) */}
+              <div className="relative flex items-start gap-4 pb-6">
+                <div className="absolute left-[11px] top-7 bottom-0 w-[2px] bg-emerald-500"></div>
+                <div className="relative z-10 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-4 ring-white shrink-0 mt-0.5 shadow-sm">
+                  <CheckCircle2 size={14} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800">ขออนุมัติงบประมาณ</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">15 ม.ค. 2569</p>
+                </div>
+              </div>
+
+              {/* Step 3: เปิดรับสมัครผู้เข้าร่วม (ปัจจุบัน - สีน้ำเงิน) */}
+              <div className="relative flex items-start gap-4 pb-6">
+                {/* เส้นเชื่อมลงมาสเต็ปถัดไป (สีเทา เพราะยังไม่ถึง) */}
+                <div className="absolute left-[11px] top-7 bottom-0 w-[2px] bg-gray-200"></div>
+                <div className="relative z-10 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center ring-4 ring-white shrink-0 mt-0.5 shadow-sm border border-blue-600">
+                  <Clock size={14} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-blue-600">เปิดรับสมัครผู้เข้าร่วม</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">1 ก.พ. 2569</p>
+                </div>
+              </div>
+
+              {/* Step 4: ดำเนินกิจกรรม (ยังไม่ถึง - สีเทาอ่อน) */}
+              <div className="relative flex items-start gap-4 pb-6">
+                <div className="absolute left-[11px] top-7 bottom-0 w-[2px] bg-gray-200"></div>
+                {/* ไอคอนวงกลมเปล่าขอบเทา */}
+                <div className="relative z-10 w-6 h-6 rounded-full bg-white flex items-center justify-center ring-4 ring-white shrink-0 mt-0.5 border-2 border-gray-300">
+                  <div className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">ดำเนินกิจกรรม</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">15 ก.พ. 2569</p>
+                </div>
+              </div>
+
+              {/* Step 5: สรุปผลโครงการ (ยังไม่ถึง - สีเทาอ่อน - ไม่มีเส้นต่อลงมา) */}
+              <div className="relative flex items-start gap-4">
+                <div className="relative z-10 w-6 h-6 rounded-full bg-white flex items-center justify-center ring-4 ring-white shrink-0 mt-0.5 border-2 border-gray-300">
+                  <div className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">สรุปผลโครงการ</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">28 ก.พ. 2569</p>
+                </div>
+              </div>
+
             </div>
           </div>
 

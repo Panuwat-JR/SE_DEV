@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, Clock, AlertCircle, CheckCircle2, Calendar, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 function Tasks() {
   const [tasks, setTasks] = useState([]);
@@ -112,7 +113,7 @@ function Tasks() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2   gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
                   <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-blue-500" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
@@ -161,12 +162,19 @@ function Tasks() {
   );
 
   // Component วาดการ์ด (เหมือนเดิม)
+  // Component วาดการ์ด (แก้ไขแล้ว)
   function TaskCard({ task }) {
     return (
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+      // เปลี่ยนจาก <div เป็น <Link แล้วใส่ to={`/tasks/${task.id}`}
+      // เพิ่ม class 'block group cursor-pointer hover:-translate-y-1 hover:border-blue-200'
+      <Link 
+        to={`/tasks/${task.id}`}
+        className="block bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition-all duration-300 group relative cursor-pointer"
+      >
         <div className="flex items-start gap-2 mb-1">
           {getStatusIcon(task.status)}
-          <h3 className="font-semibold text-sm text-gray-800 leading-tight">{task.title}</h3>
+          {/* เพิ่ม group-hover:text-blue-600 ให้ตัวหนังสือเปลี่ยนสีตอนชี้ */}
+          <h3 className="font-semibold text-sm text-gray-800 leading-tight group-hover:text-blue-600 transition-colors">{task.title}</h3>
         </div>
         <p className="text-xs text-gray-500 ml-6 mb-4 line-clamp-1">{task.event}</p>
         
@@ -207,7 +215,12 @@ function Tasks() {
             ))}
           </div>
         </div>
-      </div>
+        
+        {/* เล็กๆ มุมขวาบน โผล่มาตอน Hover */}
+        <div className="absolute top-4 right-4 text-[10px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-bold bg-blue-50 px-2 py-1 rounded-md">
+          ดูรายละเอียด &rarr;
+        </div>
+      </Link>
     );
   }
 }

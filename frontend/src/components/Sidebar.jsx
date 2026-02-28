@@ -45,9 +45,9 @@ function Sidebar() {
         <Link to="/documents" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/documents') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <FileCheck size={20} /> <span>เอกสาร</span>
         </Link>
-        <a href="#" className="flex items-center gap-3 hover:text-white hover:bg-gray-800/50 px-4 py-3 rounded-xl transition-all mt-8">
+        <Link to="/settings" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all mt-8 ${isActive('/settings') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'hover:text-white hover:bg-gray-800/50'}`}>
           <Settings size={20} /> <span>ตั้งค่า</span>
-        </a>
+        </Link>
       </nav>
     </aside>
   );

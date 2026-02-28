@@ -1,26 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Filter, Edit, Trash2, Clock, Users, Trophy } from 'lucide-react';
+// 1. นำเข้า Link และเพิ่มไอคอน Eye (รูปตา) มาใช้งาน
+import { Search, Plus, Filter, Edit, Trash2, Clock, Trophy, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 function Activities() {
   const [activities, setActivities] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ดึงข้อมูลกิจกรรมจาก API (ใช้ API เดิมไปก่อนได้เลยครับ)
   const fetchActivities = () => {
     fetch('http://localhost:5000/api/dashboard-data')
       .then(res => res.json())
       .then(data => setActivities(data.upcomingActivities))
       .catch(err => console.error("ดึงข้อมูลไม่สำเร็จ:", err));
   };
-const handleDelete = (id, title) => {
-    // ใช้ window.confirm เพื่อเด้งถามความแน่ใจก่อนลบ จะได้ไม่เผลอกดพลาด
+
+  const handleDelete = (id, title) => {
     if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบกิจกรรม "${title}" ?`)) {
       fetch(`http://localhost:5000/api/activities/${id}`, {
         method: 'DELETE',
       })
       .then(res => res.json())
       .then(() => {
-        // พอลบสำเร็จ ก็สั่งให้ดึงข้อมูลใหม่มาแสดงทันที (ตารางจะอัปเดต)
         fetchActivities();
       })
       .catch(err => console.error("ลบข้อมูลไม่สำเร็จ:", err));
@@ -31,9 +31,10 @@ const handleDelete = (id, title) => {
     fetchActivities();
   }, []);
 
-    const filteredActivities = activities.filter(activity =>  //ฟังชันกรองข้อมูลตามคำค้นหา
+  const filteredActivities = activities.filter(activity => 
     activity.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   return (
     <div className="relative">
       
@@ -79,12 +80,14 @@ const handleDelete = (id, title) => {
             </thead>
             <tbody className="text-sm text-gray-700">
               
-              {/* วนลูปสร้างแถวตารางจากข้อมูลใน Database */}
               {filteredActivities.map((activity) => (
-                <tr key={activity.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                <tr key={activity.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
                   
+                  {/* 2. ใช้ <Link> ครอบที่ชื่อกิจกรรม เพื่อให้กดเปลี่ยนหน้าได้ */}
                   <td className="p-4 font-semibold text-gray-800">
-                    {activity.title}
+                    <Link to={`/activities/${activity.id}`} className="hover:text-blue-600 transition-colors">
+                      {activity.title}
+                    </Link>
                   </td>
                   
                   <td className="p-4 text-gray-500">
@@ -115,9 +118,19 @@ const handleDelete = (id, title) => {
                   
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-2">
+                      {/* 3. เพิ่มปุ่ม "ดูรายละเอียด (รูปตา)" ที่ใช้ <Link> ได้เลย */}
+                      <Link 
+                        to={`/activities/${activity.id}`} 
+                        className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="ดูรายละเอียด"
+                      >
+                        <Eye size={16} />
+                      </Link>
+
                       <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="แก้ไข">
                         <Edit size={16} />
                       </button>
+                      
                       <button 
                         onClick={() => handleDelete(activity.id, activity.title)} 
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" 
@@ -131,7 +144,6 @@ const handleDelete = (id, title) => {
                 </tr>
               ))}
 
-              {/* กรณีไม่มีข้อมูล */}
               {filteredActivities.length === 0 && (
                 <tr>
                   <td colSpan="6" className="p-8 text-center text-gray-500">ไม่พบข้อมูลกิจกรรม</td>
@@ -142,7 +154,7 @@ const handleDelete = (id, title) => {
           </table>
         </div>
         
-        {/* แถบด้านล่างตาราง (Pagination) */}
+        {/* Pagination */}
         <div className="p-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500">
           <div>แสดง {filteredActivities.length} รายการ</div>
           <div className="flex gap-1">
