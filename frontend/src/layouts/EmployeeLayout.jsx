@@ -35,7 +35,7 @@ export default function EmployeeLayout() {
                     <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-sm shadow">NU</div>
                     <div>
                         <div className="font-bold text-base leading-tight">NU SEED</div>
-                        <div className="text-[10px] text-gray-400">ผู้รับผิดชอบโครงการ</div>
+                        <div className="text-[10px] text-gray-400">พนักงาน NU SEED</div>
                     </div>
                 </div>
 
@@ -47,7 +47,7 @@ export default function EmployeeLayout() {
                         return (
                             <Link key={item.path} to={item.path}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                                        : 'hover:text-white hover:bg-gray-800/50'
+                                    : 'hover:text-white hover:bg-gray-800/50'
                                     }`}
                             >
                                 <Icon size={18} />
@@ -86,7 +86,7 @@ export default function EmployeeLayout() {
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200">
-                            👔 ผู้รับผิดชอบโครงการ
+                            👔 พนักงาน NU SEED
                         </div>
                         <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">ส</div>
                     </div>
