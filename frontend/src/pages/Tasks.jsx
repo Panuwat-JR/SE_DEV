@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Filter, Clock, AlertCircle, CheckCircle2, Calendar, X } from 'lucide-react';
+// 1. นำเข้า Upload และ File เพิ่มเติม
+import { Search, Plus, Filter, Clock, AlertCircle, CheckCircle2, Calendar, X, Upload, File } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 function Tasks() {
@@ -7,12 +8,11 @@ function Tasks() {
   const [events, setEvents] = useState([]); 
   const [isModalOpen, setIsModalOpen] = useState(false); 
   
-  // ข้อมูลฟอร์มสำหรับสร้างงานใหม่
+  // 2. เพิ่ม fileName: '' ในข้อมูลฟอร์ม
   const [formData, setFormData] = useState({
-    title: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: ''
+    title: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: ''
   });
 
-  // 1. ดึงข้อมูลงานมาใส่กระดาน
   const fetchTasks = () => {
     fetch('http://localhost:5000/api/tasks')
       .then(res => res.json())
@@ -20,7 +20,6 @@ function Tasks() {
       .catch(err => console.error("ดึงข้อมูลงานไม่สำเร็จ:", err));
   };
 
-  // 2. ดึงรายชื่อกิจกรรมมาใส่ Dropdown
   const fetchEvents = () => {
     fetch('http://localhost:5000/api/events')
       .then(res => res.json())
@@ -33,7 +32,6 @@ function Tasks() {
     fetchEvents();
   }, []);
 
-  // 3. ฟังก์ชันกดปุ่มบันทึกงาน
   const handleSubmit = (e) => {
     e.preventDefault();
     fetch('http://localhost:5000/api/tasks', {
@@ -43,9 +41,10 @@ function Tasks() {
     })
     .then(res => res.json())
     .then(() => {
-      setIsModalOpen(false); // ปิดหน้าต่าง
-      setFormData({ title: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '' }); // ล้างข้อมูล
-      fetchTasks(); // โหลดกระดานใหม่ทันที!
+      setIsModalOpen(false); 
+      // 3. ล้างค่า fileName ตอนกดบันทึกด้วย
+      setFormData({ title: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: '' }); 
+      fetchTasks(); 
     })
     .catch(err => console.error("บันทึกไม่สำเร็จ:", err));
   };
@@ -64,16 +63,16 @@ function Tasks() {
           <p className="text-sm text-gray-500 mt-1">จัดการและติดตามงานทั้งหมดในแต่ละกิจกรรม</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)} // กดแล้วเปิด Modal
+          onClick={() => setIsModalOpen(true)} 
           className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all cursor-pointer"
         >
           <Plus size={18} /> สร้างงานใหม่
         </button>
       </div>
 
-      {/* ================= ส่วนกระดาน Kanban (เหมือนเดิม) ================= */}
+      {/* ================= ส่วนกระดาน Kanban ================= */}
       <div className="grid grid-cols-3 gap-6 flex-1 items-start">
-        {['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น'].map((statusType, index) => {
+        {['รอดำเนินการ', 'กำลังทำ', 'เสร็จสิ้น'].map((statusType, index) => {
           const colors = ['bg-amber-400', 'bg-emerald-500', 'bg-green-500'];
           return (
             <div key={statusType} className="space-y-4">
@@ -113,7 +112,7 @@ function Tasks() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2   gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
                   <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-blue-500" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
@@ -150,6 +149,38 @@ function Tasks() {
                 </div>
               </div>
 
+              {/* 4. กล่องแนบเอกสาร */}
+              <div className="pt-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">เอกสารแนบ (ทางเลือก)</label>
+                <div className="mt-1 flex justify-center px-6 pt-4 pb-4 border-2 border-gray-300 border-dashed rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors relative group bg-gray-50/30">
+                  <div className="space-y-1 text-center">
+                    <Upload className="mx-auto h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                    <div className="flex text-sm text-gray-600 justify-center">
+                      <label htmlFor="task-file-upload" className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-700">
+                        <span>คลิกเพื่ออัปโหลดไฟล์</span>
+                        <input 
+                          id="task-file-upload" 
+                          name="task-file-upload" 
+                          type="file" 
+                          className="sr-only" 
+                          onChange={(e) => setFormData({...formData, fileName: e.target.files[0]?.name})}
+                        />
+                      </label>
+                      <p className="pl-1">หรือลากไฟล์มาวาง</p>
+                    </div>
+                    <p className="text-xs text-gray-500">รองรับ PDF, DOCX, XLSX ขนาดไม่เกิน 10MB</p>
+                    
+                    {/* แสดงชื่อไฟล์เมื่อมีการเลือกไฟล์แล้ว */}
+                    {formData.fileName && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium border border-emerald-200">
+                        <File size={14} /> 
+                        {formData.fileName}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-gray-100">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl">ยกเลิก</button>
                 <button type="submit" className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20">บันทึกงาน</button>
@@ -161,19 +192,14 @@ function Tasks() {
     </div>
   );
 
-  // Component วาดการ์ด (เหมือนเดิม)
-  // Component วาดการ์ด (แก้ไขแล้ว)
   function TaskCard({ task }) {
     return (
-      // เปลี่ยนจาก <div เป็น <Link แล้วใส่ to={`/tasks/${task.id}`}
-      // เพิ่ม class 'block group cursor-pointer hover:-translate-y-1 hover:border-blue-200'
       <Link 
         to={`/tasks/${task.id}`}
         className="block bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition-all duration-300 group relative cursor-pointer"
       >
         <div className="flex items-start gap-2 mb-1">
           {getStatusIcon(task.status)}
-          {/* เพิ่ม group-hover:text-blue-600 ให้ตัวหนังสือเปลี่ยนสีตอนชี้ */}
           <h3 className="font-semibold text-sm text-gray-800 leading-tight group-hover:text-blue-600 transition-colors">{task.title}</h3>
         </div>
         <p className="text-xs text-gray-500 ml-6 mb-4 line-clamp-1">{task.event}</p>
@@ -216,7 +242,6 @@ function Tasks() {
           </div>
         </div>
         
-        {/* เล็กๆ มุมขวาบน โผล่มาตอน Hover */}
         <div className="absolute top-4 right-4 text-[10px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-bold bg-blue-50 px-2 py-1 rounded-md">
           ดูรายละเอียด &rarr;
         </div>
