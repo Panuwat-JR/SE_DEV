@@ -1,78 +1,105 @@
 import React from 'react';
-// 1. เพิ่ม useLocation เข้ามาในบรรทัดนี้
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 
-// 2. นำเข้า Components (ลบอันที่ซ้ำออกแล้ว)
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
+// ── Login ──────────────────────────────────────────────
+import Login from './pages/Login';
 
-// นำเข้า Pages ทั้งหมด
-import Dashboard from './pages/Dashboard';
+// ── Participant pages ──────────────────────────────────
+import ParticipantLayout from './layouts/ParticipantLayout';
+import P_Dashboard from './pages/participant/P_Dashboard';
+import P_ProjectDetail from './pages/participant/P_ProjectDetail';
+import P_Documents from './pages/participant/P_Documents';
+import P_Team from './pages/participant/P_Team';
+import P_Notifications from './pages/participant/P_Notifications';
+import P_Contact from './pages/participant/P_Contact';
+import P_Calendar from './pages/participant/P_Calendar';
+import P_Feedback from './pages/participant/P_Feedback';
+
+// ── Employee pages ─────────────────────────────────────
+import EmployeeLayout from './layouts/EmployeeLayout';
+import E_Dashboard from './pages/employee/E_Dashboard';
 import Activities from './pages/Activities';
 import ActivityDetail from './pages/ActivityDetail';
 import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
-import Teams from './pages/Teams'; 
+import Teams from './pages/Teams';
 import TeamDetail from './pages/TeamDetail';
 import Participants from './pages/Participants';
-import Employees from './pages/Employees';
-import Documents from './pages/Documents';
-import DocumentDetail from './pages/DocumentDetail';
-import Settings from './pages/Settings';
-import CalendarView from './pages/CalendarView';
-import Login from './pages/Login'; 
+import E_Documents from './pages/employee/E_Documents';
+import E_Calendar from './pages/employee/E_Calendar';
 
-// สร้าง Component ย่อยเพื่อคุม Layout (เปิด/ปิด Sidebar)
-const MainLayout = ({ children }) => {
-  const location = useLocation();
-  // ถ้าพาทปัจจุบันคือ /login ให้โชว์แค่เนื้อหาเพียวๆ ไม่เอา Sidebar
-  const isLoginPage = location.pathname === '/login';
+// ── Executive pages ────────────────────────────────────
+import ExecutiveLayout from './layouts/ExecutiveLayout';
+import X_Dashboard from './pages/executive/X_Dashboard';
+import X_Feedback from './pages/executive/X_Feedback';
 
-  if (isLoginPage) {
-    return <div className="w-full h-screen bg-gray-50">{children}</div>;
-  }
-
-  // ถ้าเป็นหน้าอื่นๆ ให้แสดง Sidebar และ Header ตามปกติ
-  return (
-    <div className="flex h-screen bg-[#f8fafc] font-sans">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        {/* ใส่ Padding p-8 ไว้ตรงนี้ เพื่อให้ทุกหน้ามีระยะห่างขอบเท่ากัน */}
-        <main className="flex-1 overflow-y-auto p-8 relative">
-          {children}
-        </main>
-      </div>
-    </div>
-  );
+// ── Route Guard ────────────────────────────────────────
+const RequireRole = ({ allowed, children }) => {
+  const { role } = useAuth();
+  if (!role) return <Navigate to="/login" replace />;
+  if (!allowed.includes(role)) return <Navigate to="/login" replace />;
+  return children;
 };
 
 function App() {
   return (
-    // <BrowserRouter> คือการเปิดใช้งานระบบ Routing
     <BrowserRouter>
-      {/* 3. เรียกใช้ MainLayout ครอบ Routes เอาไว้เลย (ไม่ต้องใส่ Sidebar/Header ตรงนี้แล้ว) */}
-      <MainLayout>
-        <Routes>
-          {/* หน้า Login */}
-          <Route path="/login" element={<Login />} />
-          
-          {/* หน้าอื่นๆ */}
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/activities" element={<Activities />} />
-          <Route path="/activities/:id" element={<ActivityDetail />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/tasks/:id" element={<TaskDetail />} />
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/teams/:id" element={<TeamDetail />} />
-          <Route path="/participants" element={<Participants />} />
-          <Route path="/employees" element={<Employees />} />
-          <Route path="/documents" element={<Documents />} />
-          <Route path="/documents/:id" element={<DocumentDetail />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/calendar" element={<CalendarView />} />
-        </Routes>
-      </MainLayout>
+      <Routes>
+        {/* Login */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* ── PARTICIPANT workspace ── */}
+        <Route path="/participant" element={
+          <RequireRole allowed={['participant']}>
+            <ParticipantLayout />
+          </RequireRole>
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<P_Dashboard />} />
+          <Route path="projects/:id" element={<P_ProjectDetail />} />
+          <Route path="documents" element={<P_Documents />} />
+          <Route path="team" element={<P_Team />} />
+          <Route path="notifications" element={<P_Notifications />} />
+          <Route path="contact" element={<P_Contact />} />
+          <Route path="calendar" element={<P_Calendar />} />
+          <Route path="feedback" element={<P_Feedback />} />
+        </Route>
+
+        {/* ── EMPLOYEE workspace ── */}
+        <Route path="/employee" element={
+          <RequireRole allowed={['employee']}>
+            <EmployeeLayout />
+          </RequireRole>
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<E_Dashboard />} />
+          <Route path="activities" element={<Activities />} />
+          <Route path="activities/:id" element={<ActivityDetail />} />
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="tasks/:id" element={<TaskDetail />} />
+          <Route path="teams" element={<Teams />} />
+          <Route path="teams/:id" element={<TeamDetail />} />
+          <Route path="participants" element={<Participants />} />
+          <Route path="documents" element={<E_Documents />} />
+          <Route path="calendar" element={<E_Calendar />} />
+        </Route>
+
+        {/* ── EXECUTIVE workspace ── */}
+        <Route path="/executive" element={
+          <RequireRole allowed={['executive']}>
+            <ExecutiveLayout />
+          </RequireRole>
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<X_Dashboard />} />
+          <Route path="feedback" element={<X_Feedback />} />
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }

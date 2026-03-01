@@ -1,147 +1,134 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, ShieldCheck, UserCog, User } from 'lucide-react';
+import { ShieldCheck, UserCog, User, ArrowRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+const ROLES = [
+  {
+    id: 'participant',
+    label: 'ผู้เข้าร่วมโครงการ',
+    sublabel: 'ดูสถานะ, จัดการเอกสาร, ส่ง feedback',
+    icon: User,
+    accent: 'from-sky-400 to-sky-600',
+    ring: 'ring-sky-500',
+    bg: 'bg-sky-50',
+    text: 'text-sky-700',
+    border: 'border-sky-300',
+    redirect: '/participant/dashboard',
+  },
+  {
+    id: 'employee',
+    label: 'ผู้รับผิดชอบโครงการ',
+    sublabel: 'จัดการโครงการ, งาน, ทีม, เอกสาร',
+    icon: UserCog,
+    accent: 'from-blue-600 to-indigo-600',
+    ring: 'ring-blue-600',
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    border: 'border-blue-300',
+    redirect: '/employee/dashboard',
+  },
+  {
+    id: 'executive',
+    label: 'ผู้บริหาร (Executive)',
+    sublabel: 'ภาพรวม KPI, กราฟแนวโน้ม, Feedback',
+    icon: ShieldCheck,
+    accent: 'from-blue-600 to-indigo-600',
+    ring: 'ring-blue-600',
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    border: 'border-blue-300',
+    redirect: '/executive/dashboard',
+  },
+];
 
 const Login = () => {
   const navigate = useNavigate();
-  
-  // State จำลองการเลือก Role ตาม Usecase Diagram
-  const [selectedRole, setSelectedRole] = useState('pm');
-
-  const roles = [
-    { id: 'admin', name: 'ผู้บริหาร', icon: <ShieldCheck size={18} />, desc: 'ดูภาพรวมและรายงาน' },
-    { id: 'pm', name: 'ผู้รับผิดชอบโครงการ', icon: <UserCog size={18} />, desc: 'จัดการและอัปเดตข้อมูล' },
-    { id: 'participant', name: 'ผู้เข้าร่วมโครงการ', icon: <User size={18} />, desc: 'ติดตามและดูสถานะ' }
-  ];
+  const { login } = useAuth();
+  const [selectedRole, setSelectedRole] = useState('employee');
 
   const handleLogin = (e) => {
     e.preventDefault();
-    
-    // 💡 จำลองการเก็บสิทธิ์ (Role) ลงใน LocalStorage ของเบราว์เซอร์
-    // ในอนาคตเราจะเอาค่านี้ไปเช็คใน Sidebar ว่าจะให้เห็นเมนูไหนบ้าง
-    localStorage.setItem('userRole', selectedRole);
-    
-    // เข้าสู่ระบบสำเร็จ ให้เด้งไปหน้า Dashboard
-    navigate('/');
+    const role = ROLES.find(r => r.id === selectedRole);
+    login(selectedRole);
+    navigate(role.redirect);
   };
 
+  const selected = ROLES.find(r => r.id === selectedRole);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* ฝั่งซ้าย: โลโก้และข้อความต้อนรับ (แบรนด์ดิ้ง) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#0f172a] text-white p-12 flex-col justify-between relative overflow-hidden">
-        {/* Background Decoration */}
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-600/30">
-              NU
-            </div>
-            <span className="text-2xl font-bold tracking-tight">NU SEED</span>
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-10 justify-center">
+          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-bold text-xl text-white shadow-xl shadow-blue-600/30">
+            NU
           </div>
-          <h1 className="text-4xl font-bold leading-tight mb-6">
-            ระบบติดตามโครงการ<br/>
-            <span className="text-blue-400">สำหรับมหาวิทยาลัย</span>
-          </h1>
-          <p className="text-gray-400 text-lg max-w-md leading-relaxed">
-            แพลตฟอร์มศูนย์กลางในการบริหารจัดการกิจกรรม ติดตามสถานะงาน และรวบรวมข้อมูลผู้เข้าร่วมโครงการอย่างมีประสิทธิภาพ
-          </p>
-        </div>
-        
-        <div className="relative z-10 text-sm text-gray-500">
-          © 2026 Naresuan University. All rights reserved.
-        </div>
-      </div>
-
-      {/* ฝั่งขวา: ฟอร์ม Login */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12">
-        <div className="w-full max-w-md">
-          <div className="mb-10 text-center lg:text-left">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">เข้าสู่ระบบ</h2>
-            <p className="text-gray-500">กรุณากรอกอีเมลและรหัสผ่านของคุณ</p>
+          <div>
+            <div className="text-white font-bold text-2xl tracking-tight">NU SEED</div>
+            <div className="text-gray-400 text-xs">ระบบติดตามโครงการ</div>
           </div>
+        </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            
-            {/* Input อีเมล */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 block">อีเมล</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input 
-                  type="email" 
-                  required
-                  placeholder="admin@nu.ac.th"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-gray-50 focus:bg-white"
-                />
-              </div>
-            </div>
+        {/* Card */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+          <h2 className="text-white text-2xl font-bold mb-1">เข้าสู่ระบบ</h2>
+          <p className="text-gray-400 text-sm mb-8">เลือกประเภทผู้ใช้งานของคุณ</p>
 
-            {/* Input รหัสผ่าน */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-gray-700 block">รหัสผ่าน</label>
-                <a href="#" className="text-sm text-blue-600 hover:underline font-medium">ลืมรหัสผ่าน?</a>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input 
-                  type="password" 
-                  required
-                  placeholder="••••••••"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-gray-50 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            {/* 💡 ส่วนจำลองการเลือกสิทธิ์การเข้าใช้งาน (Role Selector) */}
-            <div className="pt-4 border-t border-gray-100">
-              <label className="text-sm font-medium text-gray-700 block mb-3">
-                เข้าใช้งานในฐานะ (สำหรับการทดสอบ)
-              </label>
-              <div className="grid grid-cols-1 gap-3">
-                {roles.map((r) => (
-                  <label 
-                    key={r.id} 
-                    className={`flex items-center p-3 border rounded-xl cursor-pointer transition-all ${
-                      selectedRole === r.id 
-                        ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' 
-                        : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input 
-                      type="radio" 
-                      name="role" 
-                      value={r.id}
-                      checked={selectedRole === r.id}
-                      onChange={() => setSelectedRole(r.id)}
-                      className="hidden"
-                    />
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 shrink-0 ${
-                      selectedRole === r.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {r.icon}
-                    </div>
-                    <div>
-                      <div className={`font-bold text-sm ${selectedRole === r.id ? 'text-blue-900' : 'text-gray-900'}`}>
-                        {r.name}
+          <form onSubmit={handleLogin} className="space-y-4">
+            {/* Role Cards */}
+            <div className="space-y-3">
+              {ROLES.map((role) => {
+                const Icon = role.icon;
+                const isSelected = selectedRole === role.id;
+                return (
+                  <label key={role.id} className="cursor-pointer block">
+                    <input type="radio" name="role" value={role.id} checked={isSelected}
+                      onChange={() => setSelectedRole(role.id)} className="sr-only" />
+                    <div className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${isSelected
+                      ? `${role.bg} ${role.border} ring-2 ${role.ring} ring-offset-2 ring-offset-transparent`
+                      : 'border-white/10 bg-white/5 hover:bg-white/10'
+                      }`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${role.accent}`}>
+                        <Icon size={22} className="text-white" />
                       </div>
-                      <div className="text-xs text-gray-500">{r.desc}</div>
+                      <div>
+                        <div className={`font-bold text-sm ${isSelected ? role.text : 'text-white'}`}>{role.label}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{role.sublabel}</div>
+                      </div>
+                      {isSelected && (
+                        <div className={`ml-auto w-5 h-5 rounded-full bg-gradient-to-br ${role.accent} flex items-center justify-center shrink-0`}>
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        </div>
+                      )}
                     </div>
                   </label>
-                ))}
-              </div>
+                );
+              })}
             </div>
 
-            <button 
+            {/* Submit */}
+            <button
               type="submit"
-              className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all mt-6"
+              className={`w-full mt-2 py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2.5 bg-gradient-to-r ${selected?.accent} shadow-xl transition-all hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]`}
             >
               เข้าสู่ระบบ
+              <ArrowRight size={20} />
             </button>
+
+            <p className="text-center text-xs text-gray-500 pt-2">
+              Demo Mode — ข้อมูลจะ reset เมื่อรีเฟรชหน้า
+            </p>
           </form>
         </div>
+
+        <p className="text-center text-gray-600 text-xs mt-6">
+          © 2026 Naresuan University. All rights reserved.
+        </p>
       </div>
     </div>
   );

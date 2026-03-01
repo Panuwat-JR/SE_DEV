@@ -1,127 +1,159 @@
-import React from 'react';
-import { ArrowLeft, Clock, Calendar, User, Tag, CheckCircle2, Paperclip, MessageSquare } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Clock, Calendar, Tag, CheckCircle2, Paperclip, MessageSquare } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
 
 const TaskDetail = () => {
   const { id } = useParams();
+  const { tasks, updateTask } = useApp();
+  const [comment, setComment] = useState('');
+  const [comments, setComments] = useState([]);
 
-  // Mock Data
-  const task = {
-    title: "เบิกค่าใช้จ่าย",
-    project: "new gen",
-    status: "รอดำเนินการ",
-    priority: "สูง",
-    progress: 0,
-    dueDate: "25 ก.ย. 2569",
-    assignee: "สมชาย ใจดี",
-    description: "รวบรวมใบเสร็จค่าเดินทางและค่าที่พักสำหรับการจัดกิจกรรม new gen เพื่อทำเรื่องเบิกจ่ายกับทางฝ่ายการเงิน",
+  const task = tasks.find(t => String(t.id) === String(id));
+
+  if (!task) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-gray-500 mb-4">ไม่พบข้อมูลงาน</p>
+        <Link to="/tasks" className="text-blue-600 hover:underline">← กลับไปหน้ากระดานงาน</Link>
+      </div>
+    );
+  }
+
+  const handleMarkDone = () => {
+    updateTask(task.id, { status: 'เสร็จสิ้น', progress: 100 });
+  };
+
+  const handleComment = (e) => {
+    e.preventDefault();
+    if (!comment.trim()) return;
+    setComments(prev => [...prev, { text: comment, time: 'เมื่อสักครู่', user: 'สมชาย สมศรี', initial: 'ส' }]);
+    setComment('');
   };
 
   return (
     <div className="p-8 bg-[#f8fafc] min-h-screen font-sans">
-      {/* Header */}
       <div className="mb-6">
         <Link to="/tasks" className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors mb-4 text-sm font-medium">
-          <ArrowLeft size={16} />
-          กลับไปหน้ากระดานงาน
+          <ArrowLeft size={16} /> กลับไปหน้ากระดานงาน
         </Link>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{task.title}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{task.task_name || task.title}</h1>
             <p className="text-gray-500 flex items-center gap-2">
-              <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-bold">TASK-{id || '1'}</span>
-              โครงการ: <span className="text-blue-600 font-medium">{task.project}</span>
+              <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-bold">TASK-{id}</span>
+              กิจกรรม: <span className="text-blue-600 font-medium">{task.event}</span>
             </p>
           </div>
-          <button className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-bold shadow-sm flex items-center gap-2">
-            <CheckCircle2 size={18} />
-            ทำเครื่องหมายว่าเสร็จสิ้น
-          </button>
+          {task.status !== 'เสร็จสิ้น' && (
+            <button onClick={handleMarkDone} className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-bold shadow-sm flex items-center gap-2">
+              <CheckCircle2 size={18} /> ทำเครื่องหมายว่าเสร็จสิ้น
+            </button>
+          )}
+          {task.status === 'เสร็จสิ้น' && (
+            <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-bold">
+              <CheckCircle2 size={18} /> เสร็จสิ้นแล้ว
+            </span>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* ฝั่งซ้าย (รายละเอียด) */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">รายละเอียดงาน</h3>
             <p className="text-gray-600 text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[120px]">
-              {task.description}
+              {task.description || 'ยังไม่มีรายละเอียด'}
             </p>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <MessageSquare size={18} className="text-gray-400" />
-              <h3 className="text-lg font-bold text-gray-900">ความคิดเห็น</h3>
+              <h3 className="text-lg font-bold text-gray-900">ความคิดเห็น ({comments.length})</h3>
             </div>
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold shrink-0">ส</div>
-              <div className="flex-1">
-                <textarea 
-                  placeholder="พิมพ์ความคิดเห็น หรืออัปเดตความคืบหน้า..." 
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[100px]"
-                ></textarea>
-                <div className="flex justify-end mt-2">
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold">ส่งความคิดเห็น</button>
+            {comments.map((c, i) => (
+              <div key={i} className="flex gap-3 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">{c.initial}</div>
+                <div>
+                  <span className="text-xs font-bold text-gray-700">{c.user}</span>
+                  <span className="text-xs text-gray-400 ml-2">{c.time}</span>
+                  <p className="text-sm text-gray-600 mt-1">{c.text}</p>
                 </div>
               </div>
-            </div>
+            ))}
+            <form onSubmit={handleComment} className="flex gap-4 mt-4">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold shrink-0">ส</div>
+              <div className="flex-1">
+                <textarea
+                  placeholder="พิมพ์ความคิดเห็น หรืออัปเดตความคืบหน้า..."
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[80px]"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                ></textarea>
+                <div className="flex justify-end mt-2">
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold">ส่งความคิดเห็น</button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
 
-        {/* ฝั่งขวา (สถานะและข้อมูล) */}
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
             <div>
               <span className="text-xs text-gray-400 block mb-1">สถานะ</span>
-              <span className="inline-block px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold border border-amber-200">
-                {task.status}
-              </span>
+              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${task.status === 'เสร็จสิ้น' ? 'bg-green-100 text-green-700 border-green-200' :
+                  task.status === 'กำลังดำเนินการ' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                    'bg-amber-100 text-amber-700 border-amber-200'
+                }`}>{task.status}</span>
             </div>
-            
             <div>
               <span className="text-xs text-gray-400 block mb-1">ความสำคัญ</span>
-              <span className="inline-flex items-center gap-1 text-sm font-bold text-red-500">
+              <span className={`inline-flex items-center gap-1 text-sm font-bold ${task.priority === 'สูง' ? 'text-red-500' : 'text-gray-600'}`}>
                 <Tag size={14} /> {task.priority}
               </span>
             </div>
-
+            <div>
+              <span className="text-xs text-gray-400 block mb-1">หมวดหมู่</span>
+              <span className="text-sm font-medium text-gray-700 border border-gray-200 px-2.5 py-1 rounded-full">{task.category}</span>
+            </div>
             <div>
               <span className="text-xs text-gray-400 block mb-1">ผู้รับผิดชอบ</span>
               <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px] font-bold">ส</div>
-                {task.assignee}
+                <div className="flex -space-x-1">
+                  {task.assignees?.map((name, idx) => (
+                    <div key={idx} className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-white">{name}</div>
+                  ))}
+                </div>
+                <span className="text-gray-600 text-xs">ผู้รับผิดชอบ</span>
               </div>
             </div>
-
             <div>
               <span className="text-xs text-gray-400 block mb-1">กำหนดส่ง</span>
               <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                <Calendar size={16} className="text-gray-400" />
-                {task.dueDate}
+                <Calendar size={16} className="text-gray-400" /> {task.date}
               </div>
             </div>
-
             <div className="pt-4 border-t border-gray-100">
               <div className="flex justify-between text-xs font-bold text-gray-700 mb-2">
                 <span>ความคืบหน้า</span>
                 <span>{task.progress}%</span>
               </div>
               <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-blue-600 h-full rounded-full" style={{ width: `${task.progress}%` }}></div>
+                <div className={`h-full rounded-full ${task.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${task.progress}%` }}></div>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Paperclip size={18} className="text-gray-400" />
-              ไฟล์แนบ
+              <Paperclip size={18} className="text-gray-400" /> ไฟล์แนบ
             </h3>
-            <button className="w-full py-3 border border-dashed border-gray-300 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 hover:text-blue-600 transition-colors">
+            <label className="w-full py-3 border border-dashed border-gray-300 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 hover:text-blue-600 hover:border-blue-400 transition-colors cursor-pointer block text-center">
               + อัปโหลดไฟล์ที่เกี่ยวข้อง
-            </button>
+              <input type="file" className="sr-only" onChange={(e) => { if (e.target.files[0]) alert(`ไฟล์ "${e.target.files[0].name}" พร้อมแนบ (โหมด Demo)`); }} />
+            </label>
           </div>
         </div>
       </div>
