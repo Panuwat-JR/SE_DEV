@@ -61,6 +61,7 @@ CREATE TABLE departments (
 CREATE TABLE priority_levels (
     priority_id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
+    description TEXT,
     code_color VARCHAR(50),
     slug VARCHAR(50)
 );
@@ -194,6 +195,7 @@ CREATE TABLE participant_profiles (
     participant_profile_id SERIAL PRIMARY KEY,
     team_id INT,
     major_id INT,
+    faculty_id INT, 
     participant_type_id INT,
     gender VARCHAR(20),
     prefix VARCHAR(20),
@@ -212,6 +214,7 @@ CREATE TABLE participant_profiles (
 
     CONSTRAINT fk_pp_team FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE SET NULL,
     CONSTRAINT fk_pp_major FOREIGN KEY (major_id) REFERENCES majors(major_id),
+    CONSTRAINT fk_pp_faculty FOREIGN KEY (faculty_id) REFERENCES faculties(faculty_id),
     CONSTRAINT fk_pp_type FOREIGN KEY (participant_type_id) REFERENCES participant_types(participant_type_id)
 );
 

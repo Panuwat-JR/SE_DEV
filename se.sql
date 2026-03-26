@@ -59,6 +59,7 @@ CREATE TABLE departments (
 CREATE TABLE priority_levels (
     priority_id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
+    description TEXT,
     code_color VARCHAR(50),
     slug VARCHAR(50)
 );
