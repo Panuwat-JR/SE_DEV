@@ -1,8 +1,7 @@
 // ไฟล์: src/context/AppContext.jsx
-// React Context กลางสำหรับ Mock Data — ทุกข้อมูลเก็บใน state เท่านั้น
-// กด F5 = ข้อมูลกลับสู่ค่าเริ่มต้นเสมอ
+// React Context กลาง — Dashboard ดึงข้อมูลจาก Backend API, ส่วนอื่นใช้ Mock Data
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
     INITIAL_EVENTS,
     INITIAL_TASKS,
@@ -12,6 +11,8 @@ import {
     INITIAL_PARTICIPANTS,
     INITIAL_LOGS,
 } from '../data/mockData';
+
+const API_BASE = 'http://localhost:5000/api';
 
 const AppContext = createContext(null);
 
@@ -23,6 +24,30 @@ export const AppProvider = ({ children }) => {
     const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
     const [participants, setParticipants] = useState(INITIAL_PARTICIPANTS);
     const [logs, setLogs] = useState(INITIAL_LOGS);
+    const [dbStats, setDbStats] = useState(null); // stats จาก DB จริง
+
+    // ========== ดึง Dashboard Data จาก Backend API ==========
+    useEffect(() => {
+        fetch(`${API_BASE}/dashboard-data`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.stats) setDbStats(data.stats);
+                if (data.upcomingActivities?.length > 0) setEvents(data.upcomingActivities);
+                if (data.recentTasks?.length > 0) {
+                    const mapped = data.recentTasks.map(t => ({
+                        ...t,
+                        task_name: t.title,
+                        event: t.project_name,
+                        progress: t.progress_percent ?? 0,
+                    }));
+                    setTasks(mapped);
+                }
+                if (data.activityLogs?.length > 0) setLogs(data.activityLogs);
+            })
+            .catch(err => {
+                console.warn('⚠️ ไม่สามารถเชื่อม API ได้ ใช้ Mock Data แทน:', err.message);
+            });
+    }, []);
 
     // ==================== EVENTS ====================
     const addEvent = (data) => {
@@ -154,13 +179,13 @@ export const AppProvider = ({ children }) => {
 
     // ==================== COMPUTED STATS ====================
     const stats = {
-        total_activities: events.length,
-        registered_teams: teams.length,
-        total_tasks: tasks.length,
-        pending_tasks: tasks.filter(t => t.status === 'รอดำเนินการ').length,
-        total_documents: documents.length,
-        documents_this_month: documents.length,
-        active_activities: events.filter(e => e.status === 'กำลังดำเนินการ').length,
+        total_activities: dbStats?.total_activities ?? events.length,
+        registered_teams: dbStats?.registered_teams ?? teams.length,
+        total_tasks: dbStats?.total_tasks ?? tasks.length,
+        pending_tasks: dbStats?.pending_tasks ?? tasks.filter(t => t.status === 'รอดำเนินการ').length,
+        total_documents: dbStats?.total_documents ?? documents.length,
+        documents_this_month: dbStats?.documents_this_month ?? documents.length,
+        active_activities: dbStats?.active_activities ?? events.filter(e => e.status === 'กำลังดำเนินการ').length,
     };
 
     return (

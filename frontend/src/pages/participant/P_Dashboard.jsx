@@ -1,56 +1,7 @@
-// pages/participant/P_Dashboard.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Clock, AlertCircle, Bell, ChevronRight, Trophy, Users, FileText, Star } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, Bell, ChevronRight, Trophy, Users, FileText, Star, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-
-const MY_PROJECTS = [
-    {
-        id: 1,
-        title: 'Startup Thailand League 2026',
-        status: 'กำลังดำเนินการ',
-        statusColor: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-        progress: 65,
-        progressColor: 'bg-emerald-500',
-        nextDeadline: '15 มี.ค. 2569',
-        nextTask: 'ส่ง Pitch Deck รอบ 2',
-        team: 'GreenBridge',
-        role: 'หัวหน้าทีม',
-        prize: '50,000 บาท',
-        doneItems: 5,
-        totalItems: 8,
-    },
-    {
-        id: 2,
-        title: 'ELP Batch 5 — Naresuan',
-        status: 'เปิดรับสมัคร',
-        statusColor: 'bg-blue-100 text-blue-700 border-blue-200',
-        progress: 20,
-        progressColor: 'bg-blue-500',
-        nextDeadline: '30 มี.ค. 2569',
-        nextTask: 'ยืนยันการสมัคร',
-        team: 'EcoFlow',
-        role: 'สมาชิก',
-        prize: '10,000 บาท',
-        doneItems: 1,
-        totalItems: 5,
-    },
-    {
-        id: 3,
-        title: 'Innovation Challenge 2026',
-        status: 'ดำเนินการสำเร็จ',
-        statusColor: 'bg-gray-100 text-gray-600 border-gray-200',
-        progress: 100,
-        progressColor: 'bg-gray-400',
-        nextDeadline: 'เสร็จสิ้น',
-        nextTask: '—',
-        team: 'SmartSeed',
-        role: 'สมาชิก',
-        prize: '30,000 บาท',
-        doneItems: 6,
-        totalItems: 6,
-    },
-];
 
 const NOTIFICATIONS = [
     { id: 1, text: 'สถานะโครงการ "Startup Thailand League" เปลี่ยนเป็น กำลังดำเนินการ', time: '2 ชั่วโมงที่แล้ว', type: 'status', read: false },
@@ -60,6 +11,28 @@ const NOTIFICATIONS = [
 
 export default function P_Dashboard() {
     const { teamRole } = useAuth();
+    const [projects, setProjects] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch('http://localhost:5000/api/dashboard-data/participant-data');
+                if (!response.ok) throw new Error('Failed to fetch data');
+                const data = await response.json();
+                setProjects(data);
+            } catch (err) {
+                console.error('Error fetching participant dashboard:', err);
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
 
     return (
         <div className="space-y-8">
@@ -67,7 +40,13 @@ export default function P_Dashboard() {
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">สวัสดี ปิยะ 👋</h1>
-                    <p className="text-gray-500 text-sm mt-1">คุณเข้าร่วม <strong>{MY_PROJECTS.length} โครงการ</strong> — {MY_PROJECTS.filter(p => p.status === 'กำลังดำเนินการ').length} โครงการกำลังดำเนินการ</p>
+                    <p className="text-gray-500 text-sm mt-1">
+                        {loading ? 'กำลังโหลดข้อมูล...' : (
+                            projects.length > 0 
+                                ? `คุณเข้าร่วม ${projects.length} โครงการ — ${projects.filter(p => p.status === 'กำลังดำเนินการ').length} โครงการกำลังดำเนินการ`
+                                : 'ยังไม่มีโครงการที่คุณเข้าร่วมในขณะนี้'
+                        )}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-bold text-emerald-700">
                     {teamRole === 'leader' ? '🏆 หัวหน้าทีม' : '👤 สมาชิกทีม'}
@@ -87,47 +66,72 @@ export default function P_Dashboard() {
             {/* Project Cards */}
             <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-4">โครงการที่เข้าร่วม</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    {MY_PROJECTS.map((proj) => (
-                        <Link to={`/participant/projects/${proj.id}`} key={proj.id}
-                            className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-emerald-200 transition-all group p-5 block">
-                            <div className="flex justify-between items-start mb-3">
-                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${proj.statusColor}`}>{proj.status}</span>
-                                <ChevronRight size={18} className="text-gray-300 group-hover:text-emerald-500 transition-colors" />
-                            </div>
-                            <h3 className="font-bold text-gray-900 text-sm leading-snug mb-1">{proj.title}</h3>
-                            <p className="text-xs text-gray-400 mb-4">ทีม: {proj.team} · {proj.role}</p>
-
-                            <div className="mb-3">
-                                <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                                    <span>ความคืบหน้า</span>
-                                    <span className="font-bold">{proj.doneItems}/{proj.totalItems}</span>
-                                </div>
-                                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                    <div className={`${proj.progressColor} h-full rounded-full`} style={{ width: `${proj.progress}%` }} />
-                                </div>
-                            </div>
-
-                            {proj.nextTask !== '—' && (
-                                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-xl p-2.5 border border-gray-100">
-                                    <Clock size={12} className="text-amber-500 shrink-0" />
-                                    <span className="truncate">{proj.nextTask}</span>
-                                    <span className="text-[10px] text-gray-400 ml-auto shrink-0">{proj.nextDeadline}</span>
-                                </div>
-                            )}
-                            {proj.status === 'ดำเนินการสำเร็จ' && (
-                                <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
-                                    <CheckCircle2 size={12} /> <span>โครงการเสร็จสิ้นแล้ว 🎉</span>
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
-                                <Trophy size={12} className="text-amber-500" />
-                                <span className="text-xs text-gray-500">รางวัล {proj.prize}</span>
-                            </div>
+                
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+                        <Loader2 className="animate-spin text-emerald-500 mb-2" size={32} />
+                        <p className="text-gray-400 text-sm">กำลังโหลดข้อมูลโครงการจากฐานข้อมูล...</p>
+                    </div>
+                ) : error ? (
+                    <div className="bg-red-50 border border-red-200 p-10 rounded-2xl text-center">
+                        <AlertCircle className="mx-auto text-red-500 mb-3" size={32} />
+                        <p className="text-red-700 font-semibold">เกิดข้อผิดพลาดในการดึงข้อมูล</p>
+                        <p className="text-red-500 text-xs mt-1">{error}</p>
+                    </div>
+                ) : projects.length === 0 ? (
+                    <div className="bg-white border border-dashed border-gray-200 p-16 rounded-2xl text-center">
+                        <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Trophy size={32} className="text-gray-300" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">ไม่พบโครงการที่คุณเข้าร่วม</h3>
+                        <p className="text-gray-400 text-sm mt-1 max-w-xs mx-auto">ดูเหมือนว่าข้อมูลในฐานข้อมูลจะยังว่างอยู่ หรือคุณยังไม่ได้ถูกเพิ่มเข้าไปในโครงการใดๆ</p>
+                        <Link to="/activities" className="inline-block mt-6 px-6 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200">
+                            ค้นหากิจกรรมใหม่
                         </Link>
-                    ))}
-                </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        {projects.map((proj) => (
+                            <Link to={`/participant/projects/${proj.id}`} key={proj.id}
+                                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-emerald-200 transition-all group p-5 block">
+                                <div className="flex justify-between items-start mb-3">
+                                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${proj.statusColor}`}>{proj.status}</span>
+                                    <ChevronRight size={18} className="text-gray-300 group-hover:text-emerald-500 transition-colors" />
+                                </div>
+                                <h3 className="font-bold text-gray-900 text-sm leading-snug mb-1">{proj.title}</h3>
+                                <p className="text-xs text-gray-400 mb-4">ทีม: {proj.team} · {proj.role}</p>
+
+                                <div className="mb-3">
+                                    <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                                        <span>ความคืบหน้า</span>
+                                        <span className="font-bold">{proj.doneItems}/{proj.totalItems}</span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                        <div className={`${proj.progressColor} h-full rounded-full`} style={{ width: `${proj.progress}%` }} />
+                                    </div>
+                                </div>
+
+                                {proj.nextTask !== '—' && (
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-xl p-2.5 border border-gray-100">
+                                        <Clock size={12} className="text-amber-500 shrink-0" />
+                                        <span className="truncate">{proj.nextTask}</span>
+                                        <span className="text-[10px] text-gray-400 ml-auto shrink-0">{proj.nextDeadline}</span>
+                                    </div>
+                                )}
+                                {proj.status === 'ดำเนินการสำเร็จ' && (
+                                    <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
+                                        <CheckCircle2 size={12} /> <span>โครงการเสร็จสิ้นแล้ว 🎉</span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
+                                    <Trophy size={12} className="text-amber-500" />
+                                    <span className="text-xs text-gray-500">รางวัล {proj.prize}</span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Quick actions */}
