@@ -14,6 +14,13 @@ exports.getDashboardData = async (req, res) => {
     `);
     const docsCount = await pool.query('SELECT COUNT(*) FROM documents');
 
+    const budgetQuery = await pool.query('SELECT SUM(budget) as total_budget FROM events');
+    const activeEventsCount = await pool.query(`
+      SELECT COUNT(*) FROM events e
+      JOIN status_events s ON e.status_event_id = s.status_event_id
+      WHERE s.slug IN ('in_progress', 'open_registration')
+    `);
+
     const stats = {
       total_activities: parseInt(eventsCount.rows[0].count),
       registered_teams: parseInt(teamsCount.rows[0].count),
@@ -21,7 +28,8 @@ exports.getDashboardData = async (req, res) => {
       pending_tasks: parseInt(pendingTasksCount.rows[0].count),
       total_documents: parseInt(docsCount.rows[0].count),
       documents_this_month: parseInt(docsCount.rows[0].count),
-      active_activities: 0
+      active_activities: parseInt(activeEventsCount.rows[0].count),
+      total_budget: budgetQuery.rows[0].total_budget ? parseFloat(budgetQuery.rows[0].total_budget) : 0
     };
 
     const activitiesResult = await pool.query(`

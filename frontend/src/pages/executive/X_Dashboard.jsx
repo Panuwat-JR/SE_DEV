@@ -10,7 +10,9 @@ export default function X_Dashboard() {
         // Placeholder for API fetching logic
         const fetchDashboardData = async () => {
             try {
-                // To be implemented: fetch('http://localhost:5000/api/dashboard')
+                const response = await fetch('http://localhost:5000/api/dashboard-data');
+                const result = await response.json();
+                setData(result);
                 setLoading(false);
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
@@ -39,10 +41,10 @@ export default function X_Dashboard() {
             {/* KPI Cards Placeholder */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
                 {[
-                    { label: 'โครงการทั้งหมด', value: '0', sub: 'โครงการ', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-50' },
-                    { label: 'ทีมรวม', value: '0', sub: 'ทีม', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                    { label: 'งบฯ ที่ใช้', value: '0', sub: 'บาท', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { label: 'Feedback เฉลี่ย', value: '0.0', sub: '/ 5.0 ดาว', icon: Star, color: 'text-purple-600', bg: 'bg-purple-50' },
+                    { label: 'โครงการทั้งหมด', value: data?.stats?.total_activities || '0', sub: 'ชิ้นงานทั้งหมด', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-50' },
+                    { label: 'ทีมรวม', value: data?.stats?.registered_teams || '0', sub: 'ทีมที่ลงทะเบียน', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                    { label: 'งบฯ ที่ใช้', value: data?.stats?.total_budget?.toLocaleString() || '0', sub: 'บาท', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: 'Feedback', value: '-', sub: 'รอการเปิดใช้งาน', icon: Star, color: 'text-purple-600', bg: 'bg-purple-50' },
                 ].map((kpi, i) => {
                     const Icon = kpi.icon;
                     return (
