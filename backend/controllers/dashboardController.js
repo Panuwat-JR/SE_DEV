@@ -12,7 +12,7 @@ exports.getDashboardData = async (req, res) => {
       stats,
       upcomingActivities,
       recentTasks,
-      activityLogs: []
+      activityLogs: [] // Can be added later as a service method
     });
   } catch (err) {
     console.error('Dashboard Controller Error:', err.message);
