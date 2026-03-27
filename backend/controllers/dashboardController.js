@@ -15,7 +15,7 @@ exports.getDashboardData = async (req, res) => {
       activityLogs: []
     });
   } catch (err) {
-    console.error('Dashboard Controller Error:', err.message);
-    res.status(500).json({ error: 'Server Error' });
+    console.error('Dashboard Controller Error:', err);
+    res.status(500).json({ error: 'Server Error', details: err.message });
   }
 };
