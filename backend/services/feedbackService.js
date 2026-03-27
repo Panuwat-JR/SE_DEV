@@ -71,18 +71,39 @@ class FeedbackService {
       ${baseQuery}
     `;
 
+    // Special base query for breakdown to ensure we always have all projects available for the dropdown
+    let breakdownBaseQuery = `
+      FROM (
+        SELECT DISTINCT ON (f.feedback_id) f.*, e.event_id, e.academic_year, e.title
+        FROM feedbacks f
+        LEFT JOIN participants p ON f.participant_id = p.participant_id
+        LEFT JOIN participant_profiles pp ON p.participant_profile_id = pp.participant_profile_id
+        LEFT JOIN teams t ON pp.team_id = t.team_id
+        LEFT JOIN mapping_event_teams met ON t.team_id = met.team_id
+        LEFT JOIN events e ON met.event_id = e.event_id
+      ) f
+      WHERE 1=1
+    `;
+    const breakdownParams = [];
+    if (academic_year && academic_year !== 'all') {
+      breakdownParams.push(academic_year);
+      breakdownBaseQuery += ` AND (f.academic_year = $${breakdownParams.length} OR f.academic_year IS NULL)`;
+    }
+
+    // 2. Rating Breakdown by Project
     const projectBreakdownQuery = `
       SELECT 
+        f.event_id AS id,
         COALESCE(f.title, 'อื่นๆ') AS name,
         ROUND(AVG(rating), 1) AS score
-      ${baseQuery}
-      GROUP BY f.title
+      ${breakdownBaseQuery}
+      GROUP BY f.event_id, f.title
       ORDER BY score DESC
     `;
 
     const [metrics, projects] = await Promise.all([
       pool.query(metricsQuery, params),
-      pool.query(projectBreakdownQuery, params)
+      pool.query(projectBreakdownQuery, breakdownParams)
     ]);
 
     return {

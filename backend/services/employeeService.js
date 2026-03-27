@@ -34,12 +34,15 @@ class EmployeeService {
         e.title,
         COALESCE(se.name, 'ไม่ระบุ') AS status,
         COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุ') AS deadline,
-        e.current_participants,
-        e.max_participants,
+        (SELECT COUNT(*) FROM participant_profiles pp 
+         JOIN mapping_event_teams met ON pp.team_id = met.team_id 
+         WHERE met.event_id = e.event_id) AS current_participants,
+        COALESCE(l.max_participant, 100) AS max_participants,
         e.prize_pool,
         e.budget
       FROM events e
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
+      LEFT JOIN logistics l ON e.logistics_id = l.logistics_id
       ORDER BY e.event_id ASC
     `);
 
