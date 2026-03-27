@@ -3,62 +3,83 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-    INITIAL_EVENTS,
-    INITIAL_TASKS,
-    INITIAL_TEAMS,
-    INITIAL_DOCUMENTS,
-    INITIAL_EMPLOYEES,
-    INITIAL_PARTICIPANTS,
-    INITIAL_LOGS,
-} from '../data/mockData';
-
-const API_BASE = 'http://localhost:5000/api';
+    fetchDashboardData,
+    fetchActivities,
+    createActivity,
+    fetchTasks,
+    createTask,
+    fetchTeams,
+    createTeam,
+    fetchEmployees,
+    fetchDocuments,
+    createDocument,
+    deleteDocument as apiDeleteDocument,
+    fetchParticipants,
+    createParticipant,
+} from '../services/api';
 
 const AppContext = createContext(null);
 
 export const AppProvider = ({ children }) => {
-    const [events, setEvents] = useState(INITIAL_EVENTS);
-    const [tasks, setTasks] = useState(INITIAL_TASKS);
-    const [teams, setTeams] = useState(INITIAL_TEAMS);
-    const [documents, setDocuments] = useState(INITIAL_DOCUMENTS);
-    const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
-    const [participants, setParticipants] = useState(INITIAL_PARTICIPANTS);
-    const [logs, setLogs] = useState(INITIAL_LOGS);
+    const [events, setEvents] = useState([]);
+    const [tasks, setTasks] = useState([]);
+    const [teams, setTeams] = useState([]);
+    const [documents, setDocuments] = useState([]);
+    const [employees, setEmployees] = useState([]);
+    const [participants, setParticipants] = useState([]);
+    const [logs, setLogs] = useState([]);
     const [dbStats, setDbStats] = useState(null); // stats จาก DB จริง
 
-    // ========== ดึง Dashboard Data จาก Backend API ==========
+    // ========== ดึงข้อมูลทั้งหมดจาก Backend API (แทน Mock Data) ==========
     useEffect(() => {
-        fetch(`${API_BASE}/dashboard-data`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.stats) setDbStats(data.stats);
-                if (data.upcomingActivities?.length > 0) setEvents(data.upcomingActivities);
-                if (data.recentTasks?.length > 0) {
-                    const mapped = data.recentTasks.map(t => ({
-                        ...t,
-                        task_name: t.title,
-                        event: t.project_name,
-                        progress: t.progress_percent ?? 0,
-                    }));
-                    setTasks(mapped);
-                }
-                if (data.activityLogs?.length > 0) setLogs(data.activityLogs);
-            })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API ได้ ใช้ Mock Data แทน:', err.message);
-            });
+        const loadAllData = async () => {
+            try {
+                const dashboard = await fetchDashboardData();
+                if (dashboard.stats) setDbStats(dashboard.stats);
+
+                const activitiesData = await fetchActivities();
+                setEvents(activitiesData);
+
+                const tasksData = await fetchTasks();
+                setTasks(tasksData);
+
+                const teamsData = await fetchTeams();
+                setTeams(teamsData);
+
+                const employeesData = await fetchEmployees();
+                setEmployees(employeesData);
+
+                const documentsData = await fetchDocuments();
+                setDocuments(documentsData);
+
+                const participantsData = await fetchParticipants();
+                setParticipants(participantsData);
+
+            } catch (error) {
+                console.error('Failed to fetch initial data from DB:', error);
+            }
+        };
+
+        loadAllData();
     }, []);
 
     // ==================== EVENTS ====================
-    const addEvent = (data) => {
-        const newEvent = {
-            ...data,
-            id: Date.now(),
-            current_participants: 0,
-            status: data.status || 'เปิดรับสมัคร',
-        };
-        setEvents(prev => [newEvent, ...prev]);
-        _addLog('event', 'สร้างกิจกรรมใหม่', newEvent.title);
+    const addEvent = async (data) => {
+        try {
+            await createActivity(data);
+            // Fetch anew to get full generated data from DB
+            const updatedEvents = await fetchActivities();
+            setEvents(updatedEvents);
+            
+            // Reload dashboard stats
+            const dash = await fetchDashboardData();
+            if (dash.stats) setDbStats(dash.stats);
+
+            _addLog('event', 'สร้างกิจกรรมใหม่ลง Database', data.title);
+        } catch (error) {
+            console.error('Error creating event:', error);
+            alert('บันทึกกิจกรรมไม่สำเร็จ: ' + error.message);
+        }
     };
 
     const updateEvent = (id, data) => {
@@ -74,19 +95,20 @@ export const AppProvider = ({ children }) => {
     };
 
     // ==================== TASKS ====================
-    const addTask = (data) => {
-        const eventName = events.find(e => e.id === Number(data.event_id))?.title || 'ไม่ระบุกิจกรรม';
-        const newTask = {
-            ...data,
-            id: Date.now(),
-            title: data.task_name || data.title,
-            task_name: data.task_name || data.title,
-            event: eventName,
-            progress: data.status === 'เสร็จสิ้น' ? 100 : data.status === 'กำลังดำเนินการ' ? 30 : 0,
-            assignees: ['ส'],
-        };
-        setTasks(prev => [newTask, ...prev]);
-        _addLog('task', 'สร้างงานใหม่', newTask.task_name);
+    const addTask = async (data) => {
+        try {
+            await createTask(data);
+            const updatedTasks = await fetchTasks();
+            setTasks(updatedTasks);
+
+            const dash = await fetchDashboardData();
+            if (dash.stats) setDbStats(dash.stats);
+
+            _addLog('task', 'สร้างงานใหม่ลง Database', data.title || data.task_name);
+        } catch (error) {
+            console.error('Error creating task:', error);
+            alert('บันทึกงานไม่สำเร็จ: ' + error.message);
+        }
     };
 
     const updateTask = (id, data) => {
@@ -98,34 +120,53 @@ export const AppProvider = ({ children }) => {
     };
 
     // ==================== TEAMS ====================
-    const addTeam = (data) => {
-        const eventName = events.find(e => e.id === Number(data.event_id))?.title || '';
-        const newTeam = {
-            ...data,
-            id: Date.now(),
-            event: eventName,
-            memberCount: data.members?.length || 0,
-            docsCount: 0,
-            members: data.members || [],
-        };
-        setTeams(prev => [...prev, newTeam]);
-        _addLog('team', 'สร้างทีมใหม่', newTeam.name);
+    const addTeam = async (data) => {
+        try {
+            await createTeam(data);
+            const updatedTeams = await fetchTeams();
+            setTeams(updatedTeams);
+            _addLog('team', 'สร้างทีมใหม่ลง Database', data.name);
+        } catch (error) {
+            console.error('Error creating team:', error);
+            alert('สร้างทีมไม่สำเร็จ: ' + error.message);
+        }
     };
 
     // ==================== DOCUMENTS ====================
-    const addDocument = (data) => {
-        const newDoc = {
-            ...data,
-            id: Date.now(),
-            date: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }),
-            doc_status: data.doc_status || 'ร่าง',
-        };
-        setDocuments(prev => [newDoc, ...prev]);
-        _addLog('document', 'สร้างเอกสารใหม่', newDoc.name);
+    const addDocument = async (data) => {
+        try {
+            await createDocument(data);
+            const updatedDocs = await fetchDocuments();
+            setDocuments(updatedDocs);
+
+            const dash = await fetchDashboardData();
+            if (dash.stats) setDbStats(dash.stats);
+
+            _addLog('document', 'สร้างเอกสารใหม่ลง Database', data.name);
+        } catch (error) {
+            console.error('Error creating document:', error);
+            alert('สร้างเอกสารไม่สำเร็จ: ' + error.message);
+        }
     };
 
     const updateDocument = (id, data) => {
         setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...data } : d));
+    };
+
+    const removeDocument = async (id) => {
+        try {
+            await apiDeleteDocument(id);
+            const updatedDocs = await fetchDocuments();
+            setDocuments(updatedDocs);
+
+            const dash = await fetchDashboardData();
+            if (dash.stats) setDbStats(dash.stats);
+
+            _addLog('document', 'ลบเอกสาร', '');
+        } catch (error) {
+            console.error('Error deleting document:', error);
+            alert('ลบเอกสารไม่สำเร็จ: ' + error.message);
+        }
     };
 
     // ==================== EMPLOYEES ====================
@@ -150,14 +191,16 @@ export const AppProvider = ({ children }) => {
     };
 
     // ==================== PARTICIPANTS ====================
-    const addParticipant = (data) => {
-        const teamName = teams.find(t => t.id === Number(data.team_id))?.name || 'ไม่ระบุทีม';
-        const newP = {
-            ...data,
-            id: Date.now(),
-            team_name: teamName,
-        };
-        setParticipants(prev => [...prev, newP]);
+    const addParticipant = async (data) => {
+        try {
+            await createParticipant(data);
+            const updated = await fetchParticipants();
+            setParticipants(updated);
+            _addLog('participant', 'เพิ่มผู้เข้าร่วมลง Database', data.firstname);
+        } catch (error) {
+            console.error('Error creating participant:', error);
+            alert('เพิ่มผู้เข้าร่วมไม่สำเร็จ: ' + error.message);
+        }
     };
 
     const deleteParticipant = (id) => {
@@ -201,7 +244,7 @@ export const AppProvider = ({ children }) => {
             // Team ops
             addTeam,
             // Document ops
-            addDocument, updateDocument,
+            addDocument, updateDocument, removeDocument,
             // Employee ops
             addEmployee, updateEmployee, deleteEmployee,
             // Participant ops

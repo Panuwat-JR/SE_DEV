@@ -1,20 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Mail, Phone, Building2, ChevronDown, X, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { fetchFaculties, fetchMajors } from '../services/api';
 
 const Participants = () => {
   const { participants, teams, addParticipant, deleteParticipant } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [faculties, setFaculties] = useState([]);
+  const [majors, setMajors] = useState([]);
   const [formData, setFormData] = useState({
-    firstname: '', lastname: '', team_id: '', faculty: '', major: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา'
+    firstname: '', lastname: '', team_id: '', faculty_id: '', major_id: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา'
   });
+
+  useEffect(() => {
+    fetchFaculties().then(setFaculties).catch(console.error);
+    fetchMajors().then(setMajors).catch(console.error);
+  }, []);
+
+  // Filter majors by selected faculty
+  const filteredMajors = formData.faculty_id
+    ? majors.filter(m => m.faculty_id === parseInt(formData.faculty_id))
+    : [];
 
   const handleCreate = (e) => {
     e.preventDefault();
     addParticipant({ ...formData, year_of_study: Number(formData.year_of_study) });
     setIsCreateOpen(false);
-    setFormData({ firstname: '', lastname: '', team_id: '', faculty: '', major: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา' });
+    setFormData({ firstname: '', lastname: '', team_id: '', faculty_id: '', major_id: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา' });
   };
 
   const filtered = participants.filter(p => {
@@ -146,13 +159,23 @@ const Participants = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">คณะ</label>
-                  <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.faculty} onChange={(e) => setFormData({ ...formData, faculty: e.target.value })} />
+                  <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.faculty_id} onChange={(e) => setFormData({ ...formData, faculty_id: e.target.value, major_id: '' })}>
+                    <option value="">-- เลือกคณะ --</option>
+                    {faculties.map(f => <option key={f.faculty_id} value={f.faculty_id}>{f.name}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">สาขาวิชา</label>
-                  <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.major} onChange={(e) => setFormData({ ...formData, major: e.target.value })} />
+                  <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.major_id} onChange={(e) => setFormData({ ...formData, major_id: e.target.value })}
+                    disabled={!formData.faculty_id}>
+                    <option value="">-- เลือกสาขา --</option>
+                    {formData.faculty_id && filteredMajors.length === 0
+                      ? <option value="" disabled>-</option>
+                      : filteredMajors.map(m => <option key={m.major_id} value={m.major_id}>{m.name}</option>)
+                    }
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

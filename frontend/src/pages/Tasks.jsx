@@ -19,12 +19,12 @@ function Tasks() {
 
   const getStatusIcon = (status) => {
     if (status === 'รอดำเนินการ') return <Clock size={16} className="text-gray-400 mt-0.5" />;
-    if (status === 'กำลังดำเนินการ') return <AlertCircle size={16} className="text-emerald-500 mt-0.5" />;
-    return <CheckCircle2 size={16} className="text-green-500 mt-0.5" />;
+    if (status === 'กำลังดำเนินการ') return <AlertCircle size={16} className="text-yellow-500 mt-0.5" />;
+    return <CheckCircle2 size={16} className="text-emerald-500 mt-0.5" />;
   };
 
   const columns = ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น'];
-  const colors = ['bg-amber-400', 'bg-emerald-500', 'bg-green-500'];
+  const colors = ['bg-gray-400', 'bg-yellow-500', 'bg-emerald-500'];
 
   return (
     <div className="relative h-full flex flex-col">
@@ -79,59 +79,57 @@ function Tasks() {
                     <File size={18} className="text-blue-500" /> รายละเอียดงาน
                   </h3>
                   <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 leading-relaxed border border-gray-100">
-                    <p>จำลองคำอธิบายของงานนี้: นี่คือรายละเอียดของงานที่คุณต้องทำให้เสร็จสิ้นเพื่อบรรลุเป้าหมายของกิจกรรม การมีรายละเอียดที่ชัดเจนจะช่วยให้ทีมของคุณมีทิศทางในการทำงานร่วมกัน</p>
-                    <ul className="list-disc ml-5 mt-2 space-y-1">
-                      <li>ประสานงานกับผู้ที่เกี่ยวข้องเพื่อรวบรวมข้อมูล</li>
-                      <li>ตรวจสอบความถูกต้องก่อนเริ่มดำเนินการจริง</li>
-                    </ul>
+                    {selectedTask.description ? (
+                      <p>{selectedTask.description}</p>
+                    ) : (
+                      <p className="text-gray-400 italic">ยังไม่มีรายละเอียดของงานนี้</p>
+                    )}
                   </div>
                 </div>
 
-                {/* Subtasks */}
+                {/* Progress Info */}
                 <div className="mb-8">
                   <div className="flex justify-between items-center mb-3">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                      <CheckCircle2 size={18} className="text-emerald-500" /> สิ่งที่ต้องทำ (Subtasks)
+                      <CheckCircle2 size={18} className="text-emerald-500" /> ความคืบหน้า
                     </h3>
-                    <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{selectedTask.progress === 100 ? 'เสร็จสิ้นครบถ้วน' : 'กำลังดำเนินการ'}</span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${selectedTask.progress === 100 ? 'bg-emerald-100 text-emerald-700' : selectedTask.progress > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {selectedTask.progress === 100 ? 'เสร็จสิ้นครบถ้วน' : selectedTask.progress > 0 ? 'กำลังดำเนินการ' : 'ยังไม่เริ่ม'}
+                    </span>
                   </div>
-                  <div className="space-y-2">
-                    {[
-                      { id: 1, text: 'ศึกษาความต้องการเบื้องต้นจากหัวหน้างาน', done: selectedTask.progress > 0 },
-                      { id: 2, text: 'ประชุมชี้แจงทีมงานที่รับผิดชอบและแบ่งงาน', done: selectedTask.progress >= 50 },
-                      { id: 3, text: 'ลงมือปฏิบัติตามแผนและสรุปผลรายวัน', done: selectedTask.progress === 100 },
-                    ].map(st => (
-                      <div key={st.id} className="flex items-start gap-3 p-3.5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors group cursor-pointer">
-                        <input type="checkbox" defaultChecked={st.done} className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                        <span className={`text-sm ${st.done ? 'text-gray-400 line-through' : 'text-gray-700 font-medium'}`}>{st.text}</span>
-                      </div>
-                    ))}
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className="flex justify-between text-sm text-gray-600 mb-2">
+                      <span>ความคืบหน้าโดยรวม</span>
+                      <span className="font-bold text-gray-800">{selectedTask.progress || 0}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div className={`h-3 rounded-full transition-all ${selectedTask.progress === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} style={{ width: `${selectedTask.progress || 0}%` }}></div>
+                    </div>
+                    {selectedTask.due_date && (
+                      <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
+                        <Calendar size={12} /> กำหนดส่ง: {selectedTask.due_date}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Attachments */}
+                {/* Event Info */}
                 <div>
                   <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <Upload size={18} className="text-amber-500" /> ไฟล์แนบ
+                    <Upload size={18} className="text-amber-500" /> ข้อมูลเพิ่มเติม
                   </h3>
-                  <div className="flex gap-3">
-                    <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white shadow-sm hover:border-blue-300 hover:shadow-md cursor-pointer group transition-all">
-                      <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-500 group-hover:bg-red-100 transition-colors">
-                        <File size={20} />
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="text-sm font-semibold text-gray-700 truncate pr-4">รายละเอียดเบื้องต้น.pdf</p>
-                        <p className="text-xs text-gray-400">1.2 MB</p>
-                      </div>
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">กิจกรรม</span>
+                      <span className="font-semibold text-gray-700">{selectedTask.event || '-'}</span>
                     </div>
-                    <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white shadow-sm hover:border-blue-300 hover:shadow-md cursor-pointer group transition-all">
-                      <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600 group-hover:bg-green-100 transition-colors">
-                        <File size={20} />
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="text-sm font-semibold text-gray-700 truncate pr-4">ข้อมูลสรุปจากที่ประชุม.xlsx</p>
-                        <p className="text-xs text-gray-400">345 KB</p>
-                      </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">หมวดหมู่</span>
+                      <span className="font-semibold text-gray-700">{selectedTask.category || 'ทั่วไป'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">วันที่ครบกำหนด</span>
+                      <span className="font-semibold text-gray-700">{selectedTask.date || '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -144,8 +142,8 @@ function Tasks() {
                   <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">สถานะการส่งงาน</p>
                     <div className="flex justify-center items-center py-1.5 rounded-lg border bg-white shadow-sm overflow-hidden text-sm">
-                      <span className={`w-full text-center font-bold px-3 py-1.5 ${selectedTask.status === 'รอดำเนินการ' ? 'text-amber-700 bg-amber-50' :
-                        selectedTask.status === 'กำลังดำเนินการ' ? 'text-emerald-700 bg-emerald-50' : 'text-green-700 bg-green-50'
+                      <span className={`w-full text-center font-bold px-3 py-1.5 ${selectedTask.status === 'รอดำเนินการ' ? 'text-gray-700 bg-gray-100' :
+                        selectedTask.status === 'กำลังดำเนินการ' ? 'text-yellow-700 bg-yellow-50' : 'text-emerald-700 bg-emerald-50'
                         }`}>
                         {selectedTask.status}
                       </span>
@@ -191,15 +189,9 @@ function Tasks() {
                       {selectedTask.assignees && selectedTask.assignees.length > 0 ? selectedTask.assignees.map((name, idx) => (
                         <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 hover:bg-white border border-transparent hover:border-blue-200 rounded-xl group transition-all cursor-pointer shadow-sm">
                           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">{name.charAt(0)}</div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-700">{name} (จำลอง)</span>
-                            <span className="text-[10px] text-gray-400">เจ้าหน้าที่ประสานงาน</span>
-                          </div>
+                          <span className="text-sm font-medium text-gray-700">{name}</span>
                         </div>
-                      )) : <span className="text-sm text-gray-500">ยังไม่มีผู้รับผิดชอบ</span>}
-                      <button className="flex items-center gap-2 justify-center w-full mt-2 p-2 rounded-xl border border-dashed border-gray-300 text-gray-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                        <Plus size={16} /> <span className="text-sm font-semibold">เพิ่มสมาชิก</span>
-                      </button>
+                      )) : <span className="text-sm text-gray-400 italic">ยังไม่มีผู้รับผิดชอบ</span>}
                     </div>
                   </div>
 
@@ -316,45 +308,53 @@ function Tasks() {
 }
 
 function TaskCard({ task, getStatusIcon, onClick }) {
+  const isPending = task.status === 'รอดำเนินการ';
+  const isDoing = task.status === 'กำลังดำเนินการ';
+  const headerBgClass = isPending ? 'bg-gray-100/80 border-gray-200' :
+                        isDoing ? 'bg-yellow-50 border-yellow-100' :
+                        'bg-emerald-50 border-emerald-100';
+
   return (
     <div
       onClick={onClick}
-      className="block bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition-all duration-300 group relative cursor-pointer"
+      className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition-all duration-300 group relative cursor-pointer overflow-hidden"
     >
-      <div className="flex items-start gap-2 mb-1">
-        {getStatusIcon(task.status)}
-        <h3 className="font-semibold text-sm text-gray-800 leading-tight group-hover:text-blue-600 transition-colors">{task.task_name || task.title}</h3>
+      <div className={`p-4 pb-3 border-b ${headerBgClass}`}>
+        <div className="flex items-start gap-2 mb-1">
+          {getStatusIcon(task.status)}
+          <h3 className="font-semibold text-sm text-gray-800 leading-tight group-hover:text-blue-600 transition-colors">{task.task_name || task.title}</h3>
+        </div>
+        <p className="text-xs text-gray-500 ml-6 line-clamp-1">{task.event}</p>
       </div>
-      <p className="text-xs text-gray-500 ml-6 mb-4 line-clamp-1">{task.event}</p>
-      <div className="mb-4">
-        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-          <span>ความคืบหน้า</span>
-          <span className="font-medium text-gray-700">{task.progress}%</span>
+      
+      <div className="p-4 pt-3">
+        <div className="mb-4">
+          <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+            <span>ความคืบหน้า</span>
+            <span className="font-medium text-gray-700">{task.progress}%</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-1.5">
+            <div className={`h-1.5 rounded-full ${task.progress === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} style={{ width: `${task.progress}%` }}></div>
+          </div>
         </div>
-        <div className="w-full bg-gray-100 rounded-full h-1.5">
-          <div className={`h-1.5 rounded-full ${task.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${task.progress}%` }}></div>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex gap-1.5">
+            <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${task.priority === 'สูง' ? 'text-red-600 bg-red-50' : 'text-gray-500 bg-gray-50'}`}>{task.priority}</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Calendar size={12} /> {task.date}
+          </div>
+        </div>
+        <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+          <span className="text-[10px] font-semibold text-gray-600 border border-gray-200 px-2.5 py-1 rounded-full">{task.category}</span>
+          <div className="flex -space-x-1">
+            {task.assignees?.map((name, idx) => (
+              <div key={idx} className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm">{name}</div>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex gap-1.5">
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${task.status === 'รอดำเนินการ' ? 'bg-amber-100 text-amber-700' :
-            task.status === 'กำลังดำเนินการ' ? 'bg-emerald-100 text-emerald-700' : 'bg-green-100 text-green-700'
-            }`}>{task.status}</span>
-          <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${task.priority === 'สูง' ? 'text-red-600' : 'text-gray-500'}`}>{task.priority}</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
-          <Calendar size={12} /> {task.date}
-        </div>
-      </div>
-      <div className="flex justify-between items-center pt-3 border-t border-gray-50">
-        <span className="text-[10px] font-semibold text-gray-600 border border-gray-200 px-2.5 py-1 rounded-full">{task.category}</span>
-        <div className="flex -space-x-1">
-          {task.assignees?.map((name, idx) => (
-            <div key={idx} className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm">{name}</div>
-          ))}
-        </div>
-      </div>
-      <div className="absolute top-4 right-4 text-[10px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-bold bg-blue-50 px-2 py-1 rounded-md">ดูรายละเอียด &rarr;</div>
+      <div className="absolute top-4 right-4 text-[10px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-bold bg-white/80 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm border border-blue-100">ดูรายละเอียด &rarr;</div>
     </div>
   );
 }

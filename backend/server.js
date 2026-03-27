@@ -13,6 +13,8 @@ const activityRoutes = require('./routes/activityRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const teamRoutes = require('./routes/teamRoutes');
 const participantRoutes = require('./routes/participantRoutes');
+const employeeRoutes = require('./routes/employeeRoutes');
+const documentRoutes = require('./routes/documentRoutes');
 
 // เสียบปลั๊ก Routes เข้ากับเส้นทางหลัก
 app.use('/api/dashboard-data', dashboardRoutes);
@@ -21,6 +23,8 @@ app.use('/api/events', activityRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/participants-data', participantRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/documents', documentRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

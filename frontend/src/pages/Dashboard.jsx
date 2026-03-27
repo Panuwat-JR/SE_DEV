@@ -105,9 +105,12 @@ function Dashboard() {
                   <div>
                     <div className="flex justify-between items-start mb-3">
                       <h3 className="font-semibold text-sm text-gray-800 line-clamp-1 w-3/4">{activity.title}</h3>
-                      <span className={`text-[10px] px-2 py-1 rounded-full font-bold whitespace-nowrap ${activity.status === 'กำลังดำเนินการ' ? 'bg-emerald-100 text-emerald-700' :
+                      <span className={`text-[10px] px-2 py-1 rounded-full font-bold whitespace-nowrap ${
+                          activity.status === 'กำลังดำเนินการ' ? 'bg-yellow-100 text-yellow-700' :
                           activity.status === 'เปิดรับสมัคร' ? 'bg-blue-100 text-blue-700' :
-                            activity.status === 'ดำเนินการสำเร็จ' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'
+                          activity.status === 'ดำเนินการสำเร็จ' ? 'bg-emerald-100 text-emerald-700' :
+                          activity.status === 'วางแผน' ? 'bg-purple-100 text-purple-700' :
+                          'bg-gray-100 text-gray-600'
                         }`}>{activity.status}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500 mb-3"><Clock size={14} /> {activity.date_text}</div>

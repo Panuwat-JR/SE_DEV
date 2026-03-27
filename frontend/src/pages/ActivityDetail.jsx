@@ -46,10 +46,12 @@ const ActivityDetail = () => {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-gray-900">{activity.title}</h1>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${activity.status === 'กำลังดำเนินการ' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                  activity.status === 'กำลังดำเนินการ' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
                   activity.status === 'เปิดรับสมัคร' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                    activity.status === 'ดำเนินการสำเร็จ' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                      'bg-amber-100 text-amber-700 border-amber-200'
+                  activity.status === 'ดำเนินการสำเร็จ' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                  activity.status === 'วางแผน' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                  'bg-gray-100 text-gray-700 border-gray-200'
                 }`}>{activity.status}</span>
             </div>
             {activity.location && <p className="text-gray-500 flex items-center gap-2"><MapPin size={16} /> {activity.location}</p>}
@@ -128,9 +130,10 @@ const ActivityDetail = () => {
                 {relatedTasks.map(task => (
                   <Link to={`/tasks/${task.id}`} key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm hover:bg-blue-50 transition-colors">
                     <span className="text-gray-700 font-medium">{task.task_name || task.title}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${task.status === 'เสร็จสิ้น' ? 'bg-green-100 text-green-700' :
-                        task.status === 'กำลังดำเนินการ' ? 'bg-emerald-100 text-emerald-700' :
-                          'bg-amber-100 text-amber-700'
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                        task.status === 'เสร็จสิ้น' ? 'bg-emerald-100 text-emerald-700' :
+                        task.status === 'กำลังดำเนินการ' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
                       }`}>{task.status}</span>
                   </Link>
                 ))}

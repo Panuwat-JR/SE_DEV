@@ -36,28 +36,28 @@ const Employees = () => {
           <h1 className="text-2xl font-bold text-gray-900">พนักงาน</h1>
           <p className="text-gray-500 text-sm mt-1">จัดการข้อมูลพนักงานและสิทธิ์การเข้าถึง</p>
         </div>
-        <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-all font-semibold shadow-lg shadow-blue-600/20">
+        <button onClick={() => setIsCreateOpen(true)} className="bg-gray-900 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-black transition-all font-semibold">
           <Plus size={18} /> <span>เพิ่มพนักงาน</span>
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 shrink-0">
         {stats.map((stat) => (
-          <div key={stat.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-center">
+          <div key={stat.id} className="bg-white p-6 rounded-2xl border border-gray-100 flex flex-col justify-center">
             <div className={`text-4xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">{stat.title}</div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
+      <div className="bg-white rounded-2xl border border-gray-100 flex-1 flex flex-col overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-transparent shrink-0">
           <div className="relative w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input type="text" placeholder="ค้นหาพนักงาน..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+            <input type="text" placeholder="ค้นหาพนักงาน..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 bg-gray-50 hover:bg-white text-sm transition-colors"
               value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium">
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors">
             <Filter size={16} /> กรองข้อมูล
           </button>
         </div>
@@ -102,9 +102,9 @@ const Employees = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-xs font-bold">
-                      <Circle size={10} fill={emp.online_status === 'online' ? '#10b981' : '#9ca3af'} className={emp.online_status === 'online' ? 'text-emerald-500' : 'text-gray-400'} />
-                      <span className={emp.online_status === 'online' ? 'text-emerald-600' : 'text-gray-500'}>
+                    <div className="flex items-center gap-2 text-xs font-semibold">
+                      <div className={`w-2 h-2 rounded-full ${emp.online_status === 'online' ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                      <span className={emp.online_status === 'online' ? 'text-gray-900' : 'text-gray-500'}>
                         {emp.online_status === 'online' ? 'ออนไลน์' : 'ออฟไลน์'}
                       </span>
                     </div>
@@ -124,8 +124,8 @@ const Employees = () => {
 
       {/* Contact Modal */}
       {isContactModalOpen && selectedEmp && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-[400px] shadow-2xl overflow-hidden p-7 relative">
+        <div className="fixed inset-0 bg-gray-900/20 flex items-center justify-center z-50 backdrop-blur-[2px]">
+          <div className="bg-white rounded-3xl w-[400px] shadow-xl border border-gray-100 overflow-hidden p-7 relative">
             <button onClick={() => setIsContactModalOpen(false)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 p-1.5 rounded-full">
               <X size={20} />
             </button>
@@ -166,8 +166,8 @@ const Employees = () => {
 
       {/* Create Employee Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-[480px] shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-gray-900/20 flex items-center justify-center z-50 backdrop-blur-[2px]">
+          <div className="bg-white rounded-3xl w-[480px] shadow-xl border border-gray-100 overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800">เพิ่มพนักงาน</h2>
               <button onClick={() => setIsCreateOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>

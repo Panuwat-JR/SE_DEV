@@ -1,7 +1,8 @@
 // pages/employee/E_Documents.jsx
-// เอกสารพร้อม Template ต้นแบบ
+// เอกสารพร้อม Template ต้นแบบ — เชื่อมข้อมูลจาก Supabase
 import React, { useState } from 'react';
 import { FileText, Plus, Download, Eye, Trash2, X, ChevronRight, File, ArrowLeft, Send, CheckCircle2, Calendar, LayoutTemplate, PenTool, Hash, Info, MapPin, Type, CaseSensitive } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 const TEMPLATES = [
     { id: 'budget', name: 'ใบเบิกงบประมาณ', desc: 'แบบฟอร์มขออนุมัติเบิกจ่ายค่าใช้จ่ายโครงการ', icon: '💰', color: 'bg-amber-50 border-amber-200 text-amber-700' },
@@ -46,20 +47,15 @@ const TEMPLATE_FORMS = {
     ],
 };
 
-const INIT_DOCS = [
-    { id: 1, name: 'ใบเบิกค่าเดินทาง_ELP.pdf', project: 'ELP Batch 5', status: 'อนุมัติแล้ว', template: 'budget', date: '20 ก.พ. 2569' },
-    { id: 2, name: 'ขอใช้ห้องประชุม_Demo.docx', project: 'NU Startup Demo Day', status: 'รอการดำเนินการ', template: 'venue', date: '25 ก.พ. 2569' },
-    { id: 3, name: 'รายงานสรุป_Innovation2026.pdf', project: 'Innovation Challenge 2026', status: 'อนุมัติแล้ว', template: 'summary', date: '10 ก.พ. 2569' },
-];
-
 const STATUS_COLOR = {
-    'อนุมัติแล้ว': 'bg-emerald-100 text-emerald-700',
-    'รอการดำเนินการ': 'bg-amber-100 text-amber-700',
-    'ร่าง': 'bg-gray-100 text-gray-500',
+    'อนุมัติแล้ว': 'text-emerald-500 bg-emerald-500',
+    'รอตรวจสอบ': 'text-amber-500 bg-amber-500',
+    'รอการดำเนินการ': 'text-amber-500 bg-amber-500',
+    'ร่าง': 'text-gray-400 bg-gray-400',
 };
 
 export default function E_Documents() {
-    const [docs, setDocs] = useState(INIT_DOCS);
+    const { documents, addDocument, removeDocument } = useApp();
     const [activeTab, setActiveTab] = useState('docs');
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [formValues, setFormValues] = useState({});
@@ -69,15 +65,15 @@ export default function E_Documents() {
     const [selectedFont, setSelectedFont] = useState('Sarabun');
     const [selectedSize, setSelectedSize] = useState('16');
 
-    const handleCreateFromTemplate = (e) => {
+    const handleCreateFromTemplate = async (e) => {
         e.preventDefault();
         const tpl = TEMPLATES.find(t => t.id === selectedTemplate);
-        setDocs(prev => [...prev, {
-            id: Date.now(),
-            name: `${tpl.name}_${new Date().toLocaleDateString('th')}.pdf`,
-            project: formValues['ชื่อโครงการ'] || formValues['ชื่อกิจกรรม'] || 'ไม่ระบุ',
-            status: 'ร่าง', template: selectedTemplate, date: 'วันนี้',
-        }]);
+        const docName = `${tpl.name}_${new Date().toLocaleDateString('th')}.pdf`;
+        await addDocument({
+            name: docName,
+            file_type: 'pdf',
+            doc_metadata: JSON.stringify(formValues),
+        });
         setCreated(true);
         setTimeout(() => { setCreated(false); setSelectedTemplate(null); setFormValues({}); setActiveTab('docs'); }, 2000);
     };
@@ -102,48 +98,54 @@ export default function E_Documents() {
             </div>
 
             {activeTab === 'docs' && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden text-sm">
                     <div className="flex justify-between items-center p-5 border-b border-gray-100">
-                        <span className="font-bold text-gray-900">เอกสาร ({docs.length})</span>
-                        <button onClick={() => setActiveTab('templates')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700">
+                        <span className="font-bold text-gray-900">เอกสาร ({documents.length})</span>
+                        <button onClick={() => setActiveTab('templates')} className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors">
                             <Plus size={16} /> สร้างจาก Template
                         </button>
                     </div>
-                    <table className="w-full text-sm">
+                    <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold border-b border-gray-100">
-                                <th className="px-5 py-3 text-left">ชื่อเอกสาร</th>
-                                <th className="px-5 py-3 text-left">โครงการ</th>
-                                <th className="px-5 py-3">สถานะ</th>
-                                <th className="px-5 py-3">วันที่</th>
-                                <th className="px-5 py-3 text-center">จัดการ</th>
+                            <tr className="bg-gray-50/50 text-gray-500 text-xs uppercase font-bold tracking-wider border-b border-gray-100">
+                                <th className="px-5 py-4">ชื่อเอกสาร</th>
+                                <th className="px-5 py-4">โครงการ</th>
+                                <th className="px-5 py-4 text-center">สถานะ</th>
+                                <th className="px-5 py-4 text-center">วันที่</th>
+                                <th className="px-5 py-4 text-center">จัดการ</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {docs.map(doc => (
-                                <tr key={doc.id} className="hover:bg-gray-50/30 transition-colors">
+                        <tbody className="divide-y divide-gray-50 text-gray-700">
+                            {documents.map(doc => {
+                                const statusStyle = STATUS_COLOR[doc.status] || 'text-gray-400 bg-gray-400';
+                                return (
+                                <tr key={doc.id} className="hover:bg-gray-50/50 transition-colors group">
                                     <td className="px-5 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-                                                <FileText size={15} />
+                                            <div className="text-gray-400 group-hover:text-blue-500 transition-colors">
+                                                <FileText size={16} />
                                             </div>
-                                            <div className="font-semibold text-gray-800 text-sm">{doc.name}</div>
+                                            <div className="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">{doc.name}</div>
                                         </div>
                                     </td>
-                                    <td className="px-5 py-4 text-xs text-gray-500">{doc.project}</td>
-                                    <td className="px-5 py-4 text-center">
-                                        <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${STATUS_COLOR[doc.status]}`}>{doc.status}</span>
+                                    <td className="px-5 py-4 text-xs font-medium text-gray-600">{doc.project}</td>
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center justify-center gap-1.5 font-bold text-[10px] tracking-wider uppercase">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${statusStyle.split(' ')[1]}`} />
+                                            <span className="text-gray-700">{doc.status}</span>
+                                        </div>
                                     </td>
-                                    <td className="px-5 py-4 text-xs text-center text-gray-400">{doc.date}</td>
+                                    <td className="px-5 py-4 text-xs text-center font-medium text-gray-500">{doc.date}</td>
                                     <td className="px-5 py-4">
                                         <div className="flex items-center justify-center gap-1.5">
-                                            <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye size={15} /></button>
-                                            <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={15} /></button>
-                                            <button onClick={() => setDocs(p => p.filter(d => d.id !== doc.id))} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={15} /></button>
+                                            <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye size={16} /></button>
+                                            <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={16} /></button>
+                                            <button onClick={() => removeDocument(doc.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -158,18 +160,17 @@ export default function E_Documents() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {TEMPLATES.map(tpl => (
                             <button key={tpl.id} onClick={() => setSelectedTemplate(tpl.id)}
-                                className="text-left p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 bg-white transition-all group relative overflow-hidden flex flex-col h-full">
-                                <div className={`absolute top-0 right-0 w-32 h-32 rounded-bl-full -mr-16 -mt-16 transition-transform duration-500 group-hover:scale-110 opacity-30 ${tpl.color.split(' ')[0]}`}></div>
-
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-5 shadow-sm bg-white border ${tpl.color.split(' ')[1]}`}>
-                                    {tpl.icon}
+                                className="text-left p-6 rounded-2xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50/20 bg-white transition-all group flex flex-col h-full">
+                                <div className={`flex items-center gap-4 mb-3`}>
+                                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl border ${tpl.color.split(' ')[1]} bg-white shadow-sm`}>
+                                       {tpl.icon}
+                                   </div>
+                                   <h3 className="font-bold text-gray-900 text-base">{tpl.name}</h3>
                                 </div>
+                                <p className="text-sm text-gray-500 mb-6 flex-1 text-balance">{tpl.desc}</p>
 
-                                <h3 className="font-bold text-gray-900 mb-2 truncate relative z-10 text-lg">{tpl.name}</h3>
-                                <p className="text-sm text-gray-500 mb-6 flex-1 relative z-10 leading-loose max-w-[90%]">{tpl.desc}</p>
-
-                                <div className={`inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl mt-auto w-fit transition-all border ${tpl.color}`}>
-                                    ใช้แม่แบบนี้ <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                <div className={`inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 mt-auto w-fit opacity-0 group-hover:opacity-100 transition-opacity`}>
+                                    สร้างเอกสาร <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                                 </div>
                             </button>
                         ))}
@@ -185,27 +186,22 @@ export default function E_Documents() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                         {/* Form Section */}
-                        <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 p-8 relative overflow-hidden">
-                            {/* Decorative Background */}
-                            <div className="absolute -top-10 -right-10 p-8 opacity-[0.03] pointer-events-none rotate-12">
-                                <LayoutTemplate size={200} />
-                            </div>
-
+                        <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 p-8">
                             <div className="relative z-10">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center border ${TEMPLATES.find(t => t.id === selectedTemplate)?.color}`}>
-                                            <span className="text-3xl">{TEMPLATES.find(t => t.id === selectedTemplate)?.icon}</span>
+                                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center border bg-white shadow-sm ${TEMPLATES.find(t => t.id === selectedTemplate)?.color.split(' ')[1]}`}>
+                                            <span className="text-2xl">{TEMPLATES.find(t => t.id === selectedTemplate)?.icon}</span>
                                         </div>
                                         <div>
-                                            <h2 className="text-2xl font-bold text-gray-900">{TEMPLATES.find(t => t.id === selectedTemplate)?.name}</h2>
-                                            <p className="text-sm text-gray-500 mt-1">{TEMPLATES.find(t => t.id === selectedTemplate)?.desc}</p>
+                                            <h2 className="text-xl font-bold text-gray-900">{TEMPLATES.find(t => t.id === selectedTemplate)?.name}</h2>
+                                            <p className="text-sm text-gray-500 mt-0.5">{TEMPLATES.find(t => t.id === selectedTemplate)?.desc}</p>
                                         </div>
                                     </div>
 
                                     {/* Document Settings */}
-                                    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-100 self-start sm:self-auto">
-                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                    <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-gray-100 self-start sm:self-auto">
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg">
                                             <Type size={14} className="text-gray-400" />
                                             <select
                                                 className="text-xs font-medium text-gray-700 outline-none bg-transparent cursor-pointer w-20"
@@ -291,15 +287,15 @@ export default function E_Documents() {
 
                         {/* Preview Section */}
                         <div className="lg:col-span-2 hidden lg:flex flex-col">
-                            <div className="flex-1 bg-gray-100/70 rounded-3xl border border-gray-200 p-6 flex flex-col items-center justify-center relative shadow-inner overflow-hidden">
+                            <div className="flex-1 rounded-2xl border border-gray-100 bg-gray-50 p-6 flex flex-col items-center justify-center relative shadow-inner overflow-hidden">
                                 <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm text-[10px] font-bold text-gray-500 px-3 py-1.5 rounded-full border border-gray-200 flex items-center gap-1.5 shadow-sm">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                                    LIVE PREVIEW
+                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                                    PREVIEW
                                 </div>
-                                <div className="w-[85%] aspect-[1/1.4] bg-white shadow-xl border border-gray-100 p-7 flex flex-col gap-5 mx-auto rounded-sm transform rotate-2 hover:rotate-0 transition-all duration-500 group">
+                                <div className="w-[85%] aspect-[1/1.4] bg-white shadow-sm border border-gray-200 p-8 flex flex-col gap-5 mx-auto rounded-sm group">
                                     <div className="w-1/3 h-2.5 bg-gray-200 rounded-full mx-auto mb-2 group-hover:bg-gray-300 transition-colors"></div>
-                                    <div className="w-3/4 h-5 bg-blue-50/80 rounded-full mb-4 relative overflow-hidden">
-                                        <div className="absolute inset-y-0 left-0 bg-blue-100 transition-all duration-500" style={{ width: (Object.values(formValues).filter(Boolean).length / (TEMPLATE_FORMS[selectedTemplate]?.length || 1)) * 100 + '%' }}></div>
+                                    <div className="w-3/4 h-5 bg-blue-50/50 rounded-full mb-4 relative overflow-hidden">
+                                        <div className="absolute inset-y-0 left-0 bg-blue-200 transition-all duration-500" style={{ width: (Object.values(formValues).filter(Boolean).length / (TEMPLATE_FORMS[selectedTemplate]?.length || 1)) * 100 + '%' }}></div>
                                     </div>
 
                                     {(TEMPLATE_FORMS[selectedTemplate] || []).map((field, i) => (
@@ -317,9 +313,9 @@ export default function E_Documents() {
                                         </div>
                                     ))}
 
-                                    <div className="mt-auto flex justify-between items-end pt-8 opacity-60">
-                                        <div className="w-16 h-16 bg-red-50 rounded-full border-2 border-red-200 flex items-center justify-center -rotate-12 group-hover:rotate-0 transition-transform">
-                                            <div className="w-10 h-1.5 bg-red-200 rounded-full"></div>
+                                    <div className="mt-auto flex justify-between items-end pt-8 opacity-40">
+                                        <div className="w-12 h-12 bg-gray-50 rounded-full border border-gray-200 flex items-center justify-center">
+                                            <div className="w-6 h-1 bg-gray-200 rounded-full"></div>
                                         </div>
                                         <div className="flex flex-col gap-1.5 items-center">
                                             <div className="w-24 h-0.5 bg-gray-300"></div>

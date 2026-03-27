@@ -3,22 +3,47 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, CheckCircle2, AlertCircle, Clock, TrendingUp, Users, FileText, ChevronRight, Calendar } from 'lucide-react';
 
-const PROJECTS = [
-    { id: 1, title: 'Startup Thailand League 2026', status: 'กำลังดำเนินการ', statusColor: 'bg-emerald-100 text-emerald-700', teams: 12, participants: 48, tasks: 8, tasksDone: 5, issues: 1, deadline: '30 มี.ค. 2569', progress: 65 },
-    { id: 2, title: 'ELP Batch 5 — Naresuan', status: 'เปิดรับสมัคร', statusColor: 'bg-blue-100 text-blue-700', teams: 6, participants: 32, tasks: 5, tasksDone: 1, issues: 0, deadline: '5 เม.ย. 2569', progress: 20 },
-    { id: 3, title: 'Innovation Challenge 2026', status: 'ดำเนินการสำเร็จ', statusColor: 'bg-gray-100 text-gray-600', teams: 8, participants: 36, tasks: 6, tasksDone: 6, issues: 0, deadline: 'เสร็จสิ้น', progress: 100 },
-    { id: 4, title: 'NU Hackathon 48hrs', status: 'วางแผน', statusColor: 'bg-purple-100 text-purple-700', teams: 0, participants: 0, tasks: 3, tasksDone: 0, issues: 0, deadline: '20 พ.ค. 2569', progress: 5 },
-    { id: 5, title: 'Pitching Bootcamp', status: 'วางแผน', statusColor: 'bg-purple-100 text-purple-700', teams: 0, participants: 0, tasks: 4, tasksDone: 0, issues: 0, deadline: '15 เม.ย. 2569', progress: 10 },
-    { id: 6, title: 'NU Startup Demo Day', status: 'เปิดรับสมัคร', statusColor: 'bg-blue-100 text-blue-700', teams: 3, participants: 15, tasks: 5, tasksDone: 2, issues: 1, deadline: '10 มิ.ย. 2569', progress: 35 },
-];
-
-const URGENT_TASKS = [
-    { id: 1, name: 'อนุมัติเอกสาร Pitch Deck ทีม GreenBridge', project: 'Startup Thailand', priority: 'สูง', deadline: 'วันนี้' },
-    { id: 2, name: 'ยืนยันสถานที่จัดงาน Demo Day', project: 'NU Startup Demo Day', priority: 'สูง', deadline: 'พรุ่งนี้' },
-    { id: 3, name: 'จัดทำเอกสารเบิกค่าสถานที่', project: 'ELP Batch 5', priority: 'ปานกลาง', deadline: '15 มี.ค.' },
-];
+import { useApp } from '../../context/AppContext';
 
 export default function E_Dashboard() {
+    const { events, tasks } = useApp();
+
+    const PROJECTS = events.map(e => {
+        const eventTasks = tasks.filter(t => t.event_id === e.id);
+        const tasksCount = eventTasks.length;
+        const tasksDoneCount = eventTasks.filter(t => t.status === 'เสร็จสิ้น').length;
+        const progress = tasksCount > 0 ? Math.round((tasksDoneCount / tasksCount) * 100) : 0;
+        
+        return {
+            id: e.id,
+            title: e.title,
+            status: e.status,
+            statusColor: 
+                e.status === 'กำลังดำเนินการ' ? 'yellow' : 
+                e.status === 'เปิดรับสมัคร' ? 'blue' : 
+                e.status === 'ดำเนินการสำเร็จ' || e.status === 'เสร็จสิ้น' ? 'emerald' : 
+                e.status === 'วางแผน' ? 'purple' : 'gray',
+            teams: e.current_participants || 0,
+            participants: e.current_participants || 0,
+            tasks: tasksCount,
+            tasksDone: tasksDoneCount,
+            issues: 0, // ปัญหายังไม่มี field ใน DB
+            deadline: e.event_end || 'ไม่ระบุ',
+            progress: progress,
+        };
+    });
+
+    const URGENT_TASKS = tasks
+        .filter(t => t.priority === 'สูง' || t.priority === 'ด่วนมาก')
+        .slice(0, 5)
+        .map(t => ({
+            id: t.id,
+            name: t.title || t.task_name,
+            project: t.event,
+            priority: t.priority,
+            deadline: t.due_date || t.date || 'วันนี้'
+        }));
+
     const totalProjects = PROJECTS.length;
     const activeProjects = PROJECTS.filter(p => p.status === 'กำลังดำเนินการ').length;
     const totalParticipants = PROJECTS.reduce((s, p) => s + p.participants, 0);
@@ -35,26 +60,30 @@ export default function E_Dashboard() {
             {/* KPI */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                 {[
-                    { label: 'โครงการทั้งหมด', value: totalProjects, icon: Activity, color: 'bg-blue-50 text-blue-600', numColor: 'text-blue-700' },
-                    { label: 'กำลังดำเนินการ', value: activeProjects, icon: TrendingUp, color: 'bg-emerald-50 text-emerald-600', numColor: 'text-emerald-700' },
-                    { label: 'ผู้เข้าร่วมรวม', value: totalParticipants, icon: Users, color: 'bg-purple-50 text-purple-600', numColor: 'text-purple-700' },
-                    { label: 'ปัญหาที่รอแก้', value: totalIssues, icon: AlertCircle, color: 'bg-red-50 text-red-600', numColor: 'text-red-600' },
+                    { label: 'โครงการทั้งหมด', value: totalProjects, icon: Activity, color: 'text-blue-600', bgColor: 'bg-blue-50/50 hover:bg-blue-50', borderColor: 'border-blue-100' },
+                    { label: 'กำลังดำเนินการ', value: activeProjects, icon: TrendingUp, color: 'text-emerald-600', bgColor: 'bg-emerald-50/50 hover:bg-emerald-50', borderColor: 'border-emerald-100' },
+                    { label: 'ผู้เข้าร่วมรวม', value: totalParticipants, icon: Users, color: 'text-purple-600', bgColor: 'bg-purple-50/50 hover:bg-purple-50', borderColor: 'border-purple-100' },
+                    { label: 'ปัญหาที่รอแก้', value: totalIssues, icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-50/50 hover:bg-red-50', borderColor: 'border-red-100' },
                 ].map((kpi, i) => {
                     const Icon = kpi.icon;
                     return (
-                        <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                            <div className={`w-10 h-10 ${kpi.color} rounded-xl flex items-center justify-center mb-3`}>
-                                <Icon size={20} />
+                        <div key={i} className={`${kpi.bgColor} rounded-2xl border ${kpi.borderColor} p-5 flex flex-col relative overflow-hidden group transition-colors cursor-pointer`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm border ${kpi.borderColor} transition-colors`}>
+                                    <Icon size={18} className={kpi.color} />
+                                </div>
                             </div>
-                            <div className={`text-3xl font-bold ${kpi.numColor}`}>{kpi.value}</div>
-                            <div className="text-gray-500 text-sm mt-1">{kpi.label}</div>
+                            <div>
+                                <div className={`text-3xl font-bold text-gray-900 mb-1`}>{kpi.value}</div>
+                                <div className={`${kpi.color} text-xs font-bold uppercase tracking-wider`}>{kpi.label}</div>
+                            </div>
                         </div>
                     );
                 })}
             </div>
 
             {/* Project table */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden text-sm">
                 <div className="flex justify-between items-center p-5 border-b border-gray-100">
                     <h2 className="font-bold text-gray-900">โครงการทั้งหมด ({totalProjects})</h2>
                     <Link to="/employee/activities" className="text-sm text-blue-600 font-medium hover:underline flex items-center gap-1">
@@ -62,77 +91,91 @@ export default function E_Dashboard() {
                     </Link>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
-                                <th className="px-5 py-3 text-left">โครงการ</th>
-                                <th className="px-5 py-3 text-left">สถานะ</th>
-                                <th className="px-5 py-3 text-center">ทีม</th>
-                                <th className="px-5 py-3 text-center">งาน</th>
-                                <th className="px-5 py-3 text-left">ความคืบหน้า</th>
-                                <th className="px-5 py-3 text-center">ปัญหา</th>
-                                <th className="px-5 py-3 text-left">กำหนด</th>
+                            <tr className="bg-gray-50/50 text-gray-500 text-xs font-bold uppercase tracking-wider border-b border-gray-100">
+                                <th className="px-5 py-4">โครงการ</th>
+                                <th className="px-5 py-4">สถานะ</th>
+                                <th className="px-5 py-4 text-center">ทีม</th>
+                                <th className="px-5 py-4 text-center">งาน</th>
+                                <th className="px-5 py-4">ความคืบหน้า</th>
+                                <th className="px-5 py-4 text-center">ปัญหา</th>
+                                <th className="px-5 py-4">กำหนด</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-gray-700">
-                            {PROJECTS.map(proj => (
-                                <tr key={proj.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-5 py-3.5">
-                                        <Link to={`/employee/activities/${proj.id}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
+                            {[...PROJECTS].sort((a, b) => b.issues - a.issues).map(proj => {
+                                const hasIssue = proj.issues > 0;
+                                return (
+                                <tr key={proj.id} className={`transition-colors group ${hasIssue ? 'bg-red-50/40 hover:bg-red-50/80 border-red-100/50' : 'hover:bg-gray-50/50'}`}>
+                                    <td className="px-5 py-4">
+                                        <Link to={`/employee/activities/${proj.id}`} className={`font-bold transition-colors ${hasIssue ? 'text-red-900 group-hover:text-red-700' : 'text-gray-900 group-hover:text-blue-600'}`}>
                                             {proj.title}
                                         </Link>
                                     </td>
-                                    <td className="px-5 py-3.5">
-                                        <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${proj.statusColor}`}>{proj.status}</span>
-                                    </td>
-                                    <td className="px-5 py-3.5 text-center text-sm font-medium">{proj.teams}</td>
-                                    <td className="px-5 py-3.5 text-center text-sm font-medium">
-                                        <span className="text-emerald-600">{proj.tasksDone}</span>/<span>{proj.tasks}</span>
-                                    </td>
-                                    <td className="px-5 py-3.5">
+                                    <td className="px-5 py-4">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                                <div className={`h-full rounded-full ${proj.progress === 100 ? 'bg-gray-400' : 'bg-blue-500'}`} style={{ width: `${proj.progress}%` }} />
-                                            </div>
-                                            <span className="text-xs text-gray-500 shrink-0">{proj.progress}%</span>
+                                            <div className={`w-2 h-2 rounded-full bg-${proj.statusColor}-500`} />
+                                            <span className="text-gray-700 font-medium text-xs">{proj.status}</span>
                                         </div>
                                     </td>
-                                    <td className="px-5 py-3.5 text-center">
-                                        {proj.issues > 0 ? (
-                                            <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">
-                                                <AlertCircle size={10} /> {proj.issues} ปัญหา
-                                            </span>
-                                        ) : <span className="text-gray-300 text-xs">—</span>}
+                                    <td className="px-5 py-4 text-center font-medium">{proj.teams}</td>
+                                    <td className="px-5 py-4 text-center font-medium">
+                                        <span className={proj.tasksDone === proj.tasks ? "text-gray-400" : "text-gray-900"}>{proj.tasksDone}</span><span className="text-gray-400">/{proj.tasks}</span>
                                     </td>
-                                    <td className="px-5 py-3.5 text-xs text-gray-500 flex items-center gap-1.5">
-                                        <Calendar size={12} className="text-gray-400" /> {proj.deadline}
+                                    <td className="px-5 py-4 w-48">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                                <div className={`h-full rounded-full ${proj.progress === 100 ? 'bg-gray-300' : (hasIssue ? 'bg-red-400' : 'bg-gray-800')}`} style={{ width: `${proj.progress}%` }} />
+                                            </div>
+                                            <span className={`text-xs font-medium shrink-0 w-8 ${hasIssue ? 'text-red-600' : 'text-gray-500'}`}>{proj.progress}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-4 text-center">
+                                        {proj.issues > 0 ? (
+                                            <span className="inline-flex items-center gap-1.5 text-xs text-red-600 font-bold bg-white px-2 py-1 rounded-lg shadow-sm border border-red-100">
+                                                <AlertCircle size={14} className="animate-pulse" /> {proj.issues}
+                                            </span>
+                                        ) : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className={`px-5 py-4 text-xs font-medium flex items-center gap-2 ${hasIssue ? 'text-red-500' : 'text-gray-500'}`}>
+                                        {proj.deadline}
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                         </tbody>
                     </table>
                 </div>
             </div>
 
             {/* Urgent tasks */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="font-bold text-gray-900 flex items-center gap-2"><Clock size={18} className="text-amber-500" /> งานเร่งด่วน</h2>
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="flex justify-between items-center mb-5">
+                    <h2 className="font-bold text-gray-900 flex items-center gap-2"><Clock size={16} className="text-gray-400" /> งานเร่งด่วน</h2>
                     <Link to="/employee/tasks" className="text-sm text-blue-600 font-medium hover:underline">ดูทั้งหมด →</Link>
                 </div>
-                <div className="space-y-3">
-                    {URGENT_TASKS.map(task => (
-                        <div key={task.id} className="flex items-center gap-4 p-3.5 bg-gray-50 rounded-xl border border-gray-100 hover:border-blue-200 transition-colors">
-                            <div className={`w-2 h-2 rounded-full shrink-0 ${task.priority === 'สูง' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                <div className="space-y-2">
+                    {URGENT_TASKS.map(task => {
+                        const isHigh = task.priority === 'สูง';
+                        const style = isHigh ? 'border-l-red-300 bg-red-50/40 hover:bg-red-50/80' : 'border-l-amber-300 bg-amber-50/40 hover:bg-amber-50/80';
+                        const text = isHigh ? 'text-red-700' : 'text-amber-700';
+
+                        return (
+                        <div key={task.id} className={`group flex items-center gap-4 py-3 border-l-4 ${style} rounded-r-xl px-4 transition-colors`}>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-800 truncate">{task.name}</p>
-                                <p className="text-xs text-gray-500">{task.project}</p>
+                                <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-blue-900 transition-colors">{task.name}</p>
+                                <p className={`text-xs ${text} mt-0.5 font-medium`}>{task.project}</p>
                             </div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${task.deadline === 'วันนี้' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                                {task.deadline}
-                            </span>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                <span className={`text-[10px] uppercase tracking-wider font-bold ${isHigh ? 'text-red-500' : 'text-amber-500'}`}>
+                                    {isHigh ? 'ด่วนมาก' : 'ปานกลาง'}
+                                </span>
+                                <span className="text-xs font-medium text-gray-500 uppercase">
+                                    {task.deadline}
+                                </span>
+                            </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         </div>

@@ -95,7 +95,13 @@ export default function P_Dashboard() {
                             <Link to={`/participant/projects/${proj.id}`} key={proj.id}
                                 className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-emerald-200 transition-all group p-5 block">
                                 <div className="flex justify-between items-start mb-3">
-                                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${proj.statusColor}`}>{proj.status}</span>
+                                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                                        proj.status === 'กำลังดำเนินการ' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                                        proj.status === 'เปิดรับสมัคร' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                        proj.status === 'ดำเนินการสำเร็จ' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                        proj.status === 'วางแผน' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                        'bg-gray-100 text-gray-700 border-gray-200'
+                                    }`}>{proj.status}</span>
                                     <ChevronRight size={18} className="text-gray-300 group-hover:text-emerald-500 transition-colors" />
                                 </div>
                                 <h3 className="font-bold text-gray-900 text-sm leading-snug mb-1">{proj.title}</h3>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Users, FolderKanban, FileText, MoreVertical, X, Trophy, FileUp, Activity } from 'lucide-react';
+import { Plus, Search, Filter, Users, FolderKanban, FileText, MoreVertical, X, Trophy, FileUp, Activity, Crown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const Teams = () => {
@@ -76,7 +76,7 @@ const Teams = () => {
                   <div key={idx} className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-lg border border-gray-100">
                     <div className={`w-6 h-6 ${member.color} text-white rounded-full flex items-center justify-center text-[10px] font-bold`}>{member.initial}</div>
                     <span className="text-xs font-medium text-gray-700">{member.name}</span>
-                    {member.isLeader && <span className="px-1.5 py-0.5 bg-[#10b981] text-white text-[9px] rounded-md font-bold">หัวหน้า</span>}
+                    {member.isLeader && <Crown size={14} className="text-amber-400 fill-amber-400 drop-shadow-sm ml-0.5" title="หัวหน้าทีม" />}
                   </div>
                 ))}
                 {(!team.members || team.members.length === 0) && <span className="text-xs text-gray-400">ยังไม่มีสมาชิก</span>}
@@ -111,7 +111,7 @@ const Teams = () => {
             </div>
 
             <div className="flex flex-1 overflow-hidden">
-              {/* Left Column (Main Stats & Activities) */}
+              {/* Left Column (Main Stats & Info) */}
               <div className="w-2/3 p-6 overflow-y-auto border-r border-gray-100 bg-gray-50/30">
 
                 {/* Stats Row */}
@@ -127,7 +127,7 @@ const Teams = () => {
                     <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600"><Trophy size={18} /></div>
                     <div>
                       <p className="text-xs text-gray-500 font-medium">กิจกรรมที่เข้าร่วม</p>
-                      <p className="text-lg font-bold text-gray-800">1 รายการ</p>
+                      <p className="text-lg font-bold text-gray-800">{selectedTeam.event && selectedTeam.event !== 'ไม่ระบุกิจกรรม' ? '1 รายการ' : '0 รายการ'}</p>
                     </div>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
@@ -139,31 +139,27 @@ const Teams = () => {
                   </div>
                 </div>
 
-                {/* Timeline / Activities Mock */}
+                {/* Team Info */}
                 <div className="mb-8">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Activity size={18} className="text-blue-500" /> ความเคลื่อนไหวล่าสุด
+                    <Activity size={18} className="text-blue-500" /> ข้อมูลทีม
                   </h3>
-                  <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-                    <div className="relative border-l-2 border-gray-100 ml-3 space-y-6">
-                      <div className="relative pl-6">
-                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-green-500 ring-4 ring-white"></span>
-                        <p className="text-sm font-bold text-gray-800">ส่งมอบเอกสาร "Business Plan V.1"</p>
-                        <p className="text-xs text-gray-500 mt-1">โดย สมชาย (หัวหน้าทีม) • 2 ชั่วโมงที่แล้ว</p>
-                        <div className="mt-2 flex items-center gap-2 bg-gray-50 py-1.5 px-3 rounded-lg border border-gray-200 inline-flex">
-                          <FileText size={14} className="text-gray-400" /> <span className="text-xs font-medium text-gray-600">business_plan_v1.pdf</span>
-                        </div>
-                      </div>
-                      <div className="relative pl-6">
-                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 ring-4 ring-white"></span>
-                        <p className="text-sm font-bold text-gray-800">เข้าร่วมกิจกรรม "{selectedTeam.event || 'Hackathon 2026'}"</p>
-                        <p className="text-xs text-gray-500 mt-1">โดย ระบบ • 2 วันที่แล้ว</p>
-                      </div>
-                      <div className="relative pl-6">
-                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-white"></span>
-                        <p className="text-sm font-bold text-gray-800">ก่อตั้งทีม {selectedTeam.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">โดย สมชาย (หัวหน้าทีม) • 3 วันที่แล้ว</p>
-                      </div>
+                  <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">ชื่อทีม</span>
+                      <span className="font-semibold text-gray-800">{selectedTeam.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">โครงการ</span>
+                      <span className="font-semibold text-gray-800">{selectedTeam.project_name || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">กิจกรรม</span>
+                      <span className="font-semibold text-gray-800">{selectedTeam.event || 'ไม่ระบุกิจกรรม'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">รายละเอียด</span>
+                      <span className="font-semibold text-gray-700">{selectedTeam.description || 'ยังไม่มีข้อมูลรายละเอียด'}</span>
                     </div>
                   </div>
                 </div>
@@ -188,21 +184,21 @@ const Teams = () => {
                     <div className="space-y-2">
                       {selectedTeam.members && selectedTeam.members.length > 0 ? selectedTeam.members.map((member, idx) => (
                         <div key={idx} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition-colors border border-transparent hover:border-gray-100 cursor-pointer">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${member.color}`}>
-                            {member.initial}
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${member.color || 'bg-blue-500'}`}>
+                            {member.initial || member.name?.charAt(0) || '?'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-gray-800 truncate flex items-center gap-2">
                               {member.name}
-                              {member.isLeader && <span className="px-1.5 py-0.5 bg-[#10b981] text-white text-[9px] rounded-md font-bold uppercase tracking-wide">Leader</span>}
+                              {member.isLeader && <Crown size={16} className="text-amber-400 fill-amber-400 drop-shadow-sm" title="หัวหน้าทีม" />}
                             </p>
-                            <p className="text-xs text-gray-500 truncate">{member.email || 'mock@email.com'}</p>
+                            <p className="text-xs text-gray-500 truncate">{member.email || member.role || 'สมาชิกทีม'}</p>
                           </div>
                         </div>
                       )) : (
                         <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                           <Users size={24} className="mx-auto text-gray-300 mb-2" />
-                          <p className="text-sm text-gray-500">ยังไม่มีสมาชิก</p>
+                          <p className="text-sm text-gray-400 italic">ยังไม่มีสมาชิกในทีม</p>
                         </div>
                       )}
                     </div>

@@ -16,6 +16,9 @@ exports.getTasks = async (req, res) => {
         COALESCE(t.progress_percent, 0) AS progress,
         COALESCE(pl.name, 'ปกติ') AS priority,
         COALESCE(TO_CHAR(t.due_date, 'DD/MM/YY'), 'ไม่ระบุวันที่') AS date,
+        TO_CHAR(t.due_date, 'YYYY-MM-DD') AS due_date,
+        t.description,
+        t.event_id,
         COALESCE(tc.name, 'ทั่วไป') AS category
       FROM tasks t
       LEFT JOIN events e ON t.event_id = e.event_id
@@ -35,22 +38,20 @@ exports.getTasks = async (req, res) => {
 
 exports.createTask = async (req, res) => {
   try {
-    const { title, event_id, status, priority, category, due_date } = req.body;
-    const query = `
-      INSERT INTO tasks (task_name, event_id, status_task_id, priority_id, task_category_id, due_date)
-      VALUES (
-        $1, $2,
-        (SELECT status_task_id FROM task_statuses WHERE name = $3 LIMIT 1),
-        (SELECT priority_id FROM priority_levels WHERE name = $4 LIMIT 1),
-        (SELECT task_category_id FROM task_categories WHERE name = $5 LIMIT 1),
-        $6
-      )
-    `;
+    const { title, task_name, event_id, status, priority, category, due_date } = req.body;
+    const finalTitle = task_name || title || 'งานไม่มีชื่อ';
+    const finalEventId = event_id ? parseInt(event_id, 10) : null;
     const finalDate = due_date ? due_date : null;
-    await pool.query(query, [title, event_id || null, status, priority, category, finalDate]);
+
+    const query = `
+      INSERT INTO tasks (task_name, event_id, due_date)
+      VALUES ($1, $2, $3)
+      RETURNING task_id
+    `;
+    await pool.query(query, [finalTitle, finalEventId, finalDate]);
     res.json({ message: 'บันทึกงานสำเร็จ' });
   } catch (err) {
-    console.error('เกิดข้อผิดพลาดในการบันทึกงาน:', err.message);
-    res.status(500).json({ error: 'Server Error' });
+    console.error('เกิดข้อผิดพลาดในการบันทึกงาน:', err.message, err.stack);
+    res.status(500).json({ error: 'Server Error: ' + err.message });
   }
 };
