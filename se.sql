@@ -273,6 +273,7 @@ CREATE TABLE tasks (
     due_date TIMESTAMP,
     description TEXT,
     progress_percent INT DEFAULT 0 CHECK (progress_percent BETWEEN 0 AND 100),
+    assignee_names JSONB DEFAULT '[]'::jsonb,
     start_date TIMESTAMP,
     actual_finished_date TIMESTAMP,
 

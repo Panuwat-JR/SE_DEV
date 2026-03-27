@@ -24,6 +24,7 @@ function Activities() {
   const [applicantsError, setApplicantsError] = useState('');
   const [applicantsPayload, setApplicantsPayload] = useState(null);
   const [remindLoading, setRemindLoading] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -86,6 +87,8 @@ function Activities() {
   };
 
   const handleOpenEdit = (activity) => {
+    setSelectedActivity(null);
+    setApplicantsOpen(false);
     setEditingActivity({
       ...activity,
       status: toEventStatusSelectValue(activity.status),
@@ -167,6 +170,34 @@ function Activities() {
     }
   };
 
+  const buildActivityUpdatePayload = (activity) => ({
+    title: activity.title,
+    status: activity.status,
+    date_text: activity.date_input || activity.date_text,
+    end_date_text: activity.end_date_input || activity.end_date_text || '',
+    description: activity.description ?? '',
+    max_participants: activity.max_participants,
+    prize_pool: activity.prize_pool,
+    committee_members: activity.committee_members ?? '',
+  });
+
+  const saveActivityStatusFromDetail = async (nextStatus) => {
+    if (!selectedActivity || !nextStatus) return;
+    setStatusSaving(true);
+    try {
+      const r = await updateEvent(selectedActivity.id, {
+        ...buildActivityUpdatePayload({ ...selectedActivity, status: nextStatus }),
+      });
+      if (r?.ok === false) {
+        window.alert(r.error || 'อัปเดตสถานะไม่สำเร็จ');
+        return;
+      }
+      setSelectedActivity((prev) => (prev ? { ...prev, status: nextStatus } : null));
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     const start = editingActivity.date_input || '';
@@ -175,13 +206,7 @@ function Activities() {
       window.alert('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น');
       return;
     }
-    const payload = {
-      ...editingActivity,
-      date_text: editingActivity.date_input || editingActivity.date_text,
-      end_date_text: editingActivity.end_date_input || '',
-      description: editingActivity.description ?? '',
-      committee_members: editingActivity.committee_members ?? '',
-    };
+    const payload = buildActivityUpdatePayload(editingActivity);
     const r = await updateEvent(editingActivity.id, payload);
     if (r?.ok === false) {
       window.alert(r.error || 'บันทึกไม่สำเร็จ');
@@ -241,7 +266,10 @@ function Activities() {
           <p className="text-sm text-gray-500 mt-1">รายการกิจกรรมทั้งหมด ทั้งที่กำลังดำเนินการและที่ผ่านมาแล้ว</p>
         </div>
         <button
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => {
+            setSelectedActivity(null);
+            setIsCreateModalOpen(true);
+          }}
           className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all cursor-pointer"
         >
           <Plus size={18} /> สร้างกิจกรรมใหม่
@@ -529,6 +557,29 @@ function Activities() {
                   </div>
 
                   {/* Quick Actions */}
+                  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                    <h4 className="text-sm font-bold text-gray-800">สถานะโครงการ</h4>
+                    <p className="text-xs text-gray-500">เปลี่ยนได้ทันที (ไม่ต้องเปิดฟอร์มแก้ไขเต็ม)</p>
+                    <select
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-60"
+                      disabled={statusSaving}
+                      value={toEventStatusSelectValue(selectedActivity.status)}
+                      onChange={(e) => void saveActivityStatusFromDetail(e.target.value)}
+                      aria-label="เปลี่ยนสถานะกิจกรรม"
+                    >
+                      {eventStatusOptionsFor(selectedActivity.status).map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                    {statusSaving ? (
+                      <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <Loader2 size={12} className="animate-spin" /> กำลังบันทึก...
+                      </p>
+                    ) : null}
+                  </div>
+
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-xl border border-gray-200">
                     <h4 className="text-sm font-bold text-gray-800 mb-3">จัดการด่วน</h4>
                     <div className="space-y-2">
@@ -632,7 +683,7 @@ function Activities() {
 
       {/* Modal แก้ไข */}
       {isEditModalOpen && editingActivity && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] backdrop-blur-sm p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[420] backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800">แก้ไขกิจกรรม</h2>
@@ -707,7 +758,7 @@ function Activities() {
 
       {/* Modal สร้างใหม่ */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] backdrop-blur-sm p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[420] backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800">สร้างกิจกรรมใหม่</h2>

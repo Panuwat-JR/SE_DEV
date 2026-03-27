@@ -1071,6 +1071,8 @@ class ParticipantService {
         TO_CHAR(tk.due_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
         tk.task_name AS title,
         e.title AS project,
+        e.event_id AS event_id,
+        tk.task_id AS task_id,
         'task' AS kind
       FROM participant_profiles pp
       JOIN mapping_event_teams met ON met.team_id = pp.team_id
@@ -1087,7 +1089,8 @@ class ParticipantService {
       SELECT
         TO_CHAR(e.event_start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS d1,
         TO_CHAR(e.event_end_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS d2,
-        e.title AS project
+        e.title AS project,
+        e.event_id AS event_id
       FROM participant_profiles pp
       JOIN mapping_event_teams met ON met.team_id = pp.team_id
       JOIN events e ON e.event_id = met.event_id
@@ -1108,6 +1111,7 @@ class ParticipantService {
           date: r.d1,
           title: `เริ่มโครงการ: ${r.project}`,
           project: r.project,
+          eventId: r.event_id,
           color: c,
           textColor: 'text-gray-800',
           bg: 'bg-blue-50',
@@ -1119,6 +1123,7 @@ class ParticipantService {
           date: r.d2,
           title: `สิ้นสุดโครงการ: ${r.project}`,
           project: r.project,
+          eventId: r.event_id,
           color: c,
           textColor: 'text-gray-800',
           bg: 'bg-emerald-50',
@@ -1133,6 +1138,8 @@ class ParticipantService {
         date: t.date,
         title: t.title,
         project: t.project,
+        eventId: t.event_id,
+        taskId: t.task_id,
         color: c,
         textColor: 'text-gray-800',
         bg: 'bg-sky-50',

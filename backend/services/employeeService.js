@@ -303,8 +303,10 @@ class EmployeeService {
   async getDashboardData(employeeIdRaw) {
     const employeeId = this._parseEmployeeScope(employeeIdRaw);
 
-    // รายการโครงการ: แสดงทุกกิจกรรมในระบบ (สอดคล้องกับ GET /api/activities)
-    // งานเร่งด่วนด้านล่างยังกรองตาม mapping_event_employees เมื่อมี employee_id
+    // รายการโครงการ: กรองตาม mapping_event_employees เมื่อมี employee_id
+    const eventsWhere = employeeId
+      ? `WHERE e.event_id IN (SELECT event_id FROM mapping_event_employees WHERE employee_id = $1)`
+      : '';
     const eventsSql = `
       SELECT
         e.event_id   AS id,
@@ -323,12 +325,21 @@ class EmployeeService {
       FROM events e
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
       LEFT JOIN logistics l ON e.logistics_id = l.logistics_id
+      ${eventsWhere}
       ORDER BY e.event_id ASC
     `;
 
+    // นับผู้เข้าร่วม: เฉพาะในโครงการที่ employee รับผิดชอบ (เมื่อมี employee_id)
+    const participantCountSql = employeeId
+      ? `SELECT COUNT(DISTINCT pp.participant_profile_id)::bigint AS n
+         FROM participant_profiles pp
+         INNER JOIN mapping_event_teams met ON pp.team_id = met.team_id
+         WHERE met.event_id IN (SELECT event_id FROM mapping_event_employees WHERE employee_id = $1)`
+      : `SELECT COUNT(*)::bigint AS n FROM participant_profiles`;
+
     const [eventsResult, participantTotalRow] = await Promise.all([
-      pool.query(eventsSql),
-      pool.query('SELECT COUNT(*)::bigint AS n FROM participant_profiles'),
+      pool.query(eventsSql, employeeId ? [employeeId] : []),
+      pool.query(participantCountSql, employeeId ? [employeeId] : []),
     ]);
     const totalParticipantProfiles =
       Number.parseInt(String(participantTotalRow.rows[0]?.n ?? '0'), 10) || 0;

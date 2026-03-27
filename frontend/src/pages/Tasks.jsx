@@ -1,19 +1,46 @@
-import React, { useState, useRef } from 'react';
-import { Plus, Clock, AlertCircle, CheckCircle2, Calendar, X, Upload, File } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Plus, Clock, AlertCircle, CheckCircle2, Calendar, X, Upload, File, UserPlus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { priorityLabel, priorityBadgeClass, priorityDotClass } from '../lib/taskPriority';
 
+const PRIORITY_OPTIONS = ['เร่งด่วนที่สุด', 'สูง', 'กลาง', 'ต่ำ'];
+const CATEGORY_OPTIONS = ['ทั่วไป', 'ประสานงาน', 'สถานที่', 'เอกสาร', 'การตลาด', 'โลจิสติกส์', 'อื่นๆ'];
+
 function Tasks() {
-  const { tasks, events, addTask, updateTask } = useApp();
+  const { tasks, events, employees, participants, addTask, updateTask } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   
   // local state for modal interaction
   const [tempProgress, setTempProgress] = useState(0);
+  const [editPriority, setEditPriority] = useState('กลาง');
+  const [editCategory, setEditCategory] = useState('ทั่วไป');
+  const [editAssignees, setEditAssignees] = useState([]);
+  const [pickMember, setPickMember] = useState('');
+
+  const memberPickLists = useMemo(() => {
+    const empOpts = (employees || [])
+      .map((e) => {
+        const n = `${e.first_name || ''} ${e.last_name || ''}`.trim();
+        return n ? { key: `emp-${e.id}`, value: n, label: n } : null;
+      })
+      .filter(Boolean);
+    const partOpts = (participants || [])
+      .map((p) => {
+        const n = `${p.firstname || ''} ${p.lastname || ''}`.trim();
+        return n ? { key: `part-${p.id}`, value: n, label: n } : null;
+      })
+      .filter(Boolean);
+    return { empOpts, partOpts };
+  }, [employees, participants]);
   
   const handleOpenDetails = (task) => {
     setSelectedTask(task);
     setTempProgress(task.progress || 0);
+    setEditPriority(priorityLabel(task));
+    setEditCategory(task.category || 'ทั่วไป');
+    setEditAssignees(Array.isArray(task.assignees) ? [...task.assignees] : []);
+    setPickMember('');
   };
 
   const handleSubtaskToggle = (index) => {
@@ -39,13 +66,19 @@ function Tasks() {
     const dueRaw =
       (selectedTask.due_date_iso && String(selectedTask.due_date_iso).trim()) ||
       (selectedTask.date && selectedTask.date !== 'ไม่ระบุวันที่' ? selectedTask.date : '');
-    await updateTask(selectedTask.id, {
+    const res = await updateTask(selectedTask.id, {
       title: selectedTask.title || selectedTask.task_name,
       status,
       progress: tempProgress,
-      priority: priorityLabel(selectedTask),
+      priority: editPriority,
+      category: editCategory,
+      assignees: editAssignees,
       due_date: dueRaw,
     });
+    if (res?.ok === false) {
+      window.alert(res.error || 'บันทึกไม่สำเร็จ — ตรวจสอบความสำคัญ/หมวดในระบบ');
+      return;
+    }
     setSelectedTask(null);
   };
 
@@ -147,11 +180,17 @@ function Tasks() {
                     <File size={18} className="text-blue-500" /> รายละเอียดงาน
                   </h3>
                   <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 leading-relaxed border border-gray-100">
-                    <p>จำลองคำอธิบายของงานนี้: นี่คือรายละเอียดของงานที่คุณต้องทำให้เสร็จสิ้นเพื่อบรรลุเป้าหมายของกิจกรรม การมีรายละเอียดที่ชัดเจนจะช่วยให้ทีมของคุณมีทิศทางในการทำงานร่วมกัน</p>
-                    <ul className="list-disc ml-5 mt-2 space-y-1">
-                      <li>ประสานงานกับผู้ที่เกี่ยวข้องเพื่อรวบรวมข้อมูล</li>
-                      <li>ตรวจสอบความถูกต้องก่อนเริ่มดำเนินการจริง</li>
-                    </ul>
+                    {selectedTask.description ? (
+                      <p className="whitespace-pre-wrap">{selectedTask.description}</p>
+                    ) : (
+                      <>
+                        <p>ยังไม่มีคำอธิบายในระบบสำหรับงานนี้ — ใช้รายการด้านล่างเป็นแนวทางการทำงาน</p>
+                        <ul className="list-disc ml-5 mt-2 space-y-1">
+                          <li>ประสานงานกับผู้ที่เกี่ยวข้องเพื่อรวบรวมข้อมูล</li>
+                          <li>ตรวจสอบความถูกต้องก่อนเริ่มดำเนินการจริง</li>
+                        </ul>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -226,22 +265,37 @@ function Tasks() {
                     </div>
                   </div>
 
-                  {/* Settings Box */}
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-gray-50 flex justify-between items-center group cursor-pointer hover:bg-gray-50">
-                      <p className="text-xs text-gray-500">ความสำคัญ</p>
-                      <span className={`text-sm font-bold flex items-center gap-1.5 ${selectedTask.priority_slug === 'urgent' || selectedTask.priority_slug === 'high' ? 'text-red-600' : 'text-gray-700'}`}>
-                        <span className={`w-2 h-2 inline-block rounded-full ${priorityDotClass(selectedTask)}`}></span>
-                        {priorityLabel(selectedTask)}
-                      </span>
+                  {/* Settings — แก้ความสำคัญ / หมวดหมู่ได้ (บันทึกร่วมกับปุ่มด้านล่าง) */}
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden space-y-0">
+                    <div className="p-4 border-b border-gray-50">
+                      <label htmlFor="task-edit-priority" className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">ความสำคัญ</label>
+                      <select
+                        id="task-edit-priority"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        value={editPriority}
+                        onChange={(e) => setEditPriority(e.target.value)}
+                      >
+                        {PRIORITY_OPTIONS.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="p-4 border-b border-gray-50 flex justify-between items-center group cursor-pointer hover:bg-gray-50">
-                      <p className="text-xs text-gray-500">หมวดหมู่</p>
-                      <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded-md">{selectedTask.category || 'ทั่วไป'}</span>
+                    <div className="p-4 border-b border-gray-50">
+                      <label htmlFor="task-edit-category" className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">หมวดหมู่</label>
+                      <select
+                        id="task-edit-category"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                      >
+                        {CATEGORY_OPTIONS.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="p-4 flex justify-between items-center group cursor-pointer hover:bg-gray-50">
+                    <div className="p-4 flex justify-between items-center">
                       <p className="text-xs text-gray-500">วันที่ครบกำหนด</p>
-                      <div className="flex items-center gap-1.5 text-sm text-gray-800 font-semibold group-hover:text-blue-600 transition-colors">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-800 font-semibold">
                         <Calendar size={14} className="text-blue-500" /> {selectedTask.date || '-'}
                       </div>
                     </div>
@@ -258,22 +312,62 @@ function Tasks() {
                     </div>
                   </div>
 
-                  {/* Assignees Box */}
+                  {/* Assignees — เลือกจากพนักงาน / ผู้เข้าร่วม แล้วบันทึก */}
                   <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">ทีมงาน (ผู้รับผิดชอบ)</p>
                     <div className="flex flex-col gap-2">
-                      {selectedTask.assignees && selectedTask.assignees.length > 0 ? selectedTask.assignees.map((name, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 hover:bg-white border border-transparent hover:border-blue-200 rounded-xl group transition-all cursor-pointer shadow-sm">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">{name.charAt(0)}</div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-700">{name} (จำลอง)</span>
-                            <span className="text-[10px] text-gray-400">เจ้าหน้าที่ประสานงาน</span>
+                      {editAssignees.length > 0 ? editAssignees.map((name, idx) => (
+                        <div key={`${name}-${idx}`} className="flex items-center gap-3 p-2 bg-gray-50 border border-gray-100 rounded-xl shadow-sm">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">{(name || '?').charAt(0)}</div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-sm font-medium text-gray-700 truncate">{name}</span>
+                            <span className="text-[10px] text-gray-400">ผู้รับผิดชอบงานนี้</span>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => setEditAssignees((prev) => prev.filter((_, i) => i !== idx))}
+                            className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="นำออกจากงาน"
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
-                      )) : <span className="text-sm text-gray-500">ยังไม่มีผู้รับผิดชอบ</span>}
-                      <button className="flex items-center gap-2 justify-center w-full mt-2 p-2 rounded-xl border border-dashed border-gray-300 text-gray-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                        <Plus size={16} /> <span className="text-sm font-semibold">เพิ่มสมาชิก</span>
-                      </button>
+                      )) : <span className="text-sm text-gray-500">ยังไม่มีผู้รับผิดชอบ — เลือกจากรายการด้านล่าง</span>}
+                      <div className="mt-2 space-y-2">
+                        <label htmlFor="task-add-member" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                          <UserPlus size={12} /> เพิ่มจากรายชื่อในระบบ
+                        </label>
+                        <select
+                          id="task-add-member"
+                          className="w-full border border-dashed border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white"
+                          value={pickMember}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (!v) return;
+                            setEditAssignees((prev) => (prev.includes(v) ? prev : [...prev, v]));
+                            setPickMember('');
+                          }}
+                        >
+                          <option value="">-- เลือกพนักงานหรือผู้เข้าร่วม --</option>
+                          {memberPickLists.empOpts.length > 0 && (
+                            <optgroup label="พนักงาน">
+                              {memberPickLists.empOpts.map((o) => (
+                                <option key={o.key} value={o.value}>{o.label}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {memberPickLists.partOpts.length > 0 && (
+                            <optgroup label="ผู้เข้าร่วมโครงการ">
+                              {memberPickLists.partOpts.map((o) => (
+                                <option key={o.key} value={o.value}>{o.label}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                        {memberPickLists.empOpts.length === 0 && memberPickLists.partOpts.length === 0 && (
+                          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">ยังไม่มีรายชื่อพนักงานหรือผู้เข้าร่วมในระบบ — เพิ่มที่เมนูพนักงาน / ผู้เข้าร่วมก่อน</p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -436,9 +530,9 @@ function TaskCard({ task, getStatusIcon, onClick }) {
       <div className="flex justify-between items-center pt-3 border-t border-gray-50">
         <span className="text-[10px] font-semibold text-gray-600 border border-gray-200 px-2.5 py-1 rounded-full">{task.category}</span>
         <div className="flex -space-x-1">
-          {task.assignees?.map((name, idx) => (
-            <div key={idx} className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm">{name}</div>
-          ))}
+          {task.assignees?.length ? task.assignees.map((name, idx) => (
+            <div key={idx} title={name} className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm">{(name || '?').charAt(0)}</div>
+          )) : null}
         </div>
       </div>
       <div className="absolute top-4 right-4 text-[10px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-bold bg-blue-50 px-2 py-1 rounded-md">ดูรายละเอียด &rarr;</div>

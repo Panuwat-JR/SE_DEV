@@ -64,6 +64,12 @@ function statusBadgeClass(status) {
     return STATUS_COLOR[status] || 'bg-gray-100 text-gray-600';
 }
 
+/** เอกสารที่ยังไม่อนุมัติ — พนักงานกดอนุมัติได้ (สถานะต้องตรงชื่อใน document_statuses) */
+function canApproveDocumentStatus(status) {
+    const s = String(status || '').trim();
+    return s !== 'อนุมัติแล้ว';
+}
+
 function normalizeDocRow(row) {
     return {
         id: row.id,
@@ -93,6 +99,7 @@ export default function E_Documents() {
     const [selectedFont, setSelectedFont] = useState('Sarabun');
     const [selectedSize, setSelectedSize] = useState('16');
     const [detailDoc, setDetailDoc] = useState(null);
+    const [approvingId, setApprovingId] = useState(null);
 
     const loadDocuments = useCallback(async () => {
         setListLoading(true);
@@ -175,6 +182,30 @@ export default function E_Documents() {
             setTemplateSubmitError(err.message);
         } finally {
             setSavingTemplate(false);
+        }
+    };
+
+    const approveDocument = async (doc) => {
+        if (!canApproveDocumentStatus(doc.status)) return;
+        if (!window.confirm(`อนุมัติเอกสาร "${doc.name}" ให้ผู้เข้าร่วมใช้งานในสถานะ "อนุมัติแล้ว"?`)) return;
+        setApprovingId(doc.id);
+        try {
+            const res = await fetch(`${apiRoot()}/documents/${encodeURIComponent(String(doc.id))}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc_status: 'อนุมัติแล้ว' }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload.error || `อนุมัติไม่สำเร็จ (${res.status})`);
+            }
+            await loadDocuments();
+            window.dispatchEvent(new CustomEvent(DOCUMENTS_CHANGED_EVENT));
+            setDetailDoc((d) => (d && d.id === doc.id ? { ...d, status: 'อนุมัติแล้ว' } : d));
+        } catch (e) {
+            alert(e?.message || 'อนุมัติไม่สำเร็จ');
+        } finally {
+            setApprovingId(null);
         }
     };
 
@@ -345,6 +376,24 @@ export default function E_Documents() {
                                                 >
                                                     <Eye size={15} />
                                                 </button>
+                                                {canApproveDocumentStatus(doc.status) && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={approvingId === doc.id}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            approveDocument(doc);
+                                                        }}
+                                                        className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                                                        title="อนุมัติเอกสาร (ผู้เข้าร่วมจะเห็นสถานะอนุมัติแล้ว)"
+                                                    >
+                                                        {approvingId === doc.id ? (
+                                                            <Loader2 className="animate-spin" size={15} />
+                                                        ) : (
+                                                            <CheckCircle2 size={15} />
+                                                        )}
+                                                    </button>
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
@@ -715,21 +764,38 @@ export default function E_Documents() {
                                 <dd className="font-medium text-gray-900">{detailDoc.type}</dd>
                             </div>
                         </dl>
-                        <div className="flex gap-2 mt-6">
-                            <button
-                                type="button"
-                                onClick={() => downloadDocument(detailDoc)}
-                                className="flex-1 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl"
-                            >
-                                ดาวน์โหลด
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setDetailDoc(null)}
-                                className="flex-1 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl"
-                            >
-                                ปิด
-                            </button>
+                        <div className="flex flex-col gap-2 mt-6">
+                            {canApproveDocumentStatus(detailDoc.status) && (
+                                <button
+                                    type="button"
+                                    disabled={approvingId === detailDoc.id}
+                                    onClick={() => approveDocument(detailDoc)}
+                                    className="w-full py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {approvingId === detailDoc.id ? (
+                                        <Loader2 className="animate-spin" size={18} />
+                                    ) : (
+                                        <CheckCircle2 size={18} />
+                                    )}
+                                    อนุมัติเอกสาร
+                                </button>
+                            )}
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => downloadDocument(detailDoc)}
+                                    className="flex-1 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl"
+                                >
+                                    ดาวน์โหลด
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setDetailDoc(null)}
+                                    className="flex-1 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl"
+                                >
+                                    ปิด
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

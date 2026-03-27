@@ -1,6 +1,7 @@
 // pages/participant/P_Calendar.jsx
 import React, { useEffect, useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalIcon, Loader2, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Calendar as CalIcon, Loader2, AlertCircle, X, ExternalLink } from 'lucide-react';
 import { participantFetch, getParticipantFetchErrorMessage } from '../../lib/participantApi';
 
 const DAYS_TH = [
@@ -20,6 +21,7 @@ export default function P_Calendar() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [detail, setDetail] = useState(null);
 
     useEffect(() => {
         const run = async () => {
@@ -125,13 +127,16 @@ export default function P_Calendar() {
                                         {day}
                                     </div>
                                     <div className="space-y-0.5">
-                                        {evs.map((ev) => (
-                                            <div
-                                                key={`${ev.date}-${ev.title}-${ev.kind}`}
-                                                className={`${ev.color} text-white text-[8px] rounded px-1 py-0.5 font-bold truncate leading-tight`}
+                                        {evs.map((ev, ei) => (
+                                            <button
+                                                key={`${ev.date}-${ev.title}-${ev.kind}-${ev.eventId ?? ''}-${ei}`}
+                                                type="button"
+                                                title="คลิกดูรายละเอียด"
+                                                onClick={() => setDetail(ev)}
+                                                className={`${ev.color} text-white text-[8px] rounded px-1 py-0.5 font-bold truncate leading-tight w-full text-left cursor-pointer hover:opacity-90 hover:ring-1 hover:ring-white/80`}
                                             >
                                                 {ev.title}
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
@@ -151,9 +156,11 @@ export default function P_Calendar() {
                             {upcoming.map((ev, idx) => {
                                 const d = new Date(ev.date);
                                 return (
-                                    <div
+                                    <button
                                         key={`up-${idx}-${ev.date}-${ev.title}-${ev.kind}`}
-                                        className={`p-4 rounded-2xl border ${ev.bg || 'bg-gray-50'} border-gray-100`}
+                                        type="button"
+                                        onClick={() => setDetail(ev)}
+                                        className={`w-full text-left p-4 rounded-2xl border ${ev.bg || 'bg-gray-50'} border-gray-100 hover:border-emerald-200 hover:shadow-sm transition-all cursor-pointer`}
                                     >
                                         <div className={`text-[10px] font-bold ${ev.textColor || 'text-gray-600'} mb-1 uppercase`}>
                                             {ev.project}
@@ -163,13 +170,71 @@ export default function P_Calendar() {
                                             <CalIcon size={12} />
                                             {d.getDate()} {MONTHS_TH[d.getMonth()]} {d.getFullYear() + 543}
                                         </div>
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
                     )}
                 </div>
             </div>
+
+            {detail && (
+                <div
+                    className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="cal-detail-title"
+                    onClick={() => setDetail(null)}
+                >
+                    <div
+                        className="bg-white rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-3"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-start gap-3">
+                            <h2 id="cal-detail-title" className="text-lg font-bold text-gray-900 pr-2">
+                                {detail.title}
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setDetail(null)}
+                                className="shrink-0 text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"
+                                aria-label="ปิด"
+                            >
+                                <X size={22} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                            <span className="font-semibold">โครงการ:</span> {detail.project}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            <span className="font-semibold">ประเภท:</span>{' '}
+                            {detail.kind === 'task' ? 'งาน (Task)' : 'กำหนดการโครงการ'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            <span className="font-semibold">วันที่:</span> {detail.date}
+                        </p>
+                        <div className="flex flex-wrap justify-end gap-2 pt-3">
+                            <button
+                                type="button"
+                                onClick={() => setDetail(null)}
+                                className="px-4 py-2 text-sm rounded-xl bg-gray-100 text-gray-700"
+                            >
+                                ปิด
+                            </button>
+                            {detail.eventId != null && String(detail.eventId) !== '' && (
+                                <Link
+                                    to={`/participant/projects/${detail.eventId}`}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                                    onClick={() => setDetail(null)}
+                                >
+                                    เปิดหน้าโครงการ
+                                    <ExternalLink size={14} />
+                                </Link>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

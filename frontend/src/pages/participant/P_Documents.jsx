@@ -1,8 +1,20 @@
 // pages/participant/P_Documents.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, Download, Eye, X, Upload, Loader2, AlertCircle } from 'lucide-react';
-import { API_BASE } from '../../config/api';
-import { participantFetch } from '../../lib/participantApi';
+import { participantFetch, participantApiUrl } from '../../lib/participantApi';
+
+function triggerBlobDownload(blob, filename) {
+    const safeName = (filename && String(filename).replace(/[/\\?%*:|"<>]/g, '_')) || 'download';
+    const obj = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = obj;
+    a.download = safeName;
+    a.target = '_self';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(obj), 60_000);
+}
 
 const STATUS_STYLE = {
     อนุมัติแล้ว: 'bg-emerald-100 text-emerald-700',
@@ -98,17 +110,43 @@ export default function P_Documents() {
         }
     };
 
-    const openDownload = (doc) => {
+    const openDownload = async (doc) => {
         const path = doc.filePath;
         if (!path) {
             alert('ยังไม่มีไฟล์ในระบบสำหรับเอกสารนี้ (บันทึกเฉพาะรายการ)');
             return;
         }
-        if (path.startsWith('http://') || path.startsWith('https://')) {
-            window.open(path, '_blank', 'noopener,noreferrer');
-            return;
+        const filename = doc.name || 'download';
+
+        try {
+            if (path.startsWith('http://') || path.startsWith('https://')) {
+                const res = await fetch(path, { mode: 'cors', credentials: 'omit' });
+                if (res.ok) {
+                    const blob = await res.blob();
+                    triggerBlobDownload(blob, filename);
+                    return;
+                }
+                window.location.assign(path);
+                return;
+            }
+
+            const rel = path.startsWith('/') ? path : `/${path}`;
+            const res = await participantFetch(rel);
+            if (res.ok) {
+                const blob = await res.blob();
+                triggerBlobDownload(blob, filename);
+                return;
+            }
+            window.location.assign(participantApiUrl(rel));
+        } catch (e) {
+            console.warn('openDownload', e);
+            if (path.startsWith('http://') || path.startsWith('https://')) {
+                window.location.assign(path);
+            } else {
+                const rel = path.startsWith('/') ? path : `/${path}`;
+                window.location.assign(participantApiUrl(rel));
+            }
         }
-        window.open(`${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`, '_blank', 'noopener,noreferrer');
     };
 
     return (
@@ -205,7 +243,7 @@ export default function P_Documents() {
                                                     <button
                                                         type="button"
                                                         title="ดาวน์โหลด"
-                                                        onClick={() => openDownload(doc)}
+                                                        onClick={() => void openDownload(doc)}
                                                         className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                                     >
                                                         <Download size={15} />
@@ -252,7 +290,7 @@ export default function P_Documents() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => openDownload(preview)}
+                                onClick={() => void openDownload(preview)}
                                 className="px-4 py-2 text-sm rounded-xl bg-emerald-600 text-white font-bold"
                             >
                                 เปิด/ดาวน์โหลด
@@ -308,10 +346,14 @@ export default function P_Documents() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">ไฟล์ (อ้างอิง)</label>
-                                <label className="block w-full py-6 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/40 transition-colors">
+                                <label
+                                    htmlFor="p-doc-file-input"
+                                    className="block w-full py-6 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/40 transition-colors"
+                                >
                                     <Upload size={24} className="mx-auto text-gray-400 mb-2" />
                                     <span className="text-sm text-gray-500">{form.fileName || 'คลิกเพื่อเลือกไฟล์ (metadata)'}</span>
                                     <input
+                                        id="p-doc-file-input"
                                         type="file"
                                         className="sr-only"
                                         onChange={(ev) => {
@@ -321,6 +363,7 @@ export default function P_Documents() {
                                                 fileName: f?.name || '',
                                                 fileSize: f?.size ?? null,
                                             });
+                                            ev.target.value = '';
                                         }}
                                     />
                                 </label>

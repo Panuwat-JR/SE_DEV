@@ -113,11 +113,13 @@ exports.getTasks = async (req, res) => {
           ELSE COALESCE(ts.name, 'รอดำเนินการ')
         END AS status,
         COALESCE(t.progress_percent, 0) AS progress,
+        COALESCE(NULLIF(TRIM(t.description), ''), '') AS description,
         COALESCE(pl.name, 'ปกติ') AS priority,
         COALESCE(NULLIF(TRIM(pl.slug), ''), 'medium') AS priority_slug,
         COALESCE(TO_CHAR(t.due_date, 'DD/MM/YY'), 'ไม่ระบุวันที่') AS date,
         CASE WHEN t.due_date IS NULL THEN NULL ELSE TO_CHAR(t.due_date, 'YYYY-MM-DD') END AS due_date_iso,
-        COALESCE(tc.name, 'ทั่วไป') AS category
+        COALESCE(tc.name, 'ทั่วไป') AS category,
+        COALESCE(t.assignee_names, '[]'::jsonb) AS assignee_names
       FROM tasks t
       LEFT JOIN events e ON t.event_id = e.event_id
       LEFT JOIN task_statuses ts ON t.status_task_id = ts.status_task_id
@@ -126,8 +128,14 @@ exports.getTasks = async (req, res) => {
       ORDER BY t.task_id DESC
     `;
     const result = await pool.query(query);
-    // ยังไม่มีตารางผู้รับผิดชอบงานใน schema — ส่ง array ว่างแทนค่าปลอม
-    const tasksWithAssignees = result.rows.map((task) => ({ ...task, assignees: [] }));
+    const tasksWithAssignees = result.rows.map((task) => {
+      const { assignee_names: raw, ...rest } = task;
+      let assignees = [];
+      if (Array.isArray(raw)) {
+        assignees = raw.map((x) => String(x).trim()).filter(Boolean);
+      }
+      return { ...rest, assignees };
+    });
     res.json(tasksWithAssignees);
   } catch (err) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลงาน:', err.message);
@@ -137,8 +145,15 @@ exports.getTasks = async (req, res) => {
 
 exports.updateTask = async (req, res) => {
   const { id } = req.params;
-  const { title, status, priority, due_date, progress } = req.body;
+  const { title, status, priority, due_date, progress, category, assignees } = req.body;
   try {
+    const ex = await pool.query(
+      `SELECT task_id, task_name, task_category_id, COALESCE(assignee_names, '[]'::jsonb) AS assignee_names
+       FROM tasks WHERE task_id = $1`,
+      [id]
+    );
+    if (ex.rowCount === 0) return res.status(404).json({ error: 'ไม่พบงาน' });
+
     let finalProgress = progress;
     if (status === 'เสร็จสิ้น' || status === 'completed') {
       finalProgress = 100;
@@ -158,6 +173,25 @@ exports.updateTask = async (req, res) => {
       return res.status(400).json({ error: `ไม่พบระดับความสำคัญ "${priority}" ในระบบ` });
     }
 
+    let taskCategoryId = ex.rows[0].task_category_id;
+    if (category != null && String(category).trim() !== '') {
+      const ct = await lookupCategoryId(pool, category);
+      if (ct.rowCount === 0) {
+        return res.status(400).json({ error: `ไม่พบหมวดงาน "${category}" ในระบบ` });
+      }
+      taskCategoryId = ct.rows[0].task_category_id;
+    }
+
+    let assigneePayload;
+    if (Array.isArray(assignees)) {
+      assigneePayload = assignees.map((x) => String(x).trim()).filter(Boolean);
+    } else {
+      const a = ex.rows[0].assignee_names;
+      assigneePayload = Array.isArray(a) ? a.map((x) => String(x).trim()).filter(Boolean) : [];
+    }
+
+    const taskTitle = title != null && String(title).trim() !== '' ? String(title).trim() : ex.rows[0].task_name;
+
     const query = `
       UPDATE tasks
       SET 
@@ -165,15 +199,19 @@ exports.updateTask = async (req, res) => {
         status_task_id = $2,
         priority_id = $3,
         due_date = $4::date,
-        progress_percent = $5
-      WHERE task_id = $6
+        progress_percent = $5,
+        task_category_id = $6,
+        assignee_names = $7::jsonb
+      WHERE task_id = $8
     `;
     const r = await pool.query(query, [
-      title,
+      taskTitle,
       st.rows[0].status_task_id,
       pr.rows[0].priority_id,
       dueIso,
       finalProgress || 0,
+      taskCategoryId,
+      JSON.stringify(assigneePayload),
       id,
     ]);
     if (r.rowCount === 0) return res.status(404).json({ error: 'ไม่พบงาน' });
@@ -203,7 +241,7 @@ exports.createTask = async (req, res) => {
     if (!title) {
       return res.status(400).json({ error: 'ต้องระบุชื่องาน' });
     }
-    const { event_id, status, priority, category, due_date } = body;
+    const { event_id, status, priority, category, due_date, assignees } = body;
     let st = await pool.query(
       `SELECT status_task_id FROM task_statuses WHERE name = $1 OR slug = $1 LIMIT 1`,
       [status]
@@ -239,9 +277,13 @@ exports.createTask = async (req, res) => {
       event_id === '' || event_id == null ? null : parseInt(String(event_id), 10);
     const eventIdFinal = Number.isFinite(evId) ? evId : null;
 
+    const assigneeList = Array.isArray(assignees)
+      ? assignees.map((x) => String(x).trim()).filter(Boolean)
+      : [];
+
     const query = `
-      INSERT INTO tasks (task_name, event_id, status_task_id, priority_id, task_category_id, due_date)
-      VALUES ($1, $2, $3, $4, $5, $6::date)
+      INSERT INTO tasks (task_name, event_id, status_task_id, priority_id, task_category_id, due_date, assignee_names)
+      VALUES ($1, $2, $3, $4, $5, $6::date, $7::jsonb)
     `;
     const finalDate = parseTaskDueDate(due_date);
     await pool.query(query, [
@@ -251,6 +293,7 @@ exports.createTask = async (req, res) => {
       pr.rows[0].priority_id,
       ct.rows[0].task_category_id,
       finalDate,
+      JSON.stringify(assigneeList),
     ]);
     res.json({ message: 'บันทึกงานสำเร็จ' });
   } catch (err) {
