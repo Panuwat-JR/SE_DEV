@@ -39,3 +39,26 @@ exports.getEventsList = async (req, res) => {
     res.status(500).json({ error: 'Server Error' });
   }
 };
+
+exports.getAllActivities = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        e.event_id AS id, 
+        e.title, 
+        COALESCE(s.name, 'เปิดรับสมัคร') AS status, 
+        COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุวันที่') AS date_text, 
+        COALESCE(e.max_participants, 100) AS max_participants,
+        COALESCE(e.current_participants, 0) AS current_participants,
+        COALESCE(CAST(e.prize_pool AS TEXT), 'ไม่มีเงินรางวัล') AS prize_pool
+      FROM events e
+      LEFT JOIN status_events s ON e.status_event_id = s.status_event_id
+      ORDER BY e.event_id ASC
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('getActivities Error:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};

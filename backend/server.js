@@ -13,6 +13,7 @@ const activityRoutes = require('./routes/activityRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const teamRoutes = require('./routes/teamRoutes');
 const participantRoutes = require('./routes/participantRoutes');
+const employeeRoutes   = require('./routes/employeeRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 
 // เสียบปลั๊ก Routes เข้ากับเส้นทางหลัก
@@ -22,6 +23,7 @@ app.use('/api/events', activityRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/participants-data', participantRoutes);
+app.use('/api/employees', employeeRoutes);
 app.use('/api/feedbacks', feedbackRoutes);
 
 const PORT = process.env.PORT || 5000;
