@@ -13,8 +13,16 @@ export default function P_ProjectDetail() {
         const fetchProjectDetail = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`http://localhost:5000/api/dashboard-data/project-detail/${id}`);
-                if (!response.ok) throw new Error('Failed to fetch project details');
+                const response = await fetch(`http://localhost:5000/api/participants-data/projects/${id}`);
+                if (!response.ok) {
+                    // ดึงข้อความ error จากฝั่ง backend มาแสดง เพื่อช่วยชี้สาเหตุ (404/500 ฯลฯ)
+                    const errData = await response.json().catch(() => null);
+                    const message =
+                        errData?.details ||
+                        errData?.error ||
+                        `Failed to fetch project details (HTTP ${response.status})`;
+                    throw new Error(message);
+                }
                 const data = await response.json();
                 setProject(data);
             } catch (err) {
@@ -45,8 +53,8 @@ export default function P_ProjectDetail() {
                 </div>
                 <h2 className="text-2xl font-bold text-red-900 mb-2">เกิดข้อผิดพลาด</h2>
                 <p className="text-red-600 mb-8">{error || 'ไม่พบข้อมูลโครงการ'}</p>
-                <Link to="/participant/dashboard" className="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-md">
-                    <ArrowLeft size={20} /> กลับไปหน้าแดชบอร์ด
+                <Link to="/participant/projects" className="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-md">
+                    <ArrowLeft size={20} /> กลับไปหน้ารายการโครงการ
                 </Link>
             </div>
         );
@@ -59,7 +67,7 @@ export default function P_ProjectDetail() {
     return (
         <div className="space-y-6">
             <div>
-                <Link to="/participant/dashboard" className="inline-flex items-center gap-2 text-gray-500 hover:text-emerald-600 text-sm font-medium mb-4">
+                <Link to="/participant/projects" className="inline-flex items-center gap-2 text-gray-500 hover:text-emerald-600 text-sm font-medium mb-4">
                     <ArrowLeft size={16} /> กลับ
                 </Link>
                 <div className="flex items-start justify-between">
