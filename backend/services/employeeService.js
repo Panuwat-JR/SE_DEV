@@ -33,11 +33,14 @@ class EmployeeService {
         e.event_id   AS id,
         e.title,
         COALESCE(se.name, 'ไม่ระบุ') AS status,
-        COALESCE(TO_CHAR(e.event_end_date,   'DD MMM YYYY'), 'ยังไม่ระบุ') AS deadline,
+        COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุ') AS deadline,
+        e.current_participants,
+        e.max_participants,
+        e.prize_pool,
         e.budget
       FROM events e
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
-      ORDER BY e.event_id DESC
+      ORDER BY e.event_id ASC
     `);
 
     // --- Task stats per event ---
@@ -70,14 +73,8 @@ class EmployeeService {
     teamsResult.rows.forEach(r => { teamMap[r.event_id] = parseInt(r.team_count) || 0; });
 
     // --- Participant count per event (via teams) ---
-    const participantsResult = await pool.query(`
-      SELECT met.event_id, COUNT(pp.participant_profile_id) AS participant_count
-      FROM mapping_event_teams met
-      JOIN participant_profiles pp ON pp.team_id = met.team_id
-      GROUP BY met.event_id
-    `);
-    const participantMap = {};
-    participantsResult.rows.forEach(r => { participantMap[r.event_id] = parseInt(r.participant_count) || 0; });
+    // We already have current_participants seeded directly in the events table
+    // so we don't need to join mapping_event_teams anymore. 
 
     // Enrich projects
     const projects = eventsResult.rows.map(ev => {
@@ -96,12 +93,14 @@ class EmployeeService {
         status:       ev.status,
         statusColor:  statusColorMap[ev.status] || 'bg-gray-100 text-gray-600',
         deadline:     ev.deadline,
-        teams:        teamMap[ev.id] || 0,
-        participants: participantMap[ev.id] || 0,
+        teams:        teamMap[ev.id] || Math.floor(ev.current_participants / 5), // Mock fallback team avg
+        participants: ev.current_participants || 0,
+        maxParticipants: ev.max_participants || 100,
+        prizePool:    ev.prize_pool || 'ไม่มีเงินรางวัล',
         tasks:        ts.total,
         tasksDone:    ts.done,
         issues:       ts.pending,
-        progress,
+        progress:     progress,
       };
     });
 
