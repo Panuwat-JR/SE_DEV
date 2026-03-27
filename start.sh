@@ -39,6 +39,46 @@ if [ ! -d "$FRONTEND_DIR" ]; then
   exit 1
 fi
 
+# ลบ CRLF + ช่องว่างท้ายบรรทัดใน backend/.env (พอแก้ด้วย Notepad/Git บน Windows มักทำให้ pg เชื่อมไม่ได้)
+normalize_backend_env() {
+  local f="$BACKEND_DIR/.env"
+  [ -f "$f" ] || return 0
+  local tmp
+  tmp="$(mktemp 2>/dev/null || echo "${f}.nuseed.$$")"
+  tr -d '\r' < "$f" | sed 's/[[:space:]]*$//' > "$tmp" && mv "$tmp" "$f"
+}
+
+# WSL2 + Docker Desktop: พอร์ต publish อยู่ฝั่ง Windows — จาก bash ใน WSL บางที 127.0.0.1:55432 ไม่ถึง
+# ถ้าเช็ค /dev/tcp แล้วต่อไม่ได้ แต่ DATABASE_URL ชี้ 127.0.0.1/local host:55432 จะ export URL ใหม่ชี้ IP ใน resolv.conf
+wsl2_fix_database_url_for_docker_desktop() {
+  [ "$(uname -s)" = Linux ] || return 0
+  grep -qiE 'microsoft|microsoft-standard' /proc/version 2>/dev/null || return 0
+  local probe_ok=0
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 2 bash -c 'echo >/dev/tcp/127.0.0.1/55432' 2>/dev/null && probe_ok=1
+  else
+    (echo >/dev/tcp/127.0.0.1/55432) 2>/dev/null && probe_ok=1
+  fi
+  [ "$probe_ok" -eq 1 ] && return 0
+  local gw raw val
+  gw="$(awk '/^nameserver/ { print $2; exit }' /etc/resolv.conf 2>/dev/null)"
+  [ -n "$gw" ] || return 0
+  [ -f "$BACKEND_DIR/.env" ] || return 0
+  raw="$(grep -E '^[[:space:]]*DATABASE_URL=' "$BACKEND_DIR/.env" | head -1 | tr -d '\r' || true)"
+  [ -n "$raw" ] || return 0
+  val="${raw#*DATABASE_URL=}"
+  val="$(sed 's/^[[:space:]]*//;s/[[:space:]]*$//' <<< "$val")"
+  val="${val//\"/}"
+  val="${val//\'/}"
+  [[ "$val" == postgresql://* ]] || return 0
+  if [[ "$val" == *"@127.0.0.1:55432"* ]] || [[ "$val" == *"@localhost:55432"* ]]; then
+    val="${val/@127.0.0.1:55432/@${gw}:55432}"
+    val="${val/@localhost:55432/@${gw}:55432}"
+    export DATABASE_URL="$val"
+    echo -e "${YELLOW}⚠️   WSL2: 127.0.0.1:55432 ไม่ถึง Docker บน Windows — ใช้ DATABASE_URL ชี้ ${gw}:55432 (สำหรับเซสชันนี้)${NC}"
+  fi
+}
+
 # ตั้งค่า .env สำหรับ backend ถ้ายังไม่มี
 if [ ! -f "$BACKEND_DIR/.env" ]; then
   if [ -f "$BACKEND_DIR/.env.example" ]; then
@@ -50,20 +90,26 @@ if [ ! -f "$BACKEND_DIR/.env" ]; then
   fi
 fi
 
+normalize_backend_env
+
 # PostgreSQL ใน Docker (ถ้ามี Docker) — เพื่อนใหม่ pull แล้วรันได้ทันที
+POSTGRES_READY=0
 if command -v docker >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
   echo ""
   echo -e "${BLUE}🐘  กำลังเริ่ม PostgreSQL (docker compose)...${NC}"
   (cd "$SCRIPT_DIR" && docker compose up -d) || echo -e "${YELLOW}⚠️   docker compose ไม่สำเร็จ — ตั้ง DATABASE_URL ใน backend/.env ให้ชี้ PostgreSQL ของคุณ${NC}"
-  for _i in $(seq 1 40); do
+  for _i in $(seq 1 90); do
     if (cd "$SCRIPT_DIR" && docker compose exec -T db pg_isready -U nuseed -d nuseed >/dev/null 2>&1); then
       echo -e "${GREEN}✅  Postgres พร้อมรับ connection${NC}"
+      POSTGRES_READY=1
       break
     fi
     sleep 1
-    [ "$_i" -eq 40 ] && echo -e "${YELLOW}⚠️   รอ Postgres นานเกินไป — ลองรันใหม่หรือตรวจ Docker${NC}"
+    [ "$_i" -eq 90 ] && echo -e "${YELLOW}⚠️   รอ Postgres นานเกินไป — ลองรันใหม่หรือตรวจ Docker (docker compose logs db)${NC}"
   done
 fi
+
+[ "$POSTGRES_READY" -eq 1 ] && wsl2_fix_database_url_for_docker_desktop
 
 # ติดตั้ง dependencies
 echo ""
