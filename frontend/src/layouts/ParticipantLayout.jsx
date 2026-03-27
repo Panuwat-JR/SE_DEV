@@ -4,7 +4,7 @@ import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Calendar, FileText, Users,
-    Bell, MessageCircle, Star, LogOut, ChevronRight
+    Bell, MessageCircle, Star, LogOut, ChevronRight, Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ParticipantPortalProvider } from '../context/ParticipantPortalContext';
@@ -21,6 +21,7 @@ const MENUS = [
     { name: 'ติดต่อผู้รับผิดชอบ', icon: MessageCircle, path: '/participant/contact' },
     { name: 'ปฏิทินกิจกรรม', icon: Calendar, path: '/participant/calendar' },
     { name: 'Feedback', icon: Star, path: '/participant/feedback' },
+    { name: 'ตั้งค่า', icon: Settings, path: '/participant/settings' },
 ];
 
 export default function ParticipantLayout() {

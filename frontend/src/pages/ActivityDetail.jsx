@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Calendar, Trophy, Users, CheckSquare, Settings, X, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, MapPin, Calendar, Trophy, Users, CheckSquare, Settings, X, Plus, Mail, Loader2 } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { API_BASE as API_ORIGIN } from '../config/api';
 import {
   eventStatusOptionsFor,
   eventStatusBadgeClass,
   toEventStatusSelectValue,
 } from '../lib/eventStatuses';
+
+const API_ROOT = `${API_ORIGIN}/api`;
 
 const ActivityDetail = () => {
   const { id } = useParams();
@@ -22,8 +25,19 @@ const ActivityDetail = () => {
     category: 'ทั่วไป',
     due_date: '',
   });
+  const [committeeDraft, setCommitteeDraft] = useState('');
+  const [committeeSaving, setCommitteeSaving] = useState(false);
+  const [applicantsOpen, setApplicantsOpen] = useState(false);
+  const [applicantsLoading, setApplicantsLoading] = useState(false);
+  const [applicantsError, setApplicantsError] = useState('');
+  const [applicantsPayload, setApplicantsPayload] = useState(null);
+  const [remindLoading, setRemindLoading] = useState(false);
 
   const activity = events.find((e) => String(e.id) === String(id));
+
+  useEffect(() => {
+    setCommitteeDraft(activity?.committee_members ?? '');
+  }, [activity?.id, activity?.committee_members]);
 
   if (!activity) {
     return (
@@ -52,6 +66,7 @@ const ActivityDetail = () => {
       date_text: editData.date_input || editData.date_text,
       end_date_text: editData.end_date_input || '',
       description: editData.description ?? '',
+      committee_members: editData.committee_members ?? '',
     };
     const r = await updateEvent(activity.id, payload);
     if (r?.ok === false) {
@@ -99,6 +114,76 @@ const ActivityDetail = () => {
 
   const statusOpts = eventStatusOptionsFor(editData?.status ?? activity.status);
 
+  const openApplicants = async () => {
+    setApplicantsOpen(true);
+    setApplicantsLoading(true);
+    setApplicantsError('');
+    setApplicantsPayload(null);
+    try {
+      const res = await fetch(`${API_ROOT}/activities/${activity.id}/applicants`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setApplicantsError(data?.error || `โหลดไม่สำเร็จ (${res.status})`);
+        return;
+      }
+      setApplicantsPayload(data);
+    } catch (e) {
+      setApplicantsError(e?.message || 'เชื่อมต่อไม่ได้');
+    } finally {
+      setApplicantsLoading(false);
+    }
+  };
+
+  const sendReminders = async () => {
+    if (
+      !window.confirm(
+        `ส่งอีเมลแจ้งเตือนผู้สมัครทุกคนในโครงการ "${activity.title}" ?\n(ระบบจะบันทึกคำขอ — หากยังไม่ตั้ง SMTP จะเห็นรายชื่อใน log ของเซิร์ฟเวอร์)`
+      )
+    ) {
+      return;
+    }
+    setRemindLoading(true);
+    try {
+      const res = await fetch(`${API_ROOT}/activities/${activity.id}/remind-applicants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(data?.error || `ส่งคำขอไม่สำเร็จ (${res.status})`);
+        return;
+      }
+      window.alert(data?.message || 'ดำเนินการแล้ว');
+    } catch (e) {
+      window.alert(e?.message || 'เชื่อมต่อไม่ได้');
+    } finally {
+      setRemindLoading(false);
+    }
+  };
+
+  const saveCommitteeOnly = async () => {
+    setCommitteeSaving(true);
+    try {
+      const r = await updateEvent(activity.id, {
+        title: activity.title,
+        status: activity.status,
+        date_text: activity.date_input || activity.date_text,
+        end_date_text: activity.end_date_input || activity.end_date_text || '',
+        description: activity.description ?? '',
+        max_participants: activity.max_participants,
+        prize_pool: activity.prize_pool,
+        committee_members: committeeDraft,
+      });
+      if (r?.ok === false) {
+        window.alert(r.error || 'บันทึกไม่สำเร็จ');
+        return;
+      }
+      window.alert('บันทึกรายชื่อกรรมการแล้ว');
+    } finally {
+      setCommitteeSaving(false);
+    }
+  };
+
   return (
     <div className="p-8 bg-[#f8fafc] min-h-screen font-sans">
       <div className="mb-6">
@@ -128,7 +213,11 @@ const ActivityDetail = () => {
             <button
               type="button"
               onClick={() => {
-                setEditData({ ...activity, status: toEventStatusSelectValue(activity.status) });
+                setEditData({
+                  ...activity,
+                  status: toEventStatusSelectValue(activity.status),
+                  committee_members: activity.committee_members ?? '',
+                });
                 setIsEditOpen(true);
               }}
               className="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm"
@@ -211,6 +300,46 @@ const ActivityDetail = () => {
                   }}
                 />
               </div>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100 space-y-2">
+              <span className="text-sm font-bold text-gray-700 block">คณะกรรมการตัดสิน</span>
+              <p className="text-xs text-gray-500">หนึ่งท่านต่อบรรทัด</p>
+              <textarea
+                rows={4}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y"
+                placeholder="เช่น ศ.ดร.สมชาย ใจดี"
+                value={committeeDraft}
+                onChange={(e) => setCommitteeDraft(e.target.value)}
+              />
+              <button
+                type="button"
+                disabled={committeeSaving}
+                onClick={saveCommitteeOnly}
+                className="w-full py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {committeeSaving ? <Loader2 size={16} className="animate-spin" /> : null}
+                บันทึกรายชื่อกรรมการ
+              </button>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100 space-y-2">
+              <button
+                type="button"
+                onClick={openApplicants}
+                className="w-full py-2.5 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-800 hover:bg-gray-50"
+              >
+                ดูรายชื่อผู้สมัครทั้งหมด
+              </button>
+              <button
+                type="button"
+                disabled={remindLoading}
+                onClick={sendReminders}
+                className="w-full py-2.5 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {remindLoading ? <Loader2 size={16} className="animate-spin text-blue-600" /> : <Mail size={16} />}
+                ส่งอีเมลแจ้งเตือนผู้สมัคร
+              </button>
             </div>
 
             <div className="pt-4 border-t border-gray-100">
@@ -320,6 +449,15 @@ const ActivityDetail = () => {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">คณะกรรมการตัดสิน (หนึ่งท่านต่อบรรทัด)</label>
+                <textarea
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  value={editData.committee_members ?? ''}
+                  onChange={(e) => setEditData({ ...editData, committee_members: e.target.value })}
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">รับจำนวนผู้เข้าร่วม</label>
                 <input
                   type="number"
@@ -348,6 +486,71 @@ const ActivityDetail = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {applicantsOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100 shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">รายชื่อผู้สมัคร</h3>
+                <p className="text-sm text-gray-500">{activity.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApplicantsOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                aria-label="ปิด"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              {applicantsLoading && (
+                <div className="flex items-center justify-center gap-2 py-12 text-gray-500">
+                  <Loader2 className="animate-spin" size={22} /> กำลังโหลด...
+                </div>
+              )}
+              {!applicantsLoading && applicantsError && (
+                <p className="text-red-600 text-sm text-center py-8">{applicantsError}</p>
+              )}
+              {!applicantsLoading && !applicantsError && applicantsPayload && (
+                <>
+                  {applicantsPayload.applicants?.length === 0 ? (
+                    <p className="text-gray-500 text-sm text-center py-8">
+                      ยังไม่มีผู้สมัครผ่านทีมที่ลงทะเบียนในกิจกรรมนี้ — ผูกทีมกับกิจกรรมที่หน้าทีม
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
+                          <tr>
+                            <th className="p-3 font-medium">ชื่อ</th>
+                            <th className="p-3 font-medium">อีเมล</th>
+                            <th className="p-3 font-medium">ทีม</th>
+                            <th className="p-3 font-medium">โทรศัพท์</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {applicantsPayload.applicants.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50/80">
+                              <td className="p-3 font-medium text-gray-800">
+                                {[row.firstname, row.lastname].filter(Boolean).join(' ') || '—'}
+                              </td>
+                              <td className="p-3 text-gray-600">{row.email || '—'}</td>
+                              <td className="p-3 text-gray-600">{row.team_name || '—'}</td>
+                              <td className="p-3 text-gray-600">{row.phone || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

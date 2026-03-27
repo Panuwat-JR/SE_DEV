@@ -64,14 +64,14 @@ export default function E_Dashboard() {
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">แดชบอร์ด</h1>
                 <p className="text-gray-500 text-sm mt-1">
-                    โครงการทั้งหมดในระบบ (สอดคล้องกับหน้าจัดการกิจกรรม) — งานเร่งด่วนด้านล่างยังแสดงเฉพาะโครงการที่คุณผูกในตาราง mapping_event_employees
+                    จำนวนโครงการและตารางด้านล่างมาจากชุดข้อมูลเดียวกับหน้าจัดการกิจกรรม ผู้เข้าร่วมรวมตรงกับจำนวนโปรไฟล์ในหน้าผู้เข้าร่วม — คอลัมน์ผู้เข้าร่วมต่อโครงการนับเฉพาะสมาชิกทีมที่ผูกกับกิจกรรมนั้น
                 </p>
             </div>
 
             {/* KPI */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                 {[
-                    { label: 'โครงการทั้งหมด', value: Number(stats.totalProjects) || 0,    icon: Activity,    color: 'bg-blue-50 text-blue-600',     numColor: 'text-blue-700' },
+                    { label: 'โครงการทั้งหมด', value: projects.length,    icon: Activity,    color: 'bg-blue-50 text-blue-600',     numColor: 'text-blue-700' },
                     { label: 'กำลังดำเนินการ', value: Number(stats.activeProjects) || 0,   icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-600', numColor: 'text-emerald-700' },
                     { label: 'ผู้เข้าร่วมรวม', value: Number(stats.totalParticipants) || 0, icon: Users,       color: 'bg-purple-50 text-purple-600',  numColor: 'text-purple-700' },
                     { label: 'งานรอดำเนินการ (รวม)', value: Number(stats.totalPendingTasks ?? stats.totalIssues ?? 0) || 0, icon: AlertCircle, color: 'bg-amber-50 text-amber-600', numColor: 'text-amber-800' },

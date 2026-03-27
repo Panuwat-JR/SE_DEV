@@ -11,6 +11,21 @@ exports.getEmployees = async (req, res) => {
   }
 };
 
+exports.getEmployeeById = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ error: 'รหัสพนักงานไม่ถูกต้อง' });
+    }
+    const row = await employeeService.getEmployeeById(id);
+    if (!row) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+    res.json(row);
+  } catch (err) {
+    console.error('getEmployeeById:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.getDashboard = async (req, res) => {
   try {
     const data = await employeeService.getDashboardData(req.query.employee_id);
@@ -58,6 +73,9 @@ exports.updateEmployee = async (req, res) => {
     }
     if (err.code === 'DUPLICATE_EMAIL') {
       return res.status(409).json({ error: err.message });
+    }
+    if (err.code === 'INVALID_CURRENT_PASSWORD') {
+      return res.status(400).json({ error: err.message });
     }
     console.error('updateEmployee:', err.message);
     res.status(500).json({ error: 'Server Error' });

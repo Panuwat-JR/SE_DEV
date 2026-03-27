@@ -1,6 +1,7 @@
 // ไฟล์: services/employeeService.js
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
+const { verifyPassword } = require('../utils/passwordVerify');
 
 class EmployeeService {
   async ensureRoleId(roleName) {
@@ -119,11 +120,12 @@ class EmployeeService {
       throw err;
     }
     const ev = await pool.query(
-      'SELECT employee_profile_id, email FROM employees WHERE employee_id = $1',
+      'SELECT employee_profile_id, email, password_hash FROM employees WHERE employee_id = $1',
       [id]
     );
     if (ev.rowCount === 0) return null;
     const profileId = ev.rows[0].employee_profile_id;
+    const existingHash = ev.rows[0].password_hash;
 
     const first_name =
       body.first_name != null ? String(body.first_name).trim() : undefined;
@@ -194,6 +196,13 @@ class EmployeeService {
         empVals.push(online_status);
       }
       if (body.password != null && String(body.password).trim() !== '') {
+        const currentPw =
+          body.current_password != null ? String(body.current_password) : '';
+        if (!verifyPassword(currentPw, existingHash)) {
+          const err = new Error('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+          err.code = 'INVALID_CURRENT_PASSWORD';
+          throw err;
+        }
         empSets.push(`password_hash = $${j++}`);
         empVals.push(bcrypt.hashSync(String(body.password), 10));
       }
@@ -302,8 +311,8 @@ class EmployeeService {
         e.title,
         COALESCE(se.name, 'ไม่ระบุ') AS status,
         COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุ') AS deadline,
-        (SELECT COUNT(*) FROM participant_profiles pp
-         JOIN mapping_event_teams met ON pp.team_id = met.team_id
+        (SELECT COUNT(DISTINCT pp.participant_profile_id) FROM participant_profiles pp
+         INNER JOIN mapping_event_teams met ON pp.team_id = met.team_id
          WHERE met.event_id = e.event_id) AS current_participants,
         COALESCE(l.max_participant, 100) AS max_participants,
         e.prize_pool,
@@ -314,7 +323,12 @@ class EmployeeService {
       ORDER BY e.event_id ASC
     `;
 
-    const eventsResult = await pool.query(eventsSql);
+    const [eventsResult, participantTotalRow] = await Promise.all([
+      pool.query(eventsSql),
+      pool.query('SELECT COUNT(*)::bigint AS n FROM participant_profiles'),
+    ]);
+    const totalParticipantProfiles =
+      Number.parseInt(String(participantTotalRow.rows[0]?.n ?? '0'), 10) || 0;
 
     // --- Task stats per event ---
     const taskStatsResult = await pool.query(`
@@ -345,11 +359,7 @@ class EmployeeService {
     const teamMap = {};
     teamsResult.rows.forEach(r => { teamMap[r.event_id] = parseInt(r.team_count) || 0; });
 
-    // --- Participant count per event (via teams) ---
-    // We already have current_participants seeded directly in the events table
-    // so we don't need to join mapping_event_teams anymore. 
-
-    // Enrich projects (node-pg มักคืน COUNT(*) เป็นสตริง — ต้องแปลงเป็นตัวเลขก่อน reduce ไม่งั้น 0 + "3" กลายเป็น "03")
+    // Enrich projects (node-pg อาจคืน COUNT เป็นสตริง — parse ก่อนใช้งาน)
     const projects = eventsResult.rows.map(ev => {
       const ts = taskMap[ev.id] || { total: 0, done: 0, pending: 0 };
       const progress = ts.total > 0 ? Math.round((ts.done / ts.total) * 100) : 0;
@@ -429,11 +439,14 @@ class EmployeeService {
     const urgentResult = await pool.query(urgentSql, employeeId ? [employeeId] : []);
 
     // --- KPI stats ---
-    const totalProjects   = projects.length;
-    const activeProjects  = projects.filter(p =>
+    // จำนวนโครงการ = ความยาวรายการเดียวกับตารางด้านล่าง (ไม่ยิง COUNT แยก — กันค่า KPI กับแถวไม่ตรง)
+    const totalProjects = projects.length;
+    const activeProjects = projects.filter(p =>
       ['กำลังดำเนินการ', 'เปิดรับสมัคร'].includes(p.status)
     ).length;
-    const totalParticipants = projects.reduce((s, p) => s + (Number(p.participants) || 0), 0);
+    // ผู้เข้าร่วมรวม = จำนวนโปรไฟล์ผู้เข้าร่วมทั้งระบบ (ตรงกับ GET /api/participants-admin และหน้า /employee/participants)
+    // ไม่ใช่ผลรวมต่อโครงการ — จะนับซ้ำเมื่อทีมเดียวกันผูกหลายกิจกรรม
+    const totalParticipants = totalParticipantProfiles;
     const totalPendingTasks = projects.reduce((s, p) => s + p.issues, 0);
 
     return {

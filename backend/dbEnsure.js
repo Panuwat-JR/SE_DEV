@@ -7,6 +7,7 @@ const path = require('path');
 const MIGRATION_FILES = [
   '2026-03-27_participant_contact_messages.sql',
   '2026-03-28_participant_notification_reads.sql',
+  '2026-03-28_events_committee_members.sql',
 ];
 
 async function ensureDb(pool) {

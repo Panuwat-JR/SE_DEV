@@ -16,6 +16,7 @@ import P_Notifications from './pages/participant/P_Notifications';
 import P_Contact from './pages/participant/P_Contact';
 import P_Calendar from './pages/participant/P_Calendar';
 import P_Feedback from './pages/participant/P_Feedback';
+import P_Settings from './pages/participant/P_Settings';
 
 // ── Employee pages ─────────────────────────────────────
 import EmployeeLayout from './layouts/EmployeeLayout';
@@ -84,6 +85,7 @@ function App() {
           <Route path="contact" element={<P_Contact />} />
           <Route path="calendar" element={<P_Calendar />} />
           <Route path="feedback" element={<P_Feedback />} />
+          <Route path="settings" element={<P_Settings />} />
         </Route>
 
         {/* ── EMPLOYEE workspace ── */}

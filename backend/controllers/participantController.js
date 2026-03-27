@@ -73,6 +73,53 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+exports.patchProfile = async (req, res) => {
+  try {
+    const participantName = participantFromRequest(req);
+    const profile = await participantService.updateParticipantPortalProfile(
+      participantName,
+      req.body || {}
+    );
+    if (!profile) {
+      return res.status(404).json({
+        error: 'ไม่พบบัญชีผู้เข้าร่วม — ต้องมีแถวใน participants และชื่อ firstname ตรงกับที่ล็อกอิน',
+      });
+    }
+    res.json(profile);
+  } catch (err) {
+    if (err.code === 'VALIDATION') {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.code === 'DUPLICATE_EMAIL' || err.code === 'DUPLICATE_FIRSTNAME') {
+      return res.status(409).json({ error: err.message });
+    }
+    console.error('patchProfile:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.patchPassword = async (req, res) => {
+  try {
+    const participantName = participantFromRequest(req);
+    const { current_password, password } = req.body || {};
+    await participantService.changeParticipantPortalPassword(
+      participantName,
+      current_password,
+      password
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === 'INVALID_CURRENT_PASSWORD' || err.code === 'VALIDATION') {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.code === 'NOT_FOUND') {
+      return res.status(404).json({ error: err.message });
+    }
+    console.error('patchPassword:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.getParticipantDashboardData = async (req, res) => {
   try {
     const participantName = participantFromRequest(req);

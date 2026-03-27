@@ -7,7 +7,7 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-import { participantFetch } from '../lib/participantApi';
+import { participantFetch, setParticipantFirstname } from '../lib/participantApi';
 
 const AuthContext = createContext(null);
 
@@ -121,6 +121,43 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+    /** หลังแก้ firstname ในโปรไฟล์ — อัปเดตคีย์ที่ API ใช้ + LS_AUTH */
+    const syncParticipantLoginFirstname = useCallback((name) => {
+        const v = String(name || '').trim();
+        if (!v) return;
+        setParticipantFirstname(v);
+        try {
+            const raw = localStorage.getItem(LS_AUTH);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (parsed?.role !== 'participant') return;
+            parsed.participantFirstname = v;
+            localStorage.setItem(LS_AUTH, JSON.stringify(parsed));
+        } catch {
+            /* ignore */
+        }
+    }, []);
+
+    /** หลังบันทึกโปรไฟล์พนักงาน — ซิงค์ sidebar/header */
+    const mergeEmployeeSession = useCallback((partial) => {
+        if (!partial || typeof partial !== 'object') return;
+        setEmployee((prev) => {
+            if (!prev) return prev;
+            const merged = { ...prev, ...partial };
+            const next = normalizeStoredEmployee(merged);
+            if (!next) return prev;
+            try {
+                const raw = localStorage.getItem(LS_AUTH);
+                const parsed = raw ? JSON.parse(raw) : {};
+                parsed.employee = { ...parsed.employee, ...next };
+                localStorage.setItem(LS_AUTH, JSON.stringify(parsed));
+            } catch {
+                /* ignore */
+            }
+            return next;
+        });
+    }, []);
+
     return (
         <AuthContext.Provider
             value={{
@@ -133,6 +170,8 @@ export const AuthProvider = ({ children }) => {
                 participantProfile,
                 participantProfileLoading,
                 refreshParticipantProfile,
+                syncParticipantLoginFirstname,
+                mergeEmployeeSession,
             }}
         >
             {children}

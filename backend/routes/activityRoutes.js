@@ -6,10 +6,11 @@ const activityController = require('../controllers/activityController');
 // เส้นทางสำหรับ /api/activities
 router.get('/', activityController.getAllActivities);
 router.post('/', activityController.createActivity);
+// ต้องอยู่ก่อน /:id เพื่อไม่ให้ "events" ถูกจับเป็น id (เมื่อมี GET /:id)
+router.get('/events', activityController.getEventsList);
+router.get('/:id/applicants', activityController.getActivityApplicants);
+router.post('/:id/remind-applicants', activityController.remindActivityApplicants);
 router.delete('/:id', activityController.deleteActivity);
 router.put('/:id', activityController.updateActivity);
-
-// เส้นทางสำหรับ /api/events (ดึงรายชื่อเข้า dropdown)
-router.get('/events', activityController.getEventsList);
 
 module.exports = router;

@@ -7,6 +7,9 @@ const fs = require('fs');
 
 // โปรไฟล์ผู้เข้าร่วม (ซิงค์ UI กับ DB)
 router.get('/profile', participantController.getProfile);
+router.patch('/profile', participantController.patchProfile);
+
+router.patch('/account/password', participantController.patchPassword);
 
 // ดึงข้อมูล Dashboard ของนิสิต
 router.get('/dashboard', participantController.getParticipantDashboardData);

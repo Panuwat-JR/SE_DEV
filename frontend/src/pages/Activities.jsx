@@ -1,6 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { Search, Plus, Edit, Trash2, Clock, Trophy, Eye, X, Upload, File, Users, CalendarDays, MapPin, CheckCircle2, FileText, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Plus, Edit, Trash2, Clock, Trophy, Eye, X, Upload, File, Users, CalendarDays, MapPin, CheckCircle2, FileText, ChevronRight, Mail, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { API_BASE as API_ORIGIN } from '../config/api';
+
+const API_ROOT = `${API_ORIGIN}/api`;
 import {
   EVENT_STATUS_OPTIONS,
   eventStatusBadgeClass,
@@ -13,6 +16,13 @@ function Activities() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedActivity, setSelectedActivity] = useState(null);
+  const [committeeDraft, setCommitteeDraft] = useState('');
+  const [committeeSaving, setCommitteeSaving] = useState(false);
+  const [applicantsOpen, setApplicantsOpen] = useState(false);
+  const [applicantsLoading, setApplicantsLoading] = useState(false);
+  const [applicantsError, setApplicantsError] = useState('');
+  const [applicantsPayload, setApplicantsPayload] = useState(null);
+  const [remindLoading, setRemindLoading] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -24,9 +34,29 @@ function Activities() {
     description: '',
     max_participants: 100,
     prize_pool: '',
+    committee_members: '',
     fileName: '',
   });
   const activityFileInputRef = useRef(null);
+
+  useEffect(() => {
+    setSelectedActivity((prev) => {
+      if (!prev) return prev;
+      const fresh = events.find((e) => String(e.id) === String(prev.id));
+      return fresh ?? prev;
+    });
+  }, [events]);
+
+  useEffect(() => {
+    setCommitteeDraft(selectedActivity?.committee_members ?? '');
+  }, [selectedActivity?.id, selectedActivity?.committee_members]);
+
+  useEffect(() => {
+    if (!selectedActivity) {
+      setApplicantsOpen(false);
+      setApplicantsPayload(null);
+    }
+  }, [selectedActivity]);
 
   const handleActivityFileDragOver = (e) => {
     e.preventDefault();
@@ -55,8 +85,85 @@ function Activities() {
   };
 
   const handleOpenEdit = (activity) => {
-    setEditingActivity({ ...activity, status: toEventStatusSelectValue(activity.status) });
+    setEditingActivity({
+      ...activity,
+      status: toEventStatusSelectValue(activity.status),
+      committee_members: activity.committee_members ?? '',
+    });
     setIsEditModalOpen(true);
+  };
+
+  const openApplicants = async () => {
+    if (!selectedActivity) return;
+    setApplicantsOpen(true);
+    setApplicantsLoading(true);
+    setApplicantsError('');
+    setApplicantsPayload(null);
+    try {
+      const res = await fetch(`${API_ROOT}/activities/${selectedActivity.id}/applicants`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setApplicantsError(data?.error || `โหลดไม่สำเร็จ (${res.status})`);
+        return;
+      }
+      setApplicantsPayload(data);
+    } catch (e) {
+      setApplicantsError(e?.message || 'เชื่อมต่อไม่ได้');
+    } finally {
+      setApplicantsLoading(false);
+    }
+  };
+
+  const sendReminders = async () => {
+    if (!selectedActivity) return;
+    if (
+      !window.confirm(
+        `ส่งอีเมลแจ้งเตือนผู้สมัครทุกคนในโครงการ "${selectedActivity.title}" ?\n(ระบบจะบันทึกคำขอ — หากยังไม่ตั้ง SMTP จะเห็นรายชื่อใน log ของเซิร์ฟเวอร์)`
+      )
+    ) {
+      return;
+    }
+    setRemindLoading(true);
+    try {
+      const res = await fetch(`${API_ROOT}/activities/${selectedActivity.id}/remind-applicants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(data?.error || `ส่งคำขอไม่สำเร็จ (${res.status})`);
+        return;
+      }
+      window.alert(data?.message || 'ดำเนินการแล้ว');
+    } catch (e) {
+      window.alert(e?.message || 'เชื่อมต่อไม่ได้');
+    } finally {
+      setRemindLoading(false);
+    }
+  };
+
+  const saveCommitteeOnly = async () => {
+    if (!selectedActivity) return;
+    setCommitteeSaving(true);
+    try {
+      const r = await updateEvent(selectedActivity.id, {
+        title: selectedActivity.title,
+        status: selectedActivity.status,
+        date_text: selectedActivity.date_input || selectedActivity.date_text,
+        end_date_text: selectedActivity.end_date_input || selectedActivity.end_date_text || '',
+        description: selectedActivity.description ?? '',
+        max_participants: selectedActivity.max_participants,
+        prize_pool: selectedActivity.prize_pool,
+        committee_members: committeeDraft,
+      });
+      if (r?.ok === false) {
+        window.alert(r.error || 'บันทึกไม่สำเร็จ');
+        return;
+      }
+      window.alert('บันทึกรายชื่อกรรมการแล้ว');
+    } finally {
+      setCommitteeSaving(false);
+    }
   };
 
   const handleSaveEdit = async (e) => {
@@ -72,6 +179,7 @@ function Activities() {
       date_text: editingActivity.date_input || editingActivity.date_text,
       end_date_text: editingActivity.end_date_input || '',
       description: editingActivity.description ?? '',
+      committee_members: editingActivity.committee_members ?? '',
     };
     const r = await updateEvent(editingActivity.id, payload);
     if (r?.ok === false) {
@@ -97,6 +205,7 @@ function Activities() {
       description: newActivity.description || '',
       max_participants: Number(newActivity.max_participants),
       prize_pool: newActivity.prize_pool || 'ไม่มีเงินรางวัล',
+      committee_members: newActivity.committee_members || '',
     });
     if (r?.ok === false) {
       window.alert(r.error || 'สร้างกิจกรรมไม่สำเร็จ');
@@ -111,6 +220,7 @@ function Activities() {
       description: '',
       max_participants: 100,
       prize_pool: '',
+      committee_members: '',
       fileName: '',
     });
   };
@@ -379,23 +489,49 @@ function Activities() {
                     </p>
                   </div>
 
-                  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-                    <h4 className="text-sm font-bold text-gray-800 mb-2">คณะกรรมการตัดสิน</h4>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      ยังไม่มีรายชื่อคณะกรรมการในระบบ — เมื่อมีตารางและ API สำหรับกรรมการ จะแสดงในส่วนนี้
-                    </p>
+                  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-3">
+                    <h4 className="text-sm font-bold text-gray-800">คณะกรรมการตัดสิน</h4>
+                    <p className="text-xs text-gray-500">ระบุชื่อหนึ่งท่านต่อหนึ่งบรรทัด แล้วกดบันทึก</p>
+                    <textarea
+                      rows={5}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y"
+                      placeholder="เช่น&#10;ศ.ดร.สมชาย ใจดี&#10;ดร.วิไล รักษ์ดี"
+                      value={committeeDraft}
+                      onChange={(e) => setCommitteeDraft(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      disabled={committeeSaving}
+                      onClick={saveCommitteeOnly}
+                      className="w-full py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      {committeeSaving ? <Loader2 size={16} className="animate-spin" /> : null}
+                      บันทึกรายชื่อกรรมการ
+                    </button>
                   </div>
 
                   {/* Quick Actions */}
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-xl border border-gray-200">
                     <h4 className="text-sm font-bold text-gray-800 mb-3">จัดการด่วน</h4>
                     <div className="space-y-2">
-                      <button className="w-full flex justify-between items-center px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm group">
+                      <button
+                        type="button"
+                        onClick={openApplicants}
+                        className="w-full flex justify-between items-center px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm group cursor-pointer"
+                      >
                         <span>ดูรายชื่อผู้สมัครทั้งหมด</span>
                         <ChevronRight size={16} className="text-gray-400 group-hover:text-blue-500" />
                       </button>
-                      <button className="w-full flex justify-between items-center px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm group">
-                        <span>ส่งอีเมลแจ้งเตือนผู้สมัคร</span>
+                      <button
+                        type="button"
+                        disabled={remindLoading}
+                        onClick={sendReminders}
+                        className="w-full flex justify-between items-center px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm group cursor-pointer disabled:opacity-60"
+                      >
+                        <span className="flex items-center gap-2">
+                          {remindLoading ? <Loader2 size={16} className="animate-spin text-blue-600" /> : <Mail size={16} className="text-gray-400" />}
+                          ส่งอีเมลแจ้งเตือนผู้สมัคร
+                        </span>
                         <ChevronRight size={16} className="text-gray-400 group-hover:text-blue-500" />
                       </button>
                     </div>
@@ -405,6 +541,71 @@ function Activities() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {selectedActivity && applicantsOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100 shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">รายชื่อผู้สมัคร</h3>
+                <p className="text-sm text-gray-500">{selectedActivity.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApplicantsOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                aria-label="ปิด"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              {applicantsLoading && (
+                <div className="flex items-center justify-center gap-2 py-12 text-gray-500">
+                  <Loader2 className="animate-spin" size={22} /> กำลังโหลด...
+                </div>
+              )}
+              {!applicantsLoading && applicantsError && (
+                <p className="text-red-600 text-sm text-center py-8">{applicantsError}</p>
+              )}
+              {!applicantsLoading && !applicantsError && applicantsPayload && (
+                <>
+                  {applicantsPayload.applicants?.length === 0 ? (
+                    <p className="text-gray-500 text-sm text-center py-8">
+                      ยังไม่มีผู้สมัครผ่านทีมที่ลงทะเบียนในกิจกรรมนี้ — ผูกทีมกับกิจกรรมที่หน้าทีม/ระบบจัดการทีม
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
+                          <tr>
+                            <th className="p-3 font-medium">ชื่อ</th>
+                            <th className="p-3 font-medium">อีเมล</th>
+                            <th className="p-3 font-medium">ทีม</th>
+                            <th className="p-3 font-medium">โทรศัพท์</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {applicantsPayload.applicants.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50/80">
+                              <td className="p-3 font-medium text-gray-800">
+                                {[row.firstname, row.lastname].filter(Boolean).join(' ') || '—'}
+                              </td>
+                              <td className="p-3 text-gray-600">{row.email || '—'}</td>
+                              <td className="p-3 text-gray-600">{row.team_name || '—'}</td>
+                              <td className="p-3 text-gray-600">{row.phone || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -451,6 +652,17 @@ function Activities() {
                 <textarea rows={3} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                   value={editingActivity.description ?? ''}
                   onChange={(e) => setEditingActivity({ ...editingActivity, description: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">คณะกรรมการตัดสิน (หนึ่งท่านต่อบรรทัด)</label>
+                <textarea
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  value={editingActivity.committee_members ?? ''}
+                  onChange={(e) =>
+                    setEditingActivity({ ...editingActivity, committee_members: e.target.value })
+                  }
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -513,6 +725,16 @@ function Activities() {
                 <textarea rows={3} placeholder="อธิบายโครงการสั้นๆ"
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                   value={newActivity.description} onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">คณะกรรมการตัดสิน (หนึ่งท่านต่อบรรทัด — ทางเลือก)</label>
+                <textarea
+                  rows={3}
+                  placeholder="เช่น ศ.ดร.สมชาย ใจดี"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  value={newActivity.committee_members}
+                  onChange={(e) => setNewActivity({ ...newActivity, committee_members: e.target.value })}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

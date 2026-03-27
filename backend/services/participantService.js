@@ -1,4 +1,6 @@
+const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
+const { verifyPassword } = require('../utils/passwordVerify');
 const { parseParticipantPortalComment, PARTICIPANT_PORTAL_PREFIX } = require('../utils/feedbackComment');
 
 /** ค่าเริ่มต้นเมื่อไม่มี header/query — กำหนดทับด้วย DEMO_PARTICIPANT_FIRSTNAME ใน .env */
@@ -310,7 +312,9 @@ class ParticipantService {
         COALESCE(f.name, '') AS faculty,
         COALESCE(t.name, '') AS team_name,
         COALESCE(t.project_name, '') AS project_name,
-        COALESCE(p.email, '') AS email
+        COALESCE(p.email, '') AS email,
+        TRIM(BOTH FROM COALESCE(pp.phone_number, '')) AS phone_number,
+        TRIM(BOTH FROM COALESCE(pp.gender, '')) AS gender
       FROM participant_profiles pp
       LEFT JOIN faculties f ON f.faculty_id = pp.faculty_id
       LEFT JOIN teams t ON t.team_id = pp.team_id
@@ -362,9 +366,201 @@ class ParticipantService {
       faculty: row.faculty,
       teamName: row.team_name || null,
       projectLabel: row.project_name || null,
+      phoneNumber: row.phone_number || '',
+      gender: row.gender || '',
       isTeamLeader,
       initial,
     };
+  }
+
+  /** แถวบัญชีผู้เข้าร่วม (มี participants) สำหรับอัปเดตโปรไฟล์/รหัสผ่าน */
+  async _getParticipantAccountRow(participantName) {
+    const r = await pool.query(
+      `
+      SELECT
+        pp.participant_profile_id,
+        p.participant_id,
+        p.email,
+        p.password_hash
+      FROM participant_profiles pp
+      INNER JOIN participants p ON p.participant_profile_id = pp.participant_profile_id
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
+      ORDER BY pp.participant_profile_id ASC
+      LIMIT 1
+      `,
+      [participantName]
+    );
+    return r.rows[0] || null;
+  }
+
+  async _firstnameTakenByOtherAccount(firstname, excludeProfileId) {
+    const r = await pool.query(
+      `
+      SELECT COUNT(*)::int AS c
+      FROM participant_profiles pp
+      INNER JOIN participants p ON p.participant_profile_id = pp.participant_profile_id
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
+        AND pp.participant_profile_id <> $2
+      `,
+      [firstname, excludeProfileId]
+    );
+    return (r.rows[0]?.c || 0) > 0;
+  }
+
+  /**
+   * อัปเดตโปรไฟล์ผู้เข้าร่วม (ชื่อที่ใช้ล็อกอินคือ firstname — ถ้าเปลี่ยนชื่อต้องอัปเดตฝั่ง client ด้วย)
+   */
+  async updateParticipantPortalProfile(participantName, body) {
+    const acc = await this._getParticipantAccountRow(participantName);
+    if (!acc) return null;
+
+    const b = body || {};
+    const firstname =
+      b.firstname !== undefined ? String(b.firstname || '').trim() : undefined;
+    const lastname =
+      b.lastname !== undefined ? String(b.lastname || '').trim() : undefined;
+    let year;
+    if (b.year_of_study !== undefined) {
+      if (b.year_of_study === '' || b.year_of_study == null) {
+        year = null;
+      } else {
+        const n = parseInt(String(b.year_of_study), 10);
+        year = Number.isFinite(n) ? n : null;
+      }
+    }
+    const phone =
+      b.phone_number !== undefined
+        ? b.phone_number == null
+          ? null
+          : String(b.phone_number).trim()
+        : undefined;
+    const gender =
+      b.gender !== undefined
+        ? b.gender == null
+          ? null
+          : String(b.gender).trim()
+        : undefined;
+
+    let email;
+    if (b.email !== undefined) {
+      email = String(b.email || '').trim().toLowerCase();
+    }
+
+    if (firstname !== undefined && firstname === '') {
+      const err = new Error('กรุณาระบุชื่อ');
+      err.code = 'VALIDATION';
+      throw err;
+    }
+
+    if (firstname !== undefined) {
+      const taken = await this._firstnameTakenByOtherAccount(
+        firstname,
+        acc.participant_profile_id
+      );
+      if (taken) {
+        const err = new Error(
+          'ชื่อนี้ถูกใช้เป็นชื่อเข้าระบบของผู้เข้าร่วมอื่นแล้ว'
+        );
+        err.code = 'DUPLICATE_FIRSTNAME';
+        throw err;
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const profSets = [];
+      const profVals = [];
+      let i = 1;
+      if (firstname !== undefined) {
+        profSets.push(`firstname = $${i++}`);
+        profVals.push(firstname);
+      }
+      if (lastname !== undefined) {
+        profSets.push(`lastname = $${i++}`);
+        profVals.push(lastname);
+      }
+      if (year !== undefined) {
+        profSets.push(`year_of_study = $${i++}`);
+        profVals.push(year);
+      }
+      if (phone !== undefined) {
+        profSets.push(`phone_number = $${i++}`);
+        profVals.push(phone || null);
+      }
+      if (gender !== undefined) {
+        profSets.push(`gender = $${i++}`);
+        profVals.push(gender || null);
+      }
+      if (profSets.length) {
+        profVals.push(acc.participant_profile_id);
+        await client.query(
+          `UPDATE participant_profiles SET ${profSets.join(', ')}, update_at = CURRENT_TIMESTAMP WHERE participant_profile_id = $${i}`,
+          profVals
+        );
+      }
+
+      if (email !== undefined) {
+        if (!email) {
+          const err = new Error('กรุณาระบุอีเมล');
+          err.code = 'VALIDATION';
+          throw err;
+        }
+        const dup = await client.query(
+          `SELECT 1 FROM participants WHERE LOWER(TRIM(email)) = $1 AND participant_id <> $2 LIMIT 1`,
+          [email, acc.participant_id]
+        );
+        if (dup.rowCount > 0) {
+          const err = new Error('อีเมลนี้มีในระบบแล้ว');
+          err.code = 'DUPLICATE_EMAIL';
+          throw err;
+        }
+        await client.query(
+          `UPDATE participants SET email = $1, update_at = CURRENT_TIMESTAMP WHERE participant_id = $2`,
+          [email, acc.participant_id]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        /* ignore */
+      }
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    const lookupName = firstname !== undefined ? firstname : participantName;
+    return this.getProfileForParticipant(lookupName);
+  }
+
+  async changeParticipantPortalPassword(participantName, currentPassword, newPassword) {
+    const acc = await this._getParticipantAccountRow(participantName);
+    if (!acc) {
+      const err = new Error('ไม่พบบัญชีผู้เข้าร่วม');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    if (!verifyPassword(String(currentPassword ?? ''), acc.password_hash)) {
+      const err = new Error('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+      err.code = 'INVALID_CURRENT_PASSWORD';
+      throw err;
+    }
+    const np = String(newPassword || '');
+    if (np.length < 6) {
+      const err = new Error('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+      err.code = 'VALIDATION';
+      throw err;
+    }
+    await pool.query(
+      `UPDATE participants SET password_hash = $1, update_at = CURRENT_TIMESTAMP WHERE participant_id = $2`,
+      [bcrypt.hashSync(np, 10), acc.participant_id]
+    );
+    return true;
   }
 
   /** ดึง password_hash สำหรับล็อกอินพอร์ทัลผู้เข้าร่วม (ต้องมีแถวใน participants) */

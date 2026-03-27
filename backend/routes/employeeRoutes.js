@@ -9,6 +9,7 @@ router.get('/calendar', employeeController.getCalendar);
 
 // GET /api/employees — รายชื่อพนักงานทั้งหมด
 router.get('/', employeeController.getEmployees);
+router.get('/:id', employeeController.getEmployeeById);
 router.post('/', employeeController.createEmployee);
 router.put('/:id', employeeController.updateEmployee);
 router.delete('/:id', employeeController.deleteEmployee);
