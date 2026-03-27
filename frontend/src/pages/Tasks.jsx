@@ -52,9 +52,13 @@ function Tasks() {
     task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: ''
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    addTask({ ...formData });
+    const r = await addTask({ ...formData });
+    if (r?.ok === false) {
+      window.alert(r.error || 'สร้างงานไม่สำเร็จ — ตรวจสอบสถานะ/ความสำคัญ/หมวดใน DB');
+      return;
+    }
     setIsModalOpen(false);
     setFormData({ task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: '' });
   };

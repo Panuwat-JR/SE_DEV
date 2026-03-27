@@ -1,6 +1,18 @@
 // ตารางและคอลัมน์ตาม se.sql — โควต้าผู้เข้าร่วมเก็บใน logistics.max_participant
 const pool = require('../config/db');
 
+/** แมปชื่อสถานะจาก UI เก่า → ชื่อใน status_events */
+const EVENT_STATUS_ALIASES = {
+  ดำเนินการสำเร็จ: 'เสร็จสิ้น',
+  'ดำเนินการ เสร็จสิ้น': 'เสร็จสิ้น',
+};
+
+function normalizeEventStatusName(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return 'เปิดรับสมัคร';
+  return EVENT_STATUS_ALIASES[s] || s;
+}
+
 function parseEventDateInput(raw) {
   if (raw == null || raw === '') return null;
   const s = String(raw).trim();
@@ -48,7 +60,7 @@ exports.createActivity = async (req, res) => {
     return res.status(400).json({ error: 'ต้องระบุชื่อกิจกรรม' });
   }
 
-  const statusName = String(status || 'เปิดรับสมัคร').trim();
+  const statusName = normalizeEventStatusName(status || 'เปิดรับสมัคร');
   const dateIso = parseEventDateInput(date_text);
   const endIso = parseEventDateInput(
     end_date_text != null && end_date_text !== '' ? end_date_text : req.body.end_date_input
@@ -85,7 +97,8 @@ exports.createActivity = async (req, res) => {
          $5,
          COALESCE(
            (SELECT status_event_id FROM status_events WHERE name = $6 LIMIT 1),
-           (SELECT status_event_id FROM status_events WHERE name = 'เปิดรับสมัคร' LIMIT 1)
+           (SELECT status_event_id FROM status_events WHERE name = 'เปิดรับสมัคร' LIMIT 1),
+           (SELECT status_event_id FROM status_events ORDER BY status_event_id ASC LIMIT 1)
          ),
          $7
        )
@@ -209,7 +222,7 @@ exports.updateActivity = async (req, res) => {
 
     const prize = parsePrizePool(prize_pool);
 
-    const statusName = String(status || 'เปิดรับสมัคร').trim();
+    const statusName = normalizeEventStatusName(status || 'เปิดรับสมัคร');
     const desc =
       description != null && String(description).trim() !== '' ? String(description).trim() : null;
 
@@ -221,7 +234,8 @@ exports.updateActivity = async (req, res) => {
         description = $2,
         status_event_id = COALESCE(
           (SELECT status_event_id FROM status_events WHERE name = $3 LIMIT 1),
-          (SELECT status_event_id FROM status_events WHERE name = 'เปิดรับสมัคร' LIMIT 1)
+          (SELECT status_event_id FROM status_events WHERE name = 'เปิดรับสมัคร' LIMIT 1),
+          (SELECT status_event_id FROM status_events ORDER BY status_event_id ASC LIMIT 1)
         ),
         event_start_date = CASE WHEN $4::text IS NULL OR TRIM(COALESCE($4::text, '')) = '' THEN NULL ELSE $4::date END,
         event_end_date = CASE WHEN $5::text IS NULL OR TRIM(COALESCE($5::text, '')) = '' THEN NULL ELSE $5::date END,

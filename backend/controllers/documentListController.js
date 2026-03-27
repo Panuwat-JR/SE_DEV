@@ -32,32 +32,70 @@ exports.listDocuments = async (req, res) => {
 exports.createDocument = async (req, res) => {
   const name = String(req.body?.name || '').trim();
   const projectTitle = String(req.body?.project || '').trim();
+  const eventIdBody = req.body?.event_id;
   if (!name) return res.status(400).json({ error: 'ต้องระบุชื่อเอกสาร' });
-  if (!projectTitle) return res.status(400).json({ error: 'ต้องระบุโครงการ' });
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const ev = await client.query(
-      `SELECT event_id FROM events WHERE TRIM(title) = TRIM($1) LIMIT 1`,
-      [projectTitle]
-    );
-    if (ev.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'ไม่พบโครงการที่ตรงกับชื่อนี้' });
+    let eventId = null;
+    const eidNum =
+      eventIdBody === '' || eventIdBody == null ? NaN : parseInt(String(eventIdBody), 10);
+    if (Number.isFinite(eidNum)) {
+      const byId = await client.query(`SELECT event_id FROM events WHERE event_id = $1 LIMIT 1`, [
+        eidNum,
+      ]);
+      if (byId.rowCount > 0) eventId = byId.rows[0].event_id;
     }
-    const eventId = ev.rows[0].event_id;
+    if (eventId == null && projectTitle) {
+      const ev = await client.query(
+        `SELECT event_id FROM events WHERE TRIM(title) = TRIM($1) LIMIT 1`,
+        [projectTitle]
+      );
+      if (ev.rowCount > 0) eventId = ev.rows[0].event_id;
+    }
+    if (eventId == null) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'ต้องระบุโครงการ (เลือกจากรายการหรือชื่อให้ตรงกับระบบ)' });
+    }
 
-    const taskR = await client.query(
+    let taskR = await client.query(
       `SELECT task_id FROM tasks WHERE event_id = $1 ORDER BY task_id ASC LIMIT 1`,
       [eventId]
     );
-    if (taskR.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'โครงการนี้ยังไม่มีงาน — สร้างงานก่อนจึงจะผูกเอกสารได้' });
+    let taskId;
+    if (taskR.rowCount > 0) {
+      taskId = taskR.rows[0].task_id;
+    } else {
+      const st = await client.query(
+        `SELECT status_task_id FROM task_statuses ORDER BY status_task_id ASC LIMIT 1`
+      );
+      const pr = await client.query(
+        `SELECT priority_id FROM priority_levels ORDER BY priority_id ASC LIMIT 1`
+      );
+      const ct = await client.query(
+        `SELECT task_category_id FROM task_categories ORDER BY task_category_id ASC LIMIT 1`
+      );
+      if (st.rowCount === 0 || pr.rowCount === 0 || ct.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'ไม่สามารถสร้างงานอัตโนมัติได้ — ขาด task_statuses / priority_levels / task_categories ใน DB',
+        });
+      }
+      const insT = await client.query(
+        `INSERT INTO tasks (task_name, event_id, status_task_id, priority_id, task_category_id, due_date)
+         VALUES ($1, $2, $3, $4, $5, NULL) RETURNING task_id`,
+        [
+          'งานประกอบเอกสาร (สร้างอัตโนมัติ)',
+          eventId,
+          st.rows[0].status_task_id,
+          pr.rows[0].priority_id,
+          ct.rows[0].task_category_id,
+        ]
+      );
+      taskId = insT.rows[0].task_id;
     }
-    const taskId = taskR.rows[0].task_id;
 
     const statusR = await client.query(
       `SELECT doc_status_id FROM document_statuses ORDER BY doc_status_id ASC LIMIT 1`

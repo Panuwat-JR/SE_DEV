@@ -185,6 +185,7 @@ export const AppProvider = ({ children }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            const payload = await res.json().catch(() => ({}));
             if (res.ok) {
                 const fresh = await fetch(`${API_BASE}/activities`).then(r => r.json());
                 if (Array.isArray(fresh)) setEvents(fresh);
@@ -192,9 +193,12 @@ export const AppProvider = ({ children }) => {
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
                 if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
+                return { ok: true };
             }
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
         } catch (err) {
             console.error('addEvent Error:', err);
+            return { ok: false, error: err.message };
         }
     };
 
@@ -205,6 +209,7 @@ export const AppProvider = ({ children }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            const payload = await res.json().catch(() => ({}));
             if (res.ok) {
                 const fresh = await fetch(`${API_BASE}/activities`).then(r => r.json());
                 if (Array.isArray(fresh)) setEvents(fresh);
@@ -212,9 +217,12 @@ export const AppProvider = ({ children }) => {
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
                 if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
+                return { ok: true };
             }
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
         } catch (err) {
             console.error('updateEvent Error:', err);
+            return { ok: false, error: err.message };
         }
     };
 
@@ -244,6 +252,7 @@ export const AppProvider = ({ children }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            const payload = await res.json().catch(() => ({}));
             if (res.ok) {
                 const freshTasks = await fetch(`${API_BASE}/tasks`).then((r) => r.json());
                 if (Array.isArray(freshTasks)) setTasks(freshTasks);
@@ -251,9 +260,12 @@ export const AppProvider = ({ children }) => {
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
                 if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
+                return { ok: true };
             }
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
         } catch (err) {
             console.error('addTask Error:', err);
+            return { ok: false, error: err.message };
         }
     };
 

@@ -84,6 +84,7 @@ export default function E_Documents() {
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [formValues, setFormValues] = useState({});
     const [selectedProjectTitle, setSelectedProjectTitle] = useState('');
+    const [selectedEventId, setSelectedEventId] = useState('');
     const [created, setCreated] = useState(false);
     const [savingTemplate, setSavingTemplate] = useState(false);
     const [templateSubmitError, setTemplateSubmitError] = useState(null);
@@ -134,8 +135,9 @@ export default function E_Documents() {
         const tpl = TEMPLATES.find((t) => t.id === selectedTemplate);
         if (!tpl) return;
         const project = String(selectedProjectTitle || '').trim();
-        if (!project) {
-            setTemplateSubmitError('กรุณาเลือกโครงการให้ตรงกับชื่อโครงการในระบบ (events.title)');
+        const eid = selectedEventId ? Number(selectedEventId) : NaN;
+        if (!Number.isFinite(eid) && !project) {
+            setTemplateSubmitError('กรุณาเลือกโครงการจากรายการ');
             return;
         }
         setTemplateSubmitError(null);
@@ -145,7 +147,11 @@ export default function E_Documents() {
             const res = await fetch(`${apiRoot()}/documents`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, project }),
+                body: JSON.stringify({
+                    name,
+                    project,
+                    ...(Number.isFinite(eid) ? { event_id: eid } : {}),
+                }),
             });
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -159,6 +165,7 @@ export default function E_Documents() {
                 setSelectedTemplate(null);
                 setFormValues({});
                 setSelectedProjectTitle('');
+                setSelectedEventId('');
                 setActiveTab('docs');
             }, 2000);
         } catch (err) {
@@ -193,6 +200,7 @@ export default function E_Documents() {
         setSelectedTemplate(null);
         setFormValues({});
         setSelectedProjectTitle('');
+        setSelectedEventId('');
         setTemplateSubmitError(null);
     };
 
@@ -202,7 +210,7 @@ export default function E_Documents() {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">เอกสาร</h1>
                     <p className="text-gray-500 text-sm mt-1">
-                        รายการจากฐานข้อมูล — สร้างจาก Template จะบันทึกเป็นเอกสารจริง (ผูกงานแรกของโครงการ)
+                        รายการจากฐานข้อมูล — สร้างจาก Template บันทึกเป็นเอกสารจริง หากโครงการยังไม่มีงาน ระบบจะสร้างงานประกอบอัตโนมัติ
                     </p>
                 </div>
             </div>
@@ -439,17 +447,22 @@ export default function E_Documents() {
                                         <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 space-y-2">
                                             <label className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                                                 <Info size={14} className="text-blue-600" />
-                                                โครงการ (ต้องตรงชื่อในระบบ)
+                                                โครงการ (เลือกจากรายการ — ใช้รหัสโครงการผูกกับฐานข้อมูล)
                                             </label>
                                             <select
                                                 required
                                                 className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                                                value={selectedProjectTitle}
-                                                onChange={(e) => setSelectedProjectTitle(e.target.value)}
+                                                value={selectedEventId}
+                                                onChange={(e) => {
+                                                    const vid = e.target.value;
+                                                    setSelectedEventId(vid);
+                                                    const ev = events.find((x) => String(x.event_id) === vid);
+                                                    setSelectedProjectTitle(ev?.title || '');
+                                                }}
                                             >
                                                 <option value="">-- เลือกโครงการ --</option>
                                                 {events.map((ev) => (
-                                                    <option key={ev.event_id} value={ev.title}>
+                                                    <option key={ev.event_id ?? ev.id} value={String(ev.event_id ?? ev.id)}>
                                                         {ev.title}
                                                     </option>
                                                 ))}

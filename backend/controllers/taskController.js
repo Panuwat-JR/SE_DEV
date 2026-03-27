@@ -25,6 +25,7 @@ exports.getTasks = async (req, res) => {
     const query = `
       SELECT
         t.task_id AS id,
+        t.event_id,
         t.task_name AS title,
         COALESCE(e.title, 'ไม่ระบุกิจกรรม') AS event,
         CASE
@@ -125,30 +126,57 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ error: 'ต้องระบุชื่องาน' });
     }
     const { event_id, status, priority, category, due_date } = body;
-    const priorityNorm = String(priority || '').trim() === 'กลาง' ? 'ปกติ' : priority;
+    let priorityNorm = String(priority || '').trim();
+    if (priorityNorm === 'กลาง') priorityNorm = 'ปกติ';
 
-    const st = await pool.query(
+    let st = await pool.query(
       `SELECT status_task_id FROM task_statuses WHERE name = $1 OR slug = $1 LIMIT 1`,
       [status]
     );
     if (st.rowCount === 0) {
-      return res.status(400).json({ error: `ไม่พบสถานะงาน "${status}" ในระบบ` });
+      st = await pool.query(
+        `SELECT status_task_id FROM task_statuses WHERE slug IN ('pending','in_progress') ORDER BY status_task_id ASC LIMIT 1`
+      );
     }
-    const pr = await pool.query(
+    if (st.rowCount === 0) {
+      return res.status(400).json({ error: 'ไม่พบสถานะงานในระบบ — รัน seed / init DB' });
+    }
+
+    let pr = await pool.query(
       `SELECT priority_id FROM priority_levels WHERE name = $1 OR slug = $1 LIMIT 1`,
       [priorityNorm]
     );
     if (pr.rowCount === 0) {
-      return res.status(400).json({ error: `ไม่พบระดับความสำคัญ "${priorityNorm}" ในระบบ` });
+      pr = await pool.query(
+        `SELECT priority_id FROM priority_levels WHERE slug = 'medium' LIMIT 1`
+      );
     }
+    if (pr.rowCount === 0) {
+      pr = await pool.query(`SELECT priority_id FROM priority_levels ORDER BY priority_id ASC LIMIT 1`);
+    }
+    if (pr.rowCount === 0) {
+      return res.status(400).json({ error: 'ไม่พบระดับความสำคัญในระบบ — รัน seed / init DB' });
+    }
+
     const catName = String(category || 'ทั่วไป').trim();
-    const ct = await pool.query(
-      `SELECT task_category_id FROM task_categories WHERE name = $1 LIMIT 1`,
-      [catName]
-    );
+    let ct = await pool.query(`SELECT task_category_id FROM task_categories WHERE name = $1 LIMIT 1`, [
+      catName,
+    ]);
     if (ct.rowCount === 0) {
-      return res.status(400).json({ error: `ไม่พบหมวดงาน "${catName}" ในระบบ` });
+      ct = await pool.query(
+        `SELECT task_category_id FROM task_categories WHERE slug = 'general' LIMIT 1`
+      );
     }
+    if (ct.rowCount === 0) {
+      ct = await pool.query(`SELECT task_category_id FROM task_categories ORDER BY task_category_id ASC LIMIT 1`);
+    }
+    if (ct.rowCount === 0) {
+      return res.status(400).json({ error: 'ไม่พบหมวดงานในระบบ — รัน seed / init DB' });
+    }
+
+    const evId =
+      event_id === '' || event_id == null ? null : parseInt(String(event_id), 10);
+    const eventIdFinal = Number.isFinite(evId) ? evId : null;
 
     const query = `
       INSERT INTO tasks (task_name, event_id, status_task_id, priority_id, task_category_id, due_date)
@@ -157,7 +185,7 @@ exports.createTask = async (req, res) => {
     const finalDate = parseTaskDueDate(due_date);
     await pool.query(query, [
       title,
-      event_id || null,
+      eventIdFinal,
       st.rows[0].status_task_id,
       pr.rows[0].priority_id,
       ct.rows[0].task_category_id,

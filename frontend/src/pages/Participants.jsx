@@ -5,6 +5,8 @@ import { useApp } from '../context/AppContext';
 const Participants = () => {
   const { participants, teams, addParticipant, deleteParticipant } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [teamFilter, setTeamFilter] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [formData, setFormData] = useState({
     firstname: '', lastname: '', team_id: '', faculty: '', major: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา'
@@ -24,9 +26,26 @@ const Participants = () => {
     setFormData({ firstname: '', lastname: '', team_id: '', faculty: '', major: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา' });
   };
 
-  const filtered = participants.filter(p => {
+  const filtered = participants.filter((p) => {
+    const q = searchTerm.toLowerCase().trim();
     const name = `${p.firstname} ${p.lastname}`.toLowerCase();
-    return name.includes(searchTerm.toLowerCase()) || (p.team_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const teamN = (p.team_name || '').toLowerCase();
+    const email = (p.email || '').toLowerCase();
+    const sid = (p.student_id || '').toLowerCase();
+    const matchSearch =
+      !q ||
+      name.includes(q) ||
+      teamN.includes(q) ||
+      email.includes(q) ||
+      sid.includes(q) ||
+      (p.faculty || '').toLowerCase().includes(q) ||
+      (p.major || '').toLowerCase().includes(q);
+    if (!matchSearch) return false;
+    const t = String(p.type || '');
+    if (typeFilter === 'student' && !t.includes('นิสิต') && !t.includes('นักศึกษา')) return false;
+    if (typeFilter === 'general' && (t.includes('นิสิต') || t.includes('นักศึกษา'))) return false;
+    if (teamFilter && String(p.team_id || '') !== teamFilter) return false;
+    return true;
   });
 
   const stats = [
@@ -56,19 +75,40 @@ const Participants = () => {
         ))}
       </div>
 
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-wrap gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input type="text" placeholder="ค้นหาชื่อ, ทีม..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
         <div className="relative">
-          <select className="appearance-none pl-4 pr-10 py-2 border border-gray-200 rounded-lg bg-white text-sm text-gray-600 focus:outline-none">
-            <option>ทั้งหมด</option>
-            <option>นิสิต/นักศึกษา</option>
-            <option>บุคคลทั่วไป</option>
+          <select
+            className="appearance-none pl-4 pr-10 py-2 border border-gray-200 rounded-lg bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[10.5rem]"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            aria-label="กรองประเภทผู้เข้าร่วม"
+          >
+            <option value="all">ทั้งหมด</option>
+            <option value="student">นิสิต/นักศึกษา</option>
+            <option value="general">บุคคลทั่วไป</option>
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+        </div>
+        <div className="relative min-w-[11rem]">
+          <select
+            className="appearance-none w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            aria-label="กรองตามทีม"
+          >
+            <option value="">ทุกทีม</option>
+            {teams.map((t) => (
+              <option key={t.id} value={String(t.id)}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
         </div>
       </div>
 

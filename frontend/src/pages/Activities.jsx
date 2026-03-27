@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { Search, Plus, Filter, Edit, Trash2, Clock, Trophy, Eye, X, Upload, File, Users, CalendarDays, MapPin, CheckCircle2, FileText, ChevronRight } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Clock, Trophy, Eye, X, Upload, File, Users, CalendarDays, MapPin, CheckCircle2, FileText, ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import {
+  EVENT_STATUS_OPTIONS,
+  eventStatusBadgeClass,
+  eventStatusOptionsFor,
+  toEventStatusSelectValue,
+} from '../lib/eventStatuses';
 
 function Activities() {
   const { events, addEvent, updateEvent, deleteEvent } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
@@ -27,11 +34,11 @@ function Activities() {
   };
 
   const handleOpenEdit = (activity) => {
-    setEditingActivity({ ...activity });
+    setEditingActivity({ ...activity, status: toEventStatusSelectValue(activity.status) });
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
     const start = editingActivity.date_input || '';
     const end = editingActivity.end_date_input || '';
@@ -45,11 +52,15 @@ function Activities() {
       end_date_text: editingActivity.end_date_input || '',
       description: editingActivity.description ?? '',
     };
-    updateEvent(editingActivity.id, payload);
+    const r = await updateEvent(editingActivity.id, payload);
+    if (r?.ok === false) {
+      window.alert(r.error || 'บันทึกไม่สำเร็จ');
+      return;
+    }
     setIsEditModalOpen(false);
   };
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
     const start = newActivity.date_text || '';
     const end = newActivity.end_date_input || '';
@@ -57,7 +68,7 @@ function Activities() {
       window.alert('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น');
       return;
     }
-    addEvent({
+    const r = await addEvent({
       title: newActivity.title,
       status: newActivity.status,
       date_text: newActivity.date_text,
@@ -66,6 +77,10 @@ function Activities() {
       max_participants: Number(newActivity.max_participants),
       prize_pool: newActivity.prize_pool || 'ไม่มีเงินรางวัล',
     });
+    if (r?.ok === false) {
+      window.alert(r.error || 'สร้างกิจกรรมไม่สำเร็จ');
+      return;
+    }
     setIsCreateModalOpen(false);
     setNewActivity({
       title: '',
@@ -79,9 +94,12 @@ function Activities() {
     });
   };
 
-  const filteredActivities = events.filter(activity =>
-    activity.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const normStatus = (s) => toEventStatusSelectValue(s);
+  const filteredActivities = events.filter((activity) => {
+    if (!activity.title.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (statusFilter && normStatus(activity.status) !== statusFilter) return false;
+    return true;
+  });
 
   return (
     <div className="relative h-full flex flex-col">
@@ -110,9 +128,19 @@ function Activities() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="flex items-center gap-2 text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all">
-            <Filter size={16} /> กรองสถานะ
-          </button>
+          <select
+            className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-w-[11rem]"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="กรองตามสถานะ"
+          >
+            <option value="">ทุกสถานะ</option>
+            {EVENT_STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="overflow-x-auto flex-1">
@@ -139,11 +167,7 @@ function Activities() {
                     <div className="flex items-center gap-1.5"><Clock size={14} className="text-gray-400" /> {activity.date_text || 'ยังไม่ระบุ'}</div>
                   </td>
                   <td className="p-4">
-                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold whitespace-nowrap ${activity.status === 'กำลังดำเนินการ' ? 'bg-emerald-100 text-emerald-700' :
-                      activity.status === 'เปิดรับสมัคร' ? 'bg-blue-100 text-blue-700' :
-                        activity.status === 'ดำเนินการสำเร็จ' ? 'bg-gray-100 text-gray-600' :
-                          'bg-amber-100 text-amber-700'
-                      }`}>
+                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold whitespace-nowrap ${eventStatusBadgeClass(activity.status)}`}>
                       {activity.status}
                     </span>
                   </td>
@@ -192,7 +216,7 @@ function Activities() {
 
       {/* Modal ดูรายละเอียดกิจกรรม */}
       {selectedActivity && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] backdrop-blur-sm p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
 
             {/* Header คล้ายแบนเนอร์ */}
@@ -204,10 +228,10 @@ function Activities() {
               <div className="relative z-10 flex justify-between items-start">
                 <div className="text-white space-y-3">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className={`text-xs px-3 py-1 rounded-full font-bold shadow-sm ${selectedActivity.status === 'กำลังดำเนินการ' ? 'bg-emerald-400/20 text-emerald-100 border border-emerald-400/30' :
-                      selectedActivity.status === 'เปิดรับสมัคร' ? 'bg-blue-400/20 text-blue-100 border border-blue-400/30' :
-                        selectedActivity.status === 'ดำเนินการสำเร็จ' ? 'bg-white/20 text-white border border-white/30' :
-                          'bg-amber-400/20 text-amber-100 border border-amber-400/30'
+                    <span className={`text-xs px-3 py-1 rounded-full font-bold shadow-sm border ${selectedActivity.status === 'กำลังดำเนินการ' ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30' :
+                      selectedActivity.status === 'เปิดรับสมัคร' ? 'bg-blue-400/20 text-blue-100 border-blue-400/30' :
+                        selectedActivity.status === 'เสร็จสิ้น' || selectedActivity.status === 'ดำเนินการสำเร็จ' ? 'bg-white/20 text-white border-white/30' :
+                          'bg-amber-400/20 text-amber-100 border-amber-400/30'
                       }`}>
                       สถานะ: {selectedActivity.status}
                     </span>
@@ -366,7 +390,7 @@ function Activities() {
 
       {/* Modal แก้ไข */}
       {isEditModalOpen && editingActivity && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800">แก้ไขกิจกรรม</h2>
@@ -382,11 +406,10 @@ function Activities() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
                   <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                    value={editingActivity.status} onChange={(e) => setEditingActivity({ ...editingActivity, status: e.target.value })}>
-                    <option value="เปิดรับสมัคร">เปิดรับสมัคร</option>
-                    <option value="วางแผน">วางแผน</option>
-                    <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
-                    <option value="ดำเนินการสำเร็จ">ดำเนินการสำเร็จ</option>
+                    value={toEventStatusSelectValue(editingActivity.status)} onChange={(e) => setEditingActivity({ ...editingActivity, status: e.target.value })}>
+                    {eventStatusOptionsFor(editingActivity.status).map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -431,7 +454,7 @@ function Activities() {
 
       {/* Modal สร้างใหม่ */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800">สร้างกิจกรรมใหม่</h2>
@@ -447,11 +470,10 @@ function Activities() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
                   <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newActivity.status} onChange={(e) => setNewActivity({ ...newActivity, status: e.target.value })}>
-                    <option value="เปิดรับสมัคร">เปิดรับสมัคร</option>
-                    <option value="วางแผน">วางแผน</option>
-                    <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
-                    <option value="ดำเนินการสำเร็จ">ดำเนินการสำเร็จ</option>
+                    value={toEventStatusSelectValue(newActivity.status)} onChange={(e) => setNewActivity({ ...newActivity, status: e.target.value })}>
+                    {EVENT_STATUS_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

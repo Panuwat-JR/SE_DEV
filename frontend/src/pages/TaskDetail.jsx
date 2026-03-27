@@ -15,7 +15,7 @@ const TaskDetail = () => {
     return (
       <div className="p-8 text-center">
         <p className="text-gray-500 mb-4">ไม่พบข้อมูลงาน</p>
-        <Link to="/tasks" className="text-blue-600 hover:underline">← กลับไปหน้ากระดานงาน</Link>
+        <Link to="/employee/tasks" className="text-blue-600 hover:underline">← กลับไปหน้ากระดานงาน</Link>
       </div>
     );
   }
@@ -34,7 +34,7 @@ const TaskDetail = () => {
   return (
     <div className="p-8 bg-[#f8fafc] min-h-screen font-sans">
       <div className="mb-6">
-        <Link to="/tasks" className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors mb-4 text-sm font-medium">
+        <Link to="/employee/tasks" className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors mb-4 text-sm font-medium">
           <ArrowLeft size={16} /> กลับไปหน้ากระดานงาน
         </Link>
         <div className="flex justify-between items-start">
