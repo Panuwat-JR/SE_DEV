@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const ActivityTable = ({ activities }) => {
     if (!activities || activities.length === 0) return null;
@@ -7,7 +8,7 @@ const ActivityTable = ({ activities }) => {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-gray-50 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900">โครงการล่าสุด</h3>
-                <button className="text-blue-600 text-xs font-semibold hover:underline">ดูทั้งหมด</button>
+                <Link to="/executive/activities" className="text-blue-600 text-xs font-semibold hover:underline">ดูทั้งหมด</Link>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-left">

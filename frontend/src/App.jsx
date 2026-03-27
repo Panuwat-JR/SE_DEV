@@ -118,6 +118,7 @@ function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<X_Dashboard />} />
           <Route path="feedback" element={<X_Feedback />} />
+          <Route path="activities" element={<Activities />} />
         </Route>
 
         {/* Legacy flat URLs (employee / executive) */}

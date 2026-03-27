@@ -314,7 +314,8 @@ class ParticipantService {
         COALESCE(t.project_name, '') AS project_name,
         COALESCE(p.email, '') AS email,
         TRIM(BOTH FROM COALESCE(pp.phone_number, '')) AS phone_number,
-        TRIM(BOTH FROM COALESCE(pp.gender, '')) AS gender
+        TRIM(BOTH FROM COALESCE(pp.gender, '')) AS gender,
+        pp.profile_image
       FROM participant_profiles pp
       LEFT JOIN faculties f ON f.faculty_id = pp.faculty_id
       LEFT JOIN teams t ON t.team_id = pp.team_id
@@ -368,9 +369,21 @@ class ParticipantService {
       projectLabel: row.project_name || null,
       phoneNumber: row.phone_number || '',
       gender: row.gender || '',
+      profileImage: row.profile_image || null,
       isTeamLeader,
       initial,
     };
+  }
+
+  /** อัปเดต profile_image ของผู้เข้าร่วม */
+  async updateParticipantProfileImage(participantName, imagePath) {
+    await pool.query(
+      `UPDATE participant_profiles
+       SET profile_image = $1, update_at = CURRENT_TIMESTAMP
+       WHERE TRIM(LOWER(firstname)) = TRIM(LOWER($2))`,
+      [imagePath, participantName]
+    );
+    return this.getProfileForParticipant(participantName);
   }
 
   /** แถวบัญชีผู้เข้าร่วม (มี participants) สำหรับอัปเดตโปรไฟล์/รหัสผ่าน */
@@ -776,12 +789,7 @@ class ParticipantService {
       `SELECT task_id FROM tasks WHERE event_id = $1 ORDER BY task_id ASC LIMIT 1`,
       [eventId]
     );
-    if (taskR.rows.length === 0) {
-      const err = new Error('NO_TASKS_FOR_EVENT');
-      err.code = 'NO_TASKS_FOR_EVENT';
-      throw err;
-    }
-    const taskId = taskR.rows[0].task_id;
+    const taskId = taskR.rows[0]?.task_id ?? null;
 
     const statusR = await pool.query(
       `SELECT doc_status_id FROM document_statuses WHERE slug IN ('draft', 'pending_approval') ORDER BY doc_status_id LIMIT 1`
@@ -798,11 +806,13 @@ class ParticipantService {
     );
 
     const doc = insert.rows[0];
-    await pool.query(
-      `INSERT INTO mapping_doc_tasks (task_id, document_id) VALUES ($1, $2)
-       ON CONFLICT (task_id, document_id) DO NOTHING`,
-      [taskId, doc.document_id]
-    );
+    if (taskId) {
+      await pool.query(
+        `INSERT INTO mapping_doc_tasks (task_id, document_id) VALUES ($1, $2)
+         ON CONFLICT (task_id, document_id) DO NOTHING`,
+        [taskId, doc.document_id]
+      );
+    }
 
     const ds = await pool.query(`SELECT name FROM document_statuses WHERE doc_status_id = $1`, [doc.doc_status_id]);
     const eventTitle = await pool.query(`SELECT title FROM events WHERE event_id = $1`, [eventId]);

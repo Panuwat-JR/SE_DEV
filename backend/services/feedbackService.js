@@ -42,7 +42,7 @@ class FeedbackService {
       query += ` AND (e.academic_year = $${params.length} OR e.academic_year IS NULL)`;
     }
 
-    query += ` ORDER BY f.feedback_id, f.create_at DESC`;
+    query += ` ORDER BY f.feedback_id DESC, f.create_at DESC`;
     const result = await pool.query(query, params);
     return result.rows.map((row) => ({
       ...row,
