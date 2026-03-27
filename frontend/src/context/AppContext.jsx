@@ -34,15 +34,6 @@ export const AppProvider = ({ children }) => {
             .then(data => {
                 if (data.stats) setDbStats(data.stats);
                 // เราไม่ใช้ upcomingActivities จาก dashboard-data แล้ว เพราะจะดึง events ทั้งหมดจาก /api/activities แทน
-                if (data.recentTasks?.length > 0) {
-                    const mapped = data.recentTasks.map(t => ({
-                        ...t,
-                        task_name: t.title,
-                        event: t.project_name,
-                        progress: t.progress_percent ?? 0,
-                    }));
-                    setTasks(mapped);
-                }
                 if (data.activityLogs?.length > 0) setLogs(data.activityLogs);
             })
             .catch(err => {
@@ -61,6 +52,18 @@ export const AppProvider = ({ children }) => {
                 console.warn('⚠️ ไม่สามารถเชื่อม API activities ได้ ใช้ Mock Data แทน:', err.message);
             });
 
+        // ดึง Tasks ทั้งหมดสำหรับหน้า Tasks
+        fetch(`${API_BASE}/tasks`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    setTasks(data);
+                }
+            })
+            .catch(err => {
+                console.warn('⚠️ ไม่สามารถเชื่อม API tasks ได้ ใช้ Mock Data แทน:', err.message);
+            });
+
         // ดึง Employees (รายชื่อพนักงาน) ทั้งหมด
         fetch(`${API_BASE}/employees`)
             .then(res => res.json())
@@ -75,51 +78,98 @@ export const AppProvider = ({ children }) => {
     }, []);
 
     // ==================== EVENTS ====================
-    const addEvent = (data) => {
-        const newEvent = {
-            ...data,
-            id: Date.now(),
-            current_participants: 0,
-            status: data.status || 'เปิดรับสมัคร',
-        };
-        setEvents(prev => [newEvent, ...prev]);
-        _addLog('event', 'สร้างกิจกรรมใหม่', newEvent.title);
+    // --- Activity Actions ---
+    const addEvent = async (data) => {
+        try {
+            const res = await fetch(`${API_BASE}/activities`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                const result = await res.json();
+                setEvents(prev => [...prev, { ...data, id: result.data.id }]);
+                _addLog('event', 'สร้างกิจกรรมใหม่', data.title);
+            }
+        } catch (err) {
+            console.error('addEvent Error:', err);
+        }
     };
 
-    const updateEvent = (id, data) => {
-        setEvents(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
-        _addLog('event', 'อัปเดตกิจกรรม', data.title || '');
+    const updateEvent = async (id, data) => {
+        try {
+            const res = await fetch(`${API_BASE}/activities/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                setEvents(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+                _addLog('event', 'อัปเดตกิจกรรม', data.title || '');
+            }
+        } catch (err) {
+            console.error('updateEvent Error:', err);
+        }
     };
 
-    const deleteEvent = (id) => {
-        const ev = events.find(e => e.id === id);
-        setEvents(prev => prev.filter(e => e.id !== id));
-        setTasks(prev => prev.filter(t => t.event_id !== id));
-        _addLog('event', 'ลบกิจกรรม', ev?.title || '');
+    const deleteEvent = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/activities/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                const deleted = events.find(e => e.id === id);
+                setEvents(prev => prev.filter(e => e.id !== id));
+                _addLog('event', 'ลบกิจกรรม', deleted?.title || '');
+            }
+        } catch (err) {
+            console.error('deleteEvent Error:', err);
+        }
     };
 
     // ==================== TASKS ====================
-    const addTask = (data) => {
-        const eventName = events.find(e => e.id === Number(data.event_id))?.title || 'ไม่ระบุกิจกรรม';
-        const newTask = {
-            ...data,
-            id: Date.now(),
-            title: data.task_name || data.title,
-            task_name: data.task_name || data.title,
-            event: eventName,
-            progress: data.status === 'เสร็จสิ้น' ? 100 : data.status === 'กำลังดำเนินการ' ? 30 : 0,
-            assignees: ['ส'],
-        };
-        setTasks(prev => [newTask, ...prev]);
-        _addLog('task', 'สร้างงานใหม่', newTask.task_name);
+    // --- Task Actions ---
+    const addTask = async (data) => {
+        try {
+            const res = await fetch(`${API_BASE}/tasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                // Refresh tasks from server to get ID and correct format
+                const freshTasks = await fetch(`${API_BASE}/tasks`).then(r => r.json());
+                setTasks(freshTasks);
+                _addLog('task', 'สร้างงานใหม่', data.title);
+            }
+        } catch (err) {
+            console.error('addTask Error:', err);
+        }
     };
 
-    const updateTask = (id, data) => {
-        setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
+    const updateTask = async (id, data) => {
+        try {
+            const res = await fetch(`${API_BASE}/tasks/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
+                _addLog('task', 'อัปเดตงาน', data.title || '');
+            }
+        } catch (err) {
+            console.error('updateTask Error:', err);
+        }
     };
 
-    const deleteTask = (id) => {
-        setTasks(prev => prev.filter(t => t.id !== id));
+    const deleteTask = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setTasks(prev => prev.filter(t => t.id !== id));
+            }
+        } catch (err) {
+            console.error('deleteTask Error:', err);
+        }
     };
 
     // ==================== TEAMS ====================

@@ -33,6 +33,45 @@ exports.getTasks = async (req, res) => {
   }
 };
 
+exports.updateTask = async (req, res) => {
+  const { id } = req.params;
+  const { title, status, priority, due_date, progress } = req.body;
+  try {
+    // If status is 'เสร็จสิ้น' or its slug is 'completed', set progress to 100
+    let finalProgress = progress;
+    if (status === 'เสร็จสิ้น' || status === 'completed') {
+      finalProgress = 100;
+    }
+    
+    const query = `
+      UPDATE tasks
+      SET 
+        task_name = $1,
+        status_task_id = (SELECT status_task_id FROM task_statuses WHERE name = $2 OR slug = $2 LIMIT 1),
+        priority_id = (SELECT priority_id FROM priority_levels WHERE name = $3 OR slug = $3 LIMIT 1),
+        due_date = CASE WHEN $4 = '' THEN NULL ELSE $4::DATE END,
+        progress_percent = $5
+      WHERE task_id = $6
+    `;
+    await pool.query(query, [title, status, priority, due_date || null, finalProgress || 0, id]);
+    res.json({ message: 'อัปเดตงานสำเร็จ' });
+  } catch (err) {
+    console.error('updateTask Error:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.deleteTask = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM tasks WHERE task_id = $1', [id]);
+    res.json({ message: 'ลบงานสำเร็จ' });
+  } catch (err) {
+    console.error('deleteTask Error:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.createTask = async (req, res) => {
   try {
     const { title, event_id, status, priority, category, due_date } = req.body;

@@ -48,8 +48,8 @@ class EmployeeService {
       SELECT
         t.event_id,
         COUNT(*)                                   AS total_tasks,
-        COUNT(*) FILTER (WHERE ts.slug = 'done')   AS done_tasks,
-        COUNT(*) FILTER (WHERE ts.slug = 'pending') AS pending_tasks
+        COUNT(*) FILTER (WHERE TRIM(ts.slug) = 'completed') AS done_tasks,
+        COUNT(*) FILTER (WHERE TRIM(ts.slug) = 'pending') AS pending_tasks
       FROM tasks t
       LEFT JOIN task_statuses ts ON t.status_task_id = ts.status_task_id
       GROUP BY t.event_id
@@ -122,8 +122,8 @@ class EmployeeService {
       LEFT JOIN events        ev ON t.event_id    = ev.event_id
       LEFT JOIN task_statuses ts ON t.status_task_id = ts.status_task_id
       LEFT JOIN priority_levels pl ON t.priority_id = pl.priority_id
-      WHERE ts.slug <> 'done'
-        AND pl.name  = 'สูง'
+      WHERE TRIM(ts.slug) <> 'completed'
+        AND TRIM(pl.slug)  = 'high'
       ORDER BY t.due_date NULLS LAST
       LIMIT 5
     `);

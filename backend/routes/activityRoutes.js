@@ -7,6 +7,7 @@ const activityController = require('../controllers/activityController');
 router.get('/', activityController.getAllActivities);
 router.post('/', activityController.createActivity);
 router.delete('/:id', activityController.deleteActivity);
+router.put('/:id', activityController.updateActivity);
 
 // เส้นทางสำหรับ /api/events (ดึงรายชื่อเข้า dropdown)
 router.get('/events', activityController.getEventsList);

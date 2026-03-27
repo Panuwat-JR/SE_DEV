@@ -125,13 +125,13 @@ function Activities() {
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-2">
                       <button onClick={() => setSelectedActivity(activity)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer" title="ดูรายละเอียด">
-                        <Eye size={16} />
+                        <Eye size={16} className="pointer-events-none" />
                       </button>
-                      <button onClick={() => handleOpenEdit(activity)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="แก้ไข">
-                        <Edit size={16} />
+                      <button onClick={() => handleOpenEdit(activity)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" title="แก้ไข">
+                        <Edit size={16} className="pointer-events-none" />
                       </button>
                       <button onClick={() => handleDelete(activity.id, activity.title)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="ลบ">
-                        <Trash2 size={16} />
+                        <Trash2 size={16} className="pointer-events-none" />
                       </button>
                     </div>
                   </td>
@@ -156,8 +156,8 @@ function Activities() {
 
       {/* Modal ดูรายละเอียดกิจกรรม */}
       {selectedActivity && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
 
             {/* Header คล้ายแบนเนอร์ */}
             <div className="relative bg-gradient-to-br from-blue-700 to-indigo-900 px-8 py-10 shrink-0 overflow-hidden">
@@ -350,8 +350,9 @@ function Activities() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">วันที่จัดกิจกรรม</label>
-                  <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                    value={editingActivity.date_text} onChange={(e) => setEditingActivity({ ...editingActivity, date_text: e.target.value })} />
+                  <input type="date" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editingActivity.date_text ? editingActivity.date_text.split('/').reverse().join('-') : ''} 
+                    onChange={(e) => setEditingActivity({ ...editingActivity, date_text: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

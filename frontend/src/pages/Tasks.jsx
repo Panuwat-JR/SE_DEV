@@ -3,9 +3,48 @@ import { Search, Plus, Filter, Clock, AlertCircle, CheckCircle2, Calendar, X, Up
 import { useApp } from '../context/AppContext';
 
 function Tasks() {
-  const { tasks, events, addTask } = useApp();
+  const { tasks, events, addTask, updateTask } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  
+  // local state for modal interaction
+  const [tempProgress, setTempProgress] = useState(0);
+  
+  const handleOpenDetails = (task) => {
+    setSelectedTask(task);
+    setTempProgress(task.progress || 0);
+  };
+
+  const handleSubtaskToggle = (index) => {
+    // Simple logic: 3 subtasks, each is ~33%
+    // We'll just set progress to specific milestones for simplicity
+    const steps = [0, 33, 66, 100];
+    // Count current checked (approximated from current tempProgress)
+    let currentCount = tempProgress === 100 ? 3 : tempProgress >= 66 ? 2 : tempProgress >= 33 ? 1 : 0;
+    
+    // If we checked a new one or unchecked
+    // Since they are hardcoded IDs 1, 2, 3, let's just use the index
+    // This is a bit mocky but solves the user request
+    let nextCount = currentCount;
+    if (tempProgress < steps[index + 1]) nextCount = index + 1;
+    else nextCount = index;
+    
+    setTempProgress(steps[nextCount]);
+  };
+
+  const handleSaveProgress = async () => {
+    if (!selectedTask) return;
+    const status = tempProgress === 100 ? 'เสร็จสิ้น' : tempProgress > 0 ? 'กำลังดำเนินการ' : 'รอดำเนินการ';
+    await updateTask(selectedTask.id, { 
+        title: selectedTask.title,
+        status, 
+        progress: tempProgress,
+        priority: selectedTask.priority,
+        due_date: selectedTask.date // backend uses DATE format, ensure it matches
+    });
+    setSelectedTask(null);
+  };
+
   const [formData, setFormData] = useState({
     task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: ''
   });
@@ -50,7 +89,7 @@ function Tasks() {
               </span>
             </div>
             {tasks.filter(t => t.status === statusType).map(task => (
-              <TaskCard key={task.id} task={task} getStatusIcon={getStatusIcon} onClick={() => setSelectedTask(task)} />
+              <TaskCard key={task.id} task={task} getStatusIcon={getStatusIcon} onClick={() => handleOpenDetails(task)} />
             ))}
           </div>
         ))}
@@ -93,16 +132,22 @@ function Tasks() {
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                       <CheckCircle2 size={18} className="text-emerald-500" /> สิ่งที่ต้องทำ (Subtasks)
                     </h3>
-                    <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{selectedTask.progress === 100 ? 'เสร็จสิ้นครบถ้วน' : 'กำลังดำเนินการ'}</span>
+                    <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{tempProgress === 100 ? 'เสร็จสิ้นครบถ้วน' : 'กำลังดำเนินการ'}</span>
                   </div>
                   <div className="space-y-2">
                     {[
-                      { id: 1, text: 'ศึกษาความต้องการเบื้องต้นจากหัวหน้างาน', done: selectedTask.progress > 0 },
-                      { id: 2, text: 'ประชุมชี้แจงทีมงานที่รับผิดชอบและแบ่งงาน', done: selectedTask.progress >= 50 },
-                      { id: 3, text: 'ลงมือปฏิบัติตามแผนและสรุปผลรายวัน', done: selectedTask.progress === 100 },
-                    ].map(st => (
-                      <div key={st.id} className="flex items-start gap-3 p-3.5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors group cursor-pointer">
-                        <input type="checkbox" defaultChecked={st.done} className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                      { id: 1, text: 'ศึกษาความต้องการเบื้องต้นจากหัวหน้างาน', done: tempProgress > 0 },
+                      { id: 2, text: 'ประชุมชี้แจงทีมงานที่รับผิดชอบและแบ่งงาน', done: tempProgress >= 66 },
+                      { id: 3, text: 'ลงมือปฏิบัติตามแผนและสรุปผลรายวัน', done: tempProgress === 100 },
+                    ].map((st, i) => (
+                      <div 
+                        key={st.id} 
+                        onClick={() => handleSubtaskToggle(i)}
+                        className="flex items-start gap-3 p-3.5 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-colors group cursor-pointer"
+                      >
+                        <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-colors ${st.done ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-gray-300'}`}>
+                          {st.done && <CheckCircle2 size={12} className="text-white" />}
+                        </div>
                         <span className={`text-sm ${st.done ? 'text-gray-400 line-through' : 'text-gray-700 font-medium'}`}>{st.text}</span>
                       </div>
                     ))}
@@ -177,10 +222,10 @@ function Tasks() {
                   <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">ความคืบหน้า</p>
-                      <span className="text-sm font-bold text-blue-600">{selectedTask.progress || 0}%</span>
+                      <span className="text-sm font-bold text-blue-600">{tempProgress}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                      <div className={`h-2.5 rounded-full ${selectedTask.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${selectedTask.progress || 0}%` }}></div>
+                      <div className={`h-2.5 rounded-full transition-all duration-500 ${tempProgress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${tempProgress}%` }}></div>
                     </div>
                   </div>
 
@@ -210,7 +255,7 @@ function Tasks() {
             {/* Footer */}
             <div className="flex justify-end gap-3 p-4 border-t border-gray-100 bg-white shrink-0">
               <button onClick={() => setSelectedTask(null)} className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">ย้อนกลับ / ยกเลิก</button>
-              <button onClick={() => setSelectedTask(null)} className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2">
+              <button onClick={handleSaveProgress} className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2">
                 <CheckCircle2 size={18} /> บันทึกความคืบหน้า
               </button>
             </div>
