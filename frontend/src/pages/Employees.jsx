@@ -1,20 +1,50 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Mail, Building2, Circle, MoreHorizontal, X, Phone, User } from 'lucide-react';
+import { Plus, Search, Filter, Mail, Building2, Circle, X, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const Employees = () => {
-  const { employees, addEmployee } = useApp();
+  const { employees, addEmployee, deleteEmployee } = useApp();
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [newEmp, setNewEmp] = useState({ first_name: '', last_name: '', role: '', department: '', email: '' });
+  const [createError, setCreateError] = useState('');
+  const [newEmp, setNewEmp] = useState({
+    first_name: '',
+    last_name: '',
+    gender: '',
+    role: '',
+    department: '',
+    email: '',
+    password: '',
+  });
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    addEmployee(newEmp);
-    setIsCreateOpen(false);
-    setNewEmp({ first_name: '', last_name: '', role: '', department: '', email: '' });
+    setCreateError('');
+    const result = await addEmployee(newEmp);
+    if (result?.ok) {
+      setIsCreateOpen(false);
+      setNewEmp({
+        first_name: '',
+        last_name: '',
+        gender: '',
+        role: '',
+        department: '',
+        email: '',
+        password: '',
+      });
+      return;
+    }
+    setCreateError(result?.error || 'ไม่สามารถเพิ่มพนักงานได้');
+  };
+
+  const handleDelete = async (emp) => {
+    if (!window.confirm(`ลบพนักงาน ${emp.first_name} ${emp.last_name} (${emp.email}) จากระบบ?`)) return;
+    const result = await deleteEmployee(emp.id);
+    if (!result?.ok) {
+      window.alert(result?.error || 'ลบไม่สำเร็จ');
+    }
   };
 
   const filtered = employees.filter(emp => {
@@ -36,7 +66,7 @@ const Employees = () => {
           <h1 className="text-2xl font-bold text-gray-900">พนักงาน</h1>
           <p className="text-gray-500 text-sm mt-1">จัดการข้อมูลพนักงานและสิทธิ์การเข้าถึง</p>
         </div>
-        <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-all font-semibold shadow-lg shadow-blue-600/20">
+        <button onClick={() => { setCreateError(''); setIsCreateOpen(true); }} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-all font-semibold shadow-lg shadow-blue-600/20">
           <Plus size={18} /> <span>เพิ่มพนักงาน</span>
         </button>
       </div>
@@ -111,8 +141,13 @@ const Employees = () => {
                   </td>
                   <td className="px-6 py-4 text-xs font-medium text-gray-600">{emp.gender || '-'}</td>
                   <td className="px-6 py-4 text-center">
-                    <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <MoreHorizontal size={18} />
+                    <button
+                      type="button"
+                      title="ลบพนักงาน"
+                      onClick={() => handleDelete(emp)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   </td>
                 </tr>
@@ -173,6 +208,9 @@ const Employees = () => {
               <button onClick={() => setIsCreateOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
+              {createError && (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{createError}</div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อ *</label>
@@ -186,6 +224,18 @@ const Employees = () => {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">เพศ</label>
+                <select
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  value={newEmp.gender}
+                  onChange={(e) => setNewEmp({ ...newEmp, gender: e.target.value })}
+                >
+                  <option value="">— ไม่ระบุ —</option>
+                  <option value="ชาย">ชาย</option>
+                  <option value="หญิง">หญิง</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ตำแหน่ง</label>
                 <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="เช่น ผู้จัดการโครงการ"
                   value={newEmp.role} onChange={(e) => setNewEmp({ ...newEmp, role: e.target.value })} />
@@ -196,9 +246,14 @@ const Employees = () => {
                   value={newEmp.department} onChange={(e) => setNewEmp({ ...newEmp, department: e.target.value })} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
-                <input type="email" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="name@se.dev"
+                <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล *</label>
+                <input type="email" required className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="name@se.dev"
                   value={newEmp.email} onChange={(e) => setNewEmp({ ...newEmp, email: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน (ว่าง = ใช้ password123)</label>
+                <input type="password" autoComplete="new-password" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••"
+                  value={newEmp.password} onChange={(e) => setNewEmp({ ...newEmp, password: e.target.value })} />
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => setIsCreateOpen(false)} className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl">ยกเลิก</button>

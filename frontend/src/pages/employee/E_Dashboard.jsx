@@ -5,7 +5,13 @@ import { Activity, AlertCircle, Clock, TrendingUp, Users, ChevronRight, Calendar
 import { API_BASE } from '../../config/api';
 
 export default function E_Dashboard() {
-    const [stats, setStats] = useState({ totalProjects: 0, activeProjects: 0, totalParticipants: 0, totalIssues: 0 });
+    const [stats, setStats] = useState({
+        totalProjects: 0,
+        activeProjects: 0,
+        totalParticipants: 0,
+        totalPendingTasks: 0,
+        totalIssues: 0,
+    });
     const [projects, setProjects] = useState([]);
     const [urgentTasks, setUrgentTasks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -58,7 +64,7 @@ export default function E_Dashboard() {
                     { label: 'โครงการทั้งหมด', value: stats.totalProjects,    icon: Activity,    color: 'bg-blue-50 text-blue-600',     numColor: 'text-blue-700' },
                     { label: 'กำลังดำเนินการ', value: stats.activeProjects,   icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-600', numColor: 'text-emerald-700' },
                     { label: 'ผู้เข้าร่วมรวม', value: stats.totalParticipants, icon: Users,       color: 'bg-purple-50 text-purple-600',  numColor: 'text-purple-700' },
-                    { label: 'ปัญหาที่รอแก้',  value: stats.totalIssues,      icon: AlertCircle, color: 'bg-red-50 text-red-600',        numColor: 'text-red-600' },
+                    { label: 'งานรอดำเนินการ (รวม)', value: stats.totalPendingTasks ?? stats.totalIssues ?? 0, icon: AlertCircle, color: 'bg-amber-50 text-amber-600', numColor: 'text-amber-800' },
                 ].map((kpi, i) => {
                     const Icon = kpi.icon;
                     return (
@@ -90,7 +96,7 @@ export default function E_Dashboard() {
                                 <th className="px-5 py-3 text-left">ผู้เข้าร่วม</th>
                                 <th className="px-5 py-3 text-center">งาน</th>
                                 <th className="px-5 py-3 text-left">ความคืบหน้า</th>
-                                <th className="px-5 py-3 text-center">ปัญหา</th>
+                                <th className="px-5 py-3 text-center">งานค้าง</th>
                                 <th className="px-5 py-3 text-left">กำหนด</th>
                             </tr>
                         </thead>
@@ -99,7 +105,10 @@ export default function E_Dashboard() {
                                 <tr>
                                     <td colSpan={7} className="px-5 py-10 text-center text-gray-400 text-sm">ยังไม่มีโครงการ</td>
                                 </tr>
-                            ) : projects.map(proj => (
+                            ) : projects.map(proj => {
+                                const cap = Math.max(Number(proj.maxParticipants) || 0, 1);
+                                const fillPct = Math.min((Number(proj.participants) || 0) / cap * 100, 100);
+                                return (
                                 <tr key={proj.id} className="hover:bg-gray-50/50 transition-colors">
                                     <td className="px-5 py-3.5">
                                         <Link to={`/employee/activities/${proj.id}`} className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
@@ -113,10 +122,10 @@ export default function E_Dashboard() {
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between text-[10px] font-bold text-gray-500">
                                                 <span>{proj.participants}/{proj.maxParticipants}</span>
-                                                <span>{Math.round((proj.participants / proj.maxParticipants) * 100)}%</span>
+                                                <span>{Math.round(fillPct)}%</span>
                                             </div>
                                             <div className="w-24 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                                <div className="bg-blue-600 h-full rounded-full" style={{ width: `${Math.min((proj.participants / proj.maxParticipants) * 100, 100)}%` }} />
+                                                <div className="bg-blue-600 h-full rounded-full" style={{ width: `${fillPct}%` }} />
                                             </div>
                                         </div>
                                     </td>
@@ -133,8 +142,8 @@ export default function E_Dashboard() {
                                     </td>
                                     <td className="px-5 py-3.5 text-center">
                                         {proj.issues > 0 ? (
-                                            <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">
-                                                <AlertCircle size={10} /> {proj.issues} ปัญหา
+                                            <span className="inline-flex items-center gap-1 text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                                                <AlertCircle size={10} /> {proj.issues} งานค้าง
                                             </span>
                                         ) : <span className="text-gray-300 text-xs">—</span>}
                                     </td>
@@ -142,7 +151,8 @@ export default function E_Dashboard() {
                                         <Calendar size={12} className="text-gray-400" /> {proj.deadline}
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

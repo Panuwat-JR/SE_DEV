@@ -29,6 +29,7 @@ import TeamDetail from './pages/TeamDetail';
 import Participants from './pages/Participants';
 import E_Documents from './pages/employee/E_Documents';
 import E_Calendar from './pages/employee/E_Calendar';
+import Employees from './pages/Employees';
 
 // ── Executive pages ────────────────────────────────────
 import ExecutiveLayout from './layouts/ExecutiveLayout';
@@ -84,6 +85,7 @@ function App() {
           <Route path="teams" element={<Teams />} />
           <Route path="teams/:id" element={<TeamDetail />} />
           <Route path="participants" element={<Participants />} />
+          <Route path="staff" element={<Employees />} />
           <Route path="documents" element={<E_Documents />} />
           <Route path="calendar" element={<E_Calendar />} />
         </Route>

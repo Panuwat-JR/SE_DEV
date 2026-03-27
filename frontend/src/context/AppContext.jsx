@@ -181,7 +181,7 @@ export const AppProvider = ({ children }) => {
                 // Refresh tasks from server to get ID and correct format
                 const freshTasks = await fetch(`${API_BASE}/tasks`).then(r => r.json());
                 setTasks(freshTasks);
-                _addLog('task', 'สร้างงานใหม่', data.title);
+                _addLog('task', 'สร้างงานใหม่', data.title ?? data.task_name ?? '');
             }
         } catch (err) {
             console.error('addTask Error:', err);
@@ -196,7 +196,8 @@ export const AppProvider = ({ children }) => {
                 body: JSON.stringify(data)
             });
             if (res.ok) {
-                setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
+                const freshTasks = await fetch(`${API_BASE}/tasks`).then(r => r.json());
+                if (Array.isArray(freshTasks)) setTasks(freshTasks);
                 _addLog('task', 'อัปเดตงาน', data.title || '');
             }
         } catch (err) {
@@ -281,25 +282,80 @@ export const AppProvider = ({ children }) => {
         setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...data } : d));
     };
 
-    // ==================== EMPLOYEES ====================
-    const addEmployee = (data) => {
-        const newEmp = {
-            ...data,
-            id: Date.now(),
-            status: 'active',
-            online_status: 'offline',
-            initial: data.first_name?.charAt(0) || '?',
-            color: 'bg-gray-500',
-        };
-        setEmployees(prev => [...prev, newEmp]);
+    // ==================== EMPLOYEES (DB) ====================
+    const refreshEmployees = async () => {
+        try {
+            const list = await fetch(`${API_BASE}/employees`).then(r => r.json());
+            if (Array.isArray(list)) setEmployees(list);
+        } catch (err) {
+            console.warn('refreshEmployees:', err.message);
+        }
     };
 
-    const updateEmployee = (id, data) => {
-        setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+    const addEmployee = async (data) => {
+        try {
+            const res = await fetch(`${API_BASE}/employees`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    first_name: data.first_name,
+                    last_name: data.last_name,
+                    gender: data.gender || null,
+                    role: data.role,
+                    department: data.department,
+                    email: data.email,
+                    password: data.password,
+                    online_status: data.online_status || 'offline',
+                }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok) {
+                await refreshEmployees();
+                _addLog('team', 'เพิ่มพนักงาน', `${data.first_name} ${data.last_name || ''}`.trim());
+                return { ok: true, row: payload };
+            }
+            console.error('addEmployee API:', payload?.error || res.status);
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+        } catch (err) {
+            console.error('addEmployee Error:', err);
+            return { ok: false, error: err.message };
+        }
     };
 
-    const deleteEmployee = (id) => {
-        setEmployees(prev => prev.filter(e => e.id !== id));
+    const updateEmployee = async (id, data) => {
+        try {
+            const res = await fetch(`${API_BASE}/employees/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok) {
+                await refreshEmployees();
+                _addLog('team', 'อัปเดตพนักงาน', payload?.email || String(id));
+                return { ok: true, row: payload };
+            }
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+        } catch (err) {
+            console.error('updateEmployee Error:', err);
+            return { ok: false, error: err.message };
+        }
+    };
+
+    const deleteEmployee = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/employees/${id}`, { method: 'DELETE' });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok) {
+                await refreshEmployees();
+                _addLog('team', 'ลบพนักงาน', String(id));
+                return { ok: true };
+            }
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+        } catch (err) {
+            console.error('deleteEmployee Error:', err);
+            return { ok: false, error: err.message };
+        }
     };
 
     // ==================== PARTICIPANTS ====================

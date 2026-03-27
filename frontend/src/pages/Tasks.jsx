@@ -35,12 +35,15 @@ function Tasks() {
   const handleSaveProgress = async () => {
     if (!selectedTask) return;
     const status = tempProgress === 100 ? 'เสร็จสิ้น' : tempProgress > 0 ? 'กำลังดำเนินการ' : 'รอดำเนินการ';
-    await updateTask(selectedTask.id, { 
-        title: selectedTask.title,
-        status, 
-        progress: tempProgress,
-        priority: selectedTask.priority,
-        due_date: selectedTask.date // backend uses DATE format, ensure it matches
+    const dueRaw =
+      (selectedTask.due_date_iso && String(selectedTask.due_date_iso).trim()) ||
+      (selectedTask.date && selectedTask.date !== 'ไม่ระบุวันที่' ? selectedTask.date : '');
+    await updateTask(selectedTask.id, {
+      title: selectedTask.title,
+      status,
+      progress: tempProgress,
+      priority: selectedTask.priority,
+      due_date: dueRaw,
     });
     setSelectedTask(null);
   };

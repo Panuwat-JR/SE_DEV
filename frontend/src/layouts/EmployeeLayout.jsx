@@ -1,12 +1,13 @@
 // layouts/EmployeeLayout.jsx
 // Sidebar navy (เหมือน design เดิม) สำหรับ Employee
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Calendar, CalendarDays, Briefcase,
-    UsersRound, UserCircle, FileCheck, LogOut, ChevronRight
+    UsersRound, UserCircle, FileCheck, LogOut, ChevronRight, Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE } from '../config/api';
 
 const MENUS = [
     { name: 'แดชบอร์ด', icon: LayoutDashboard, path: '/employee/dashboard' },
@@ -14,6 +15,7 @@ const MENUS = [
     { name: 'งาน (Tasks)', icon: Briefcase, path: '/employee/tasks' },
     { name: 'ทีมและสมาชิก', icon: UsersRound, path: '/employee/teams' },
     { name: 'ผู้เข้าร่วม', icon: UserCircle, path: '/employee/participants' },
+    { name: 'พนักงาน', icon: Users, path: '/employee/staff' },
     { name: 'เอกสาร', icon: FileCheck, path: '/employee/documents' },
     { name: 'ปฏิทิน', icon: Calendar, path: '/employee/calendar' },
 ];
@@ -22,6 +24,23 @@ export default function EmployeeLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const { logout } = useAuth();
+    const [headerEmployee, setHeaderEmployee] = useState(null);
+
+    useEffect(() => {
+        const url = API_BASE ? `${API_BASE}/api/employees` : '/api/employees';
+        fetch(url)
+            .then((r) => r.json())
+            .then((rows) => {
+                if (Array.isArray(rows) && rows.length > 0) setHeaderEmployee(rows[0]);
+            })
+            .catch(() => {});
+    }, []);
+
+    const displayName = headerEmployee
+        ? `${headerEmployee.first_name || ''} ${headerEmployee.last_name || ''}`.trim()
+        : 'สมชาย สมศรี';
+    const displayRole = headerEmployee?.role || 'ผู้จัดการโครงการ';
+    const displayInitial = (headerEmployee?.initial || displayName.charAt(0) || 'ส').toUpperCase();
 
     const handleLogout = () => { logout(); navigate('/login'); };
     const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
@@ -60,10 +79,10 @@ export default function EmployeeLayout() {
                 {/* User footer */}
                 <div className="p-4 border-t border-gray-800">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">ส</div>
+                        <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">{displayInitial}</div>
                         <div>
-                            <div className="text-white text-sm font-bold">สมชาย สมศรี</div>
-                            <div className="text-[10px] text-gray-400">ผู้จัดการโครงการ</div>
+                            <div className="text-white text-sm font-bold">{displayName}</div>
+                            <div className="text-[10px] text-gray-400">{displayRole}</div>
                         </div>
                     </div>
                     <button onClick={handleLogout}
@@ -88,7 +107,7 @@ export default function EmployeeLayout() {
                         <div className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200">
                             👔 พนักงาน NU SEED
                         </div>
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">ส</div>
+                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">{displayInitial}</div>
                     </div>
                 </header>
 
