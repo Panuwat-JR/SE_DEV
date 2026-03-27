@@ -56,6 +56,7 @@ router.post('/documents', (req, res, next) => {
 router.delete('/documents/:id', participantController.deleteDocument);
 
 router.get('/notifications', participantController.getNotifications);
+router.post('/notifications/read', participantController.markNotificationsRead);
 router.get('/contacts', participantController.getContacts);
 router.post('/contact-messages', participantController.postContactMessage);
 router.get('/calendar', participantController.getCalendar);

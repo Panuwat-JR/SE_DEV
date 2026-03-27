@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { API_BASE } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
 
 const PALETTE = [
     { dot: 'bg-blue-500', badge: 'bg-blue-100 text-blue-700', bar: 'bg-blue-500' },
@@ -32,6 +33,7 @@ function buildProjectColorizer(items) {
 }
 
 export default function E_Calendar() {
+    const { employee } = useAuth();
     const [currentDate, setCurrentDate] = useState(() => new Date());
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -39,7 +41,14 @@ export default function E_Calendar() {
     const [filterProject, setFilterProject] = useState('ทั้งหมด');
 
     useEffect(() => {
-        const url = API_BASE ? `${API_BASE}/api/employees/calendar` : '/api/employees/calendar';
+        const id = employee?.id;
+        const q =
+            id != null && Number.isFinite(Number(id))
+                ? `?employee_id=${encodeURIComponent(String(id))}`
+                : '';
+        const url = API_BASE
+            ? `${API_BASE}/api/employees/calendar${q}`
+            : `/api/employees/calendar${q}`;
         let cancelled = false;
         (async () => {
             setLoading(true);
@@ -65,7 +74,7 @@ export default function E_Calendar() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [employee?.id]);
 
     const projectNames = useMemo(() => {
         const s = new Set();

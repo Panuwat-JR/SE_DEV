@@ -60,8 +60,21 @@ export const AppProvider = ({ children }) => {
         return () => window.removeEventListener(DOCUMENTS_CHANGED_EVENT, onDocsChanged);
     }, [refreshDocumentsList, refreshDashboardPayload]);
 
-    // ========== ดึงข้อมูลจาก Backend (ไม่เติม mock เมื่อล้ม) ==========
+    // ========== ดึงข้อมูลจาก Backend — เฉพาะ workspace พนักงาน/ผู้บริหาร (ไม่ยิงชุด admin ตอนเป็นผู้เข้าร่วม) ==========
     useEffect(() => {
+        if (role !== 'employee' && role !== 'executive') {
+            setDashboardSyncError(null);
+            setEvents([]);
+            setTasks([]);
+            setTeams([]);
+            setDocuments([]);
+            setEmployees([]);
+            setParticipants([]);
+            setLogs([]);
+            setDbStats(null);
+            return;
+        }
+
         const safeJson = async (res) => {
             try {
                 return await res.json();
@@ -135,7 +148,7 @@ export const AppProvider = ({ children }) => {
                 else console.warn('documents API:', res.status, data?.error);
             })
             .catch((err) => console.warn('documents fetch:', err.message));
-    }, []);
+    }, [role]);
 
     const actorLabel = useCallback(() => {
         if (employee) {

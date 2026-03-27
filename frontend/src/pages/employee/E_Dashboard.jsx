@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, AlertCircle, Clock, TrendingUp, Users, ChevronRight, Calendar } from 'lucide-react';
 import { API_BASE } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function E_Dashboard() {
+    const { employee } = useAuth();
     const [stats, setStats] = useState({
         totalProjects: 0,
         activeProjects: 0,
@@ -18,7 +20,13 @@ export default function E_Dashboard() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetch(`${API_BASE}/api/employees/dashboard`)
+        const id = employee?.id;
+        const q =
+            id != null && Number.isFinite(Number(id))
+                ? `?employee_id=${encodeURIComponent(String(id))}`
+                : '';
+        const root = API_BASE ? `${API_BASE}/api` : '/api';
+        fetch(`${root}/employees/dashboard${q}`)
             .then(res => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 return res.json();
@@ -30,7 +38,7 @@ export default function E_Dashboard() {
             })
             .catch(err => setError(err.message))
             .finally(() => setLoading(false));
-    }, []);
+    }, [employee?.id]);
 
     if (loading) return (
         <div className="space-y-8 animate-pulse">
@@ -55,7 +63,9 @@ export default function E_Dashboard() {
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">แดชบอร์ด</h1>
-                <p className="text-gray-500 text-sm mt-1">ภาพรวมโครงการทั้งหมดที่คุณรับผิดชอบ</p>
+                <p className="text-gray-500 text-sm mt-1">
+                    โครงการที่คุณได้รับมอบหมายในระบบ (จากตารางเชื่อมพนักงาน–โครงการ)
+                </p>
             </div>
 
             {/* KPI */}
@@ -103,7 +113,12 @@ export default function E_Dashboard() {
                         <tbody className="divide-y divide-gray-50 text-gray-700">
                             {projects.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-5 py-10 text-center text-gray-400 text-sm">ยังไม่มีโครงการ</td>
+                                    <td colSpan={7} className="px-5 py-10 text-center text-gray-500 text-sm leading-relaxed">
+                                        ไม่มีโครงการที่ผูกกับบัญชีพนักงานของคุณในระบบ
+                                        <span className="block text-xs text-gray-400 mt-2">
+                                            ให้ผู้ดูแลฐานข้อมูลเพิ่มแถวใน mapping_event_employees (employee_id ↔ event_id)
+                                        </span>
+                                    </td>
                                 </tr>
                             ) : projects.map(proj => {
                                 const cap = Math.max(Number(proj.maxParticipants) || 0, 1);

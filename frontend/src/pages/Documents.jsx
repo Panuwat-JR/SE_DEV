@@ -219,8 +219,8 @@ const Documents = () => {
 
                 {/* Header Document */}
                 <div className="text-center border-b-2 border-gray-800 pb-6 mb-8">
-                  <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4 border border-gray-300">
-                    ตราแผ่นดิน (Mock)
+                  <div className="w-20 h-20 mx-auto bg-slate-800 rounded-full flex items-center justify-center mb-4 border border-slate-600 text-white text-xs font-bold tracking-tight">
+                    NU
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">แบบฟอร์มเบิกจ่ายงบประมาณ</h2>
                   <p className="text-gray-600 font-medium">สำนักงานนวัตกรรมแห่งชาติ (องค์การมหาชน) - NIA</p>

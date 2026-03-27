@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const pool = require('./config/db');
+const { ensureDb } = require('./dbEnsure');
 
 const app = express();
 app.use(cors());
@@ -40,12 +41,9 @@ const PORT = process.env.PORT || 5000;
 
 async function start() {
   try {
-    await pool.query(`
-      ALTER TABLE employees
-        ADD COLUMN IF NOT EXISTS portal_access VARCHAR(32) NOT NULL DEFAULT 'employee'
-    `);
+    await ensureDb(pool);
   } catch (e) {
-    console.warn('⚠️  ตรวจสอบคอลัมน์ portal_access ไม่สำเร็จ:', e.message);
+    console.error('❌ dbEnsure ไม่สำเร็จ — ตาราง/คอลัมน์เสริมอาจยังไม่พร้อม:', e.message);
   }
   app.listen(PORT, () => {
     console.log(`✅ Backend server กำลังรันอยู่ที่ http://localhost:${PORT}`);

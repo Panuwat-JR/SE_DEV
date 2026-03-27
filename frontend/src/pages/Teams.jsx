@@ -139,32 +139,12 @@ const Teams = () => {
                   </div>
                 </div>
 
-                {/* Timeline / Activities Mock */}
                 <div className="mb-8">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <Activity size={18} className="text-blue-500" /> ความเคลื่อนไหวล่าสุด
                   </h3>
-                  <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-                    <div className="relative border-l-2 border-gray-100 ml-3 space-y-6">
-                      <div className="relative pl-6">
-                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-green-500 ring-4 ring-white"></span>
-                        <p className="text-sm font-bold text-gray-800">ส่งมอบเอกสาร "Business Plan V.1"</p>
-                        <p className="text-xs text-gray-500 mt-1">โดย สมชาย (หัวหน้าทีม) • 2 ชั่วโมงที่แล้ว</p>
-                        <div className="mt-2 flex items-center gap-2 bg-gray-50 py-1.5 px-3 rounded-lg border border-gray-200 inline-flex">
-                          <FileText size={14} className="text-gray-400" /> <span className="text-xs font-medium text-gray-600">business_plan_v1.pdf</span>
-                        </div>
-                      </div>
-                      <div className="relative pl-6">
-                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 ring-4 ring-white"></span>
-                        <p className="text-sm font-bold text-gray-800">เข้าร่วมกิจกรรม "{selectedTeam.event || 'Hackathon 2026'}"</p>
-                        <p className="text-xs text-gray-500 mt-1">โดย ระบบ • 2 วันที่แล้ว</p>
-                      </div>
-                      <div className="relative pl-6">
-                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-white"></span>
-                        <p className="text-sm font-bold text-gray-800">ก่อตั้งทีม {selectedTeam.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">โดย สมชาย (หัวหน้าทีม) • 3 วันที่แล้ว</p>
-                      </div>
-                    </div>
+                  <div className="bg-white rounded-xl border border-dashed border-gray-200 p-8 shadow-sm text-center text-sm text-gray-500">
+                    ยังไม่มีไทม์ไลน์กิจกรรมจากฐานข้อมูลในหน้านี้ — ข้อมูลทีมและสมาชิกด้านล่างมาจาก API
                   </div>
                 </div>
               </div>
@@ -196,7 +176,7 @@ const Teams = () => {
                               {member.name}
                               {member.isLeader && <span className="px-1.5 py-0.5 bg-[#10b981] text-white text-[9px] rounded-md font-bold uppercase tracking-wide">Leader</span>}
                             </p>
-                            <p className="text-xs text-gray-500 truncate">{member.email || 'mock@email.com'}</p>
+                            <p className="text-xs text-gray-500 truncate">{member.email?.trim() || 'ไม่ระบุอีเมล'}</p>
                           </div>
                         </div>
                       )) : (

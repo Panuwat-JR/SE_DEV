@@ -1,3 +1,4 @@
+/** @deprecated ไม่ได้ mount ใน router หลัก — เก็บไว้เป็นอ้างอิงเท่านั้น */
 import React from 'react';
 import { ArrowLeft, Download, Printer, CheckCircle, XCircle, Clock, FileText, User, Calendar, Building2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';

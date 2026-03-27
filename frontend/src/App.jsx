@@ -35,6 +35,7 @@ import Employees from './pages/Employees';
 import ExecutiveLayout from './layouts/ExecutiveLayout';
 import X_Dashboard from './pages/executive/X_Dashboard';
 import X_Feedback from './pages/executive/X_Feedback';
+import Settings from './pages/Settings';
 
 // ── Route Guard — แยก workspace ตาม actor; ถ้าเข้าผิดพอร์ทัลส่งกลับหน้าแรกของบทบาทที่ล็อกอิน ──
 const roleHome = {
@@ -103,6 +104,7 @@ function App() {
           <Route path="staff" element={<Employees />} />
           <Route path="documents" element={<E_Documents />} />
           <Route path="calendar" element={<E_Calendar />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         {/* ── EXECUTIVE workspace ── */}
@@ -128,7 +130,7 @@ function App() {
         <Route path="/staff" element={<Navigate to="/employee/staff" replace />} />
         <Route path="/documents" element={<Navigate to="/employee/documents" replace />} />
         <Route path="/calendar" element={<Navigate to="/employee/calendar" replace />} />
-        <Route path="/settings" element={<Navigate to="/employee/dashboard" replace />} />
+        <Route path="/settings" element={<Navigate to="/employee/settings" replace />} />
         <Route path="/feedback" element={<Navigate to="/executive/feedback" replace />} />
 
         {/* Fallback */}

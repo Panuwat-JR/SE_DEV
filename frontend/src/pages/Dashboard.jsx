@@ -1,3 +1,4 @@
+/** @deprecated ไม่ได้ mount ใน App.jsx — ใช้ /employee/dashboard (E_Dashboard) แทน; เก็บไว้เป็นอ้างอิงเท่านั้น */
 import React, { useState } from 'react';
 import {
   Calendar, Users, ListTodo, FileText, Plus,

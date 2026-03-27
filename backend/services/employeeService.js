@@ -284,17 +284,43 @@ class EmployeeService {
     return result.rows;
   }
 
-  // Dashboard: สถิติ KPI + รายการโครงการ + งานเร่งด่วน
-  async getDashboardData() {
-    // --- Events (projects) ---
-    const eventsResult = await pool.query(`
+  /** รหัสพนักงานจาก query — ถ้าไม่ส่งหรือไม่ถูกต้อง จะไม่กรอง (สำหรับเรียก API แบบ legacy) */
+  _parseEmployeeScope(raw) {
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  // Dashboard: สถิติ KPI + รายการโครงการ + งานเร่งด่วน (กรองตาม mapping_event_employees เมื่อส่ง employee_id)
+  async getDashboardData(employeeIdRaw) {
+    const employeeId = this._parseEmployeeScope(employeeIdRaw);
+
+    const eventsSql = employeeId
+      ? `
       SELECT
         e.event_id   AS id,
         e.title,
         COALESCE(se.name, 'ไม่ระบุ') AS status,
         COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุ') AS deadline,
-        (SELECT COUNT(*) FROM participant_profiles pp 
-         JOIN mapping_event_teams met ON pp.team_id = met.team_id 
+        (SELECT COUNT(*) FROM participant_profiles pp
+         JOIN mapping_event_teams met ON pp.team_id = met.team_id
+         WHERE met.event_id = e.event_id) AS current_participants,
+        COALESCE(l.max_participant, 100) AS max_participants,
+        e.prize_pool,
+        e.budget
+      FROM events e
+      INNER JOIN mapping_event_employees mee ON mee.event_id = e.event_id AND mee.employee_id = $1
+      LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
+      LEFT JOIN logistics l ON e.logistics_id = l.logistics_id
+      ORDER BY e.event_id ASC
+    `
+      : `
+      SELECT
+        e.event_id   AS id,
+        e.title,
+        COALESCE(se.name, 'ไม่ระบุ') AS status,
+        COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุ') AS deadline,
+        (SELECT COUNT(*) FROM participant_profiles pp
+         JOIN mapping_event_teams met ON pp.team_id = met.team_id
          WHERE met.event_id = e.event_id) AS current_participants,
         COALESCE(l.max_participant, 100) AS max_participants,
         e.prize_pool,
@@ -303,7 +329,9 @@ class EmployeeService {
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
       LEFT JOIN logistics l ON e.logistics_id = l.logistics_id
       ORDER BY e.event_id ASC
-    `);
+    `;
+
+    const eventsResult = await pool.query(eventsSql, employeeId ? [employeeId] : []);
 
     // --- Task stats per event ---
     const taskStatsResult = await pool.query(`
@@ -355,7 +383,7 @@ class EmployeeService {
         status:       ev.status,
         statusColor:  statusColorMap[ev.status] || 'bg-gray-100 text-gray-600',
         deadline:     ev.deadline,
-        teams:        teamMap[ev.id] || Math.floor(ev.current_participants / 5), // Mock fallback team avg
+        teams:        teamMap[ev.id] ?? 0,
         participants: ev.current_participants || 0,
         maxParticipants: ev.max_participants || 100,
         prizePool:    ev.prize_pool || 'ไม่มีเงินรางวัล',
@@ -366,8 +394,32 @@ class EmployeeService {
       };
     });
 
-    // --- Urgent tasks (priority สูง, ยังไม่เสร็จ) ---
-    const urgentResult = await pool.query(`
+    // --- Urgent tasks (priority สูง, ยังไม่เสร็จ) — จำกัดโครงการที่พนักงานรับผิดชอบเมื่อมี employee_id ---
+    const urgentSql = employeeId
+      ? `
+      SELECT
+        t.task_id         AS id,
+        t.task_name       AS name,
+        COALESCE(ev.title, 'ไม่ระบุ') AS project,
+        pl.name           AS priority,
+        COALESCE(
+          CASE
+            WHEN t.due_date::date = CURRENT_DATE       THEN 'วันนี้'
+            WHEN t.due_date::date = CURRENT_DATE + 1   THEN 'พรุ่งนี้'
+            ELSE TO_CHAR(t.due_date, 'DD MMM')
+          END, 'ไม่ระบุ'
+        ) AS deadline
+      FROM tasks t
+      INNER JOIN mapping_event_employees mee ON mee.event_id = t.event_id AND mee.employee_id = $1
+      LEFT JOIN events        ev ON t.event_id    = ev.event_id
+      LEFT JOIN task_statuses ts ON t.status_task_id = ts.status_task_id
+      LEFT JOIN priority_levels pl ON t.priority_id = pl.priority_id
+      WHERE TRIM(ts.slug) <> 'completed'
+        AND TRIM(pl.slug)  = 'high'
+      ORDER BY t.due_date NULLS LAST
+      LIMIT 5
+    `
+      : `
       SELECT
         t.task_id         AS id,
         t.task_name       AS name,
@@ -388,7 +440,8 @@ class EmployeeService {
         AND TRIM(pl.slug)  = 'high'
       ORDER BY t.due_date NULLS LAST
       LIMIT 5
-    `);
+    `;
+    const urgentResult = await pool.query(urgentSql, employeeId ? [employeeId] : []);
 
     // --- KPI stats ---
     const totalProjects   = projects.length;
@@ -399,6 +452,7 @@ class EmployeeService {
     const totalPendingTasks = projects.reduce((s, p) => s + p.issues, 0);
 
     return {
+      scoped: Boolean(employeeId),
       stats: {
         totalProjects,
         activeProjects,
@@ -412,10 +466,20 @@ class EmployeeService {
   }
 
   /**
-   * ปฏิทินพนักงาน: งานที่มี due_date + วันเริ่ม/จบโครงการ (ทุก event)
+   * ปฏิทินพนักงาน: งานที่มี due_date + วันเริ่ม/จบโครงการ — กรองตามโครงการที่รับผิดชอบเมื่อส่ง employee_id
    */
-  async getStaffCalendar() {
-    const tasksR = await pool.query(`
+  async getStaffCalendar(employeeIdRaw) {
+    const employeeId = this._parseEmployeeScope(employeeIdRaw);
+
+    const taskScope = employeeId
+      ? `AND t.event_id IN (SELECT event_id FROM mapping_event_employees WHERE employee_id = $1)`
+      : '';
+    const evScope = employeeId
+      ? `AND e.event_id IN (SELECT event_id FROM mapping_event_employees WHERE employee_id = $1)`
+      : '';
+
+    const tasksR = await pool.query(
+      `
       SELECT
         t.task_id,
         TO_CHAR(t.due_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
@@ -429,9 +493,13 @@ class EmployeeService {
       FROM tasks t
       LEFT JOIN events e ON e.event_id = t.event_id
       WHERE t.due_date IS NOT NULL
-    `);
+        ${taskScope}
+    `,
+      employeeId ? [employeeId] : []
+    );
 
-    const evR = await pool.query(`
+    const evR = await pool.query(
+      `
       SELECT
         e.event_id,
         TO_CHAR(e.event_start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
@@ -442,6 +510,7 @@ class EmployeeService {
         'start' AS ev_kind
       FROM events e
       WHERE e.event_start_date IS NOT NULL
+        ${evScope}
       UNION ALL
       SELECT
         e.event_id,
@@ -453,7 +522,10 @@ class EmployeeService {
         'end' AS ev_kind
       FROM events e
       WHERE e.event_end_date IS NOT NULL
-    `);
+        ${evScope}
+    `,
+      employeeId ? [employeeId] : []
+    );
 
     const out = [];
 

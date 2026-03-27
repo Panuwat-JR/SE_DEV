@@ -1,3 +1,4 @@
+/** @deprecated ไม่ได้ mount ใน router หลัก — ใช้ /employee/calendar (E_Calendar) แทน */
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Filter } from 'lucide-react';
 

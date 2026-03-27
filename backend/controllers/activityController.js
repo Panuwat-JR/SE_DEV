@@ -31,8 +31,18 @@ function parseMaxParticipants(v) {
   return n;
 }
 
+/** ทั้งคู่เป็น YYYY-MM-DD หรือ null */
+function validateEventDateRange(startIso, endIso) {
+  if (startIso && endIso && String(endIso) < String(startIso)) {
+    const err = new Error('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น');
+    err.code = 'VALIDATION';
+    throw err;
+  }
+}
+
 exports.createActivity = async (req, res) => {
-  const { title, status, date_text, max_participants, prize_pool } = req.body;
+  const { title, status, date_text, end_date_text, description, max_participants, prize_pool } =
+    req.body;
   const titleTrim = String(title || '').trim();
   if (!titleTrim) {
     return res.status(400).json({ error: 'ต้องระบุชื่อกิจกรรม' });
@@ -40,8 +50,20 @@ exports.createActivity = async (req, res) => {
 
   const statusName = String(status || 'เปิดรับสมัคร').trim();
   const dateIso = parseEventDateInput(date_text);
+  const endIso = parseEventDateInput(
+    end_date_text != null && end_date_text !== '' ? end_date_text : req.body.end_date_input
+  );
+  const desc =
+    description != null && String(description).trim() !== '' ? String(description).trim() : null;
   const maxP = parseMaxParticipants(max_participants);
   const prize = parsePrizePool(prize_pool);
+
+  try {
+    validateEventDateRange(dateIso, endIso);
+  } catch (e) {
+    if (e.code === 'VALIDATION') return res.status(400).json({ error: e.message });
+    throw e;
+  }
 
   const client = await pool.connect();
   try {
@@ -54,19 +76,21 @@ exports.createActivity = async (req, res) => {
     const logisticsId = log.rows[0].logistics_id;
 
     const result = await client.query(
-      `INSERT INTO events (title, event_start_date, prize_pool, status_event_id, logistics_id)
+      `INSERT INTO events (title, description, event_start_date, event_end_date, prize_pool, status_event_id, logistics_id)
        VALUES (
          $1,
-         $2::date,
-         $3,
+         $2,
+         CASE WHEN $3::text IS NULL OR TRIM(COALESCE($3::text, '')) = '' THEN NULL ELSE $3::date END,
+         CASE WHEN $4::text IS NULL OR TRIM(COALESCE($4::text, '')) = '' THEN NULL ELSE $4::date END,
+         $5,
          COALESCE(
-           (SELECT status_event_id FROM status_events WHERE name = $4 LIMIT 1),
+           (SELECT status_event_id FROM status_events WHERE name = $6 LIMIT 1),
            (SELECT status_event_id FROM status_events WHERE name = 'เปิดรับสมัคร' LIMIT 1)
          ),
-         $5
+         $7
        )
        RETURNING event_id AS id, title`,
-      [titleTrim, dateIso, prize, statusName, logisticsId]
+      [titleTrim, desc, dateIso, endIso, prize, statusName, logisticsId]
     );
 
     await client.query('COMMIT');
@@ -114,8 +138,11 @@ exports.getAllActivities = async (req, res) => {
         e.event_id AS id,
         e.title,
         COALESCE(s.name, 'เปิดรับสมัคร') AS status,
+        COALESCE(NULLIF(TRIM(e.description), ''), '') AS description,
         COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุวันที่') AS date_text,
         TO_CHAR(e.event_start_date, 'YYYY-MM-DD') AS date_input,
+        COALESCE(TO_CHAR(e.event_end_date, 'DD/MM/YYYY'), '') AS end_date_text,
+        TO_CHAR(e.event_end_date, 'YYYY-MM-DD') AS end_date_input,
         COALESCE(l.max_participant, 100) AS max_participants,
         (SELECT COUNT(*) FROM participant_profiles pp
          JOIN mapping_event_teams met ON pp.team_id = met.team_id
@@ -136,7 +163,19 @@ exports.getAllActivities = async (req, res) => {
 
 exports.updateActivity = async (req, res) => {
   const { id } = req.params;
-  const { title, status, date_text, max_participants, prize_pool } = req.body;
+  const { title, status, date_text, end_date_text, description, max_participants, prize_pool } =
+    req.body;
+
+  const dateIso = parseEventDateInput(date_text);
+  const endIso = parseEventDateInput(
+    end_date_text != null && end_date_text !== '' ? end_date_text : req.body.end_date_input
+  );
+  try {
+    validateEventDateRange(dateIso, endIso);
+  } catch (e) {
+    if (e.code === 'VALIDATION') return res.status(400).json({ error: e.message });
+    throw e;
+  }
 
   const client = await pool.connect();
   try {
@@ -168,25 +207,28 @@ exports.updateActivity = async (req, res) => {
       ]);
     }
 
-    const dateIso = parseEventDateInput(date_text);
     const prize = parsePrizePool(prize_pool);
 
     const statusName = String(status || 'เปิดรับสมัคร').trim();
+    const desc =
+      description != null && String(description).trim() !== '' ? String(description).trim() : null;
 
     await client.query(
       `
       UPDATE events
       SET
         title = $1,
+        description = $2,
         status_event_id = COALESCE(
-          (SELECT status_event_id FROM status_events WHERE name = $2 LIMIT 1),
+          (SELECT status_event_id FROM status_events WHERE name = $3 LIMIT 1),
           (SELECT status_event_id FROM status_events WHERE name = 'เปิดรับสมัคร' LIMIT 1)
         ),
-        event_start_date = CASE WHEN $3::text IS NULL OR $3::text = '' THEN NULL ELSE $3::date END,
-        prize_pool = $4
-      WHERE event_id = $5
+        event_start_date = CASE WHEN $4::text IS NULL OR TRIM(COALESCE($4::text, '')) = '' THEN NULL ELSE $4::date END,
+        event_end_date = CASE WHEN $5::text IS NULL OR TRIM(COALESCE($5::text, '')) = '' THEN NULL ELSE $5::date END,
+        prize_pool = $6
+      WHERE event_id = $7
     `,
-      [String(title || '').trim(), statusName, dateIso, prize, id]
+      [String(title || '').trim(), desc, statusName, dateIso, endIso, prize, id]
     );
 
     await client.query('COMMIT');

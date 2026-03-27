@@ -13,7 +13,7 @@ exports.getEmployees = async (req, res) => {
 
 exports.getDashboard = async (req, res) => {
   try {
-    const data = await employeeService.getDashboardData();
+    const data = await employeeService.getDashboardData(req.query.employee_id);
     res.json(data);
   } catch (err) {
     console.error('Employee Dashboard Controller Error:', err.message);
@@ -23,7 +23,7 @@ exports.getDashboard = async (req, res) => {
 
 exports.getCalendar = async (req, res) => {
   try {
-    const items = await employeeService.getStaffCalendar();
+    const items = await employeeService.getStaffCalendar(req.query.employee_id);
     res.json(items);
   } catch (err) {
     console.error('Employee calendar:', err.message);

@@ -4,7 +4,7 @@ import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Calendar, CalendarDays, Briefcase,
-    UsersRound, UserCircle, FileCheck, LogOut, ChevronRight, Users
+    UsersRound, UserCircle, FileCheck, LogOut, ChevronRight, Users, Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -18,6 +18,7 @@ const MENUS = [
     { name: 'พนักงาน', icon: Users, path: '/employee/staff' },
     { name: 'เอกสาร', icon: FileCheck, path: '/employee/documents' },
     { name: 'ปฏิทิน', icon: Calendar, path: '/employee/calendar' },
+    { name: 'ตั้งค่า', icon: Settings, path: '/employee/settings' },
 ];
 
 export default function EmployeeLayout() {

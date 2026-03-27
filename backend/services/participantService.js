@@ -717,6 +717,29 @@ class ParticipantService {
 
   /** แจ้งเตือนเชิงสังเคราะห์จากงานที่ยังไม่เสร็จและกำหนดส่ง */
   async getNotificationsForParticipant(participantName) {
+    const pidR = await pool.query(
+      `
+      SELECT participant_profile_id FROM participant_profiles
+      WHERE TRIM(LOWER(firstname)) = TRIM(LOWER($1))
+      ORDER BY participant_profile_id ASC LIMIT 1
+    `,
+      [participantName]
+    );
+    const profileId = pidR.rows[0]?.participant_profile_id ?? null;
+
+    let readSet = new Set();
+    if (profileId != null) {
+      try {
+        const readR = await pool.query(
+          `SELECT notification_id FROM participant_notification_reads WHERE participant_profile_id = $1`,
+          [profileId]
+        );
+        readSet = new Set(readR.rows.map((r) => r.notification_id));
+      } catch (e) {
+        if (e.code !== '42P01') throw e;
+      }
+    }
+
     const rows = await pool.query(
       `
       SELECT
@@ -769,10 +792,44 @@ class ParticipantService {
         body,
         project: r.event_title,
         occurredAt: (due && !Number.isNaN(due.getTime()) ? due : now).toISOString(),
+        read: readSet.has(id),
       });
     }
 
     return list;
+  }
+
+  async markParticipantNotificationsRead(participantName, notificationIds) {
+    const ids = Array.isArray(notificationIds)
+      ? notificationIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
+    if (ids.length === 0) return { ok: true, marked: 0 };
+
+    const pidR = await pool.query(
+      `
+      SELECT participant_profile_id FROM participant_profiles
+      WHERE TRIM(LOWER(firstname)) = TRIM(LOWER($1))
+      ORDER BY participant_profile_id ASC LIMIT 1
+    `,
+      [participantName]
+    );
+    const profileId = pidR.rows[0]?.participant_profile_id;
+    if (profileId == null) {
+      const err = new Error('PARTICIPANT_NOT_FOUND');
+      err.code = 'PARTICIPANT_NOT_FOUND';
+      throw err;
+    }
+
+    const trimmed = ids.map((id) => String(id).slice(0, 128));
+    const r = await pool.query(
+      `
+      INSERT INTO participant_notification_reads (participant_profile_id, notification_id)
+      SELECT $1, unnest($2::text[])
+      ON CONFLICT (participant_profile_id, notification_id) DO NOTHING
+    `,
+      [profileId, trimmed]
+    );
+    return { ok: true, marked: r.rowCount || 0 };
   }
 
   /** เจ้าหน้าที่ที่ map กับอีเวนต์เดียวกับทีม */

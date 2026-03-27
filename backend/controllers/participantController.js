@@ -14,6 +14,38 @@ function decodeParticipantToken(raw) {
   }
 }
 
+/** ไทม์ไลน์จากวันที่โครงการใน DB (ไม่ใช้ข้อมูลจำลอง) */
+function buildTimelineFromProject(project) {
+  const start = project.start_date || '—';
+  const end = project.end_date || '—';
+  const status = String(project.status || '');
+  const completed =
+    /สำเร็จ|เสร็จสิ้น|completed/i.test(status) || status.includes('ดำเนินการสำเร็จ');
+  return [
+    {
+      phase: 'วันเริ่มโครงการ',
+      start,
+      end: start,
+      done: Boolean(project.start_date && project.start_date !== '—'),
+      current: false,
+    },
+    {
+      phase: 'ระหว่างดำเนินการ',
+      start,
+      end,
+      done: completed,
+      current: !completed && Boolean(project.start_date && project.start_date !== '—'),
+    },
+    {
+      phase: 'วันสิ้นสุดโครงการ',
+      start: end,
+      end,
+      done: completed,
+      current: false,
+    },
+  ];
+}
+
 /** ระบุตัวผู้เข้าร่วม: header X-Participant-Firstname → query ?as= → env DEMO_PARTICIPANT_FIRSTNAME */
 function participantFromRequest(req) {
   const h = typeof req.get === 'function' ? req.get('x-participant-firstname') : req.headers['x-participant-firstname'];
@@ -87,12 +119,7 @@ exports.getProjectDetail = async (req, res) => {
 
     const tasks = await participantService.getAllTasks(id);
 
-    // Simulated Timeline
-    const timeline = [
-      { phase: 'เปิดรับสมัคร', start: '1 ม.ค. 2569', end: project.start_date, done: true },
-      { phase: 'รอดำเนินการ', start: project.start_date, end: project.end_date, done: false, current: true },
-      { phase: 'ประกาศผล', start: project.end_date, end: project.end_date, done: false },
-    ];
+    const timeline = buildTimelineFromProject(project);
 
     const documentCount = Number(project.documentCount) || 0;
 
@@ -210,6 +237,26 @@ exports.getNotifications = async (req, res) => {
     res.json(items);
   } catch (err) {
     console.error('Participant notifications:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.markNotificationsRead = async (req, res) => {
+  try {
+    const raw = req.body?.ids ?? req.body?.notificationIds;
+    const ids = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+    await participantService.markParticipantNotificationsRead(participantFromRequest(req), ids);
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === 'PARTICIPANT_NOT_FOUND') {
+      return res.status(404).json({ error: 'ไม่พบผู้เข้าร่วม' });
+    }
+    if (err.code === '42P01') {
+      return res.status(503).json({
+        error: 'ตารางการอ่านแจ้งเตือนยังไม่พร้อม — รีสตาร์ท backend หลัง dbEnsure',
+      });
+    }
+    console.error('markNotificationsRead:', err.message);
     res.status(500).json({ error: 'Server Error' });
   }
 };

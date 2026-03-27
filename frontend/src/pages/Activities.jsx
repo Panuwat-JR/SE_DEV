@@ -10,7 +10,14 @@ function Activities() {
   const [editingActivity, setEditingActivity] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newActivity, setNewActivity] = useState({
-    title: '', status: 'เปิดรับสมัคร', date_text: '', max_participants: 100, prize_pool: '', fileName: ''
+    title: '',
+    status: 'เปิดรับสมัคร',
+    date_text: '',
+    end_date_input: '',
+    description: '',
+    max_participants: 100,
+    prize_pool: '',
+    fileName: '',
   });
 
   const handleDelete = (id, title) => {
@@ -26,9 +33,17 @@ function Activities() {
 
   const handleSaveEdit = (e) => {
     e.preventDefault();
+    const start = editingActivity.date_input || '';
+    const end = editingActivity.end_date_input || '';
+    if (start && end && end < start) {
+      window.alert('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น');
+      return;
+    }
     const payload = {
       ...editingActivity,
       date_text: editingActivity.date_input || editingActivity.date_text,
+      end_date_text: editingActivity.end_date_input || '',
+      description: editingActivity.description ?? '',
     };
     updateEvent(editingActivity.id, payload);
     setIsEditModalOpen(false);
@@ -36,15 +51,32 @@ function Activities() {
 
   const handleCreate = (e) => {
     e.preventDefault();
+    const start = newActivity.date_text || '';
+    const end = newActivity.end_date_input || '';
+    if (start && end && end < start) {
+      window.alert('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น');
+      return;
+    }
     addEvent({
       title: newActivity.title,
       status: newActivity.status,
       date_text: newActivity.date_text,
+      end_date_text: newActivity.end_date_input || '',
+      description: newActivity.description || '',
       max_participants: Number(newActivity.max_participants),
       prize_pool: newActivity.prize_pool || 'ไม่มีเงินรางวัล',
     });
     setIsCreateModalOpen(false);
-    setNewActivity({ title: '', status: 'เปิดรับสมัคร', date_text: '', max_participants: 100, prize_pool: '', fileName: '' });
+    setNewActivity({
+      title: '',
+      status: 'เปิดรับสมัคร',
+      date_text: '',
+      end_date_input: '',
+      description: '',
+      max_participants: 100,
+      prize_pool: '',
+      fileName: '',
+    });
   };
 
   const filteredActivities = events.filter(activity =>
@@ -185,7 +217,9 @@ function Activities() {
                   </div>
                   <h2 className="text-4xl font-extrabold tracking-tight">{selectedActivity.title}</h2>
                   <p className="text-blue-100 text-lg max-w-2xl opacity-90 leading-relaxed">
-                    การแข่งขันที่จะท้าทายความสามารถของคุณ พร้อมเปิดรับไอเดียใหม่ๆ เพื่อต่อยอดสู่ธุรกิจจริงในอนาคต (Mock Description)
+                    {(selectedActivity.description || '').trim()
+                      ? selectedActivity.description
+                      : `รายละเอียดจากระบบ — แก้ไขกิจกรรมเพื่อเพิ่มคำอธิบายในรายการโครงการ`}
                   </p>
                 </div>
                 <button onClick={() => setSelectedActivity(null)} className="text-white/60 hover:text-white bg-black/10 hover:bg-black/20 p-2.5 rounded-full transition-all backdrop-blur-sm">
@@ -234,14 +268,34 @@ function Activities() {
 
                   <section>
                     <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
-                      <Clock size={20} className="text-blue-600" /> กำหนดการ (จำลอง)
+                      <Clock size={20} className="text-blue-600" /> กำหนดการจากระบบ
                     </h3>
                     <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
-                      {[
-                        { date: '15 ตุลาคม 2026', title: 'เปิดรับสมัครทีม', desc: 'ลงทะเบียนผ่านระบบและส่ง Pitch Deck เบื้องต้น' },
-                        { date: '30 ตุลาคม 2026', title: 'ประกาศผลรอบคัดเลือก', desc: 'ทีมที่ผ่านเข้ารอบจะได้รับแจ้งผ่านอีเมล' },
-                        { date: '10 พฤศจิกายน 2026', title: 'วันแข่งขัน (Pitching Day)', desc: 'นำเสนอผลงานต่อหน้าคณะกรรมการ ณ อุทยานวิทยาศาสตร์' },
-                      ].map((timeline, idx) => (
+                      {(() => {
+                        const items = [];
+                        if (selectedActivity.date_text && selectedActivity.date_text !== 'ยังไม่ระบุวันที่') {
+                          items.push({
+                            date: selectedActivity.date_text,
+                            title: 'วันเริ่ม / จุดอ้างอิงหลัก',
+                            desc: 'จากวันที่ลงทะเบียนกิจกรรมในระบบ',
+                          });
+                        }
+                        if ((selectedActivity.end_date_text || '').trim()) {
+                          items.push({
+                            date: selectedActivity.end_date_text,
+                            title: 'วันสิ้นสุดโครงการ',
+                            desc: 'จากวันที่สิ้นสุดในระบบ',
+                          });
+                        }
+                        if (items.length === 0) {
+                          items.push({
+                            date: '—',
+                            title: 'ยังไม่มีกำหนดการละเอียด',
+                            desc: 'แก้ไขกิจกรรมเพื่อระบุวันที่เริ่มและสิ้นสุด',
+                          });
+                        }
+                        return items;
+                      })().map((timeline, idx) => (
                         <div key={idx} className="relative flex items-center justify-between md:justify-normal md:even:flex-row-reverse group is-active">
                           <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-blue-100 text-blue-600 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
                             <span className="font-bold text-sm">{idx + 1}</span>
@@ -280,28 +334,11 @@ function Activities() {
                     </p>
                   </div>
 
-                  {/* Judges Mock */}
                   <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-                    <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      คณะกรรมการตัดสิน (Judges)
-                    </h4>
-                    <div className="space-y-3">
-                      {[
-                        { name: 'ดร. วิทยา ทรงพลัง', role: 'CEO, Tech Startup', img: 'ว' },
-                        { name: 'คุณมาลี ใจดี', role: 'Angel Investor', img: 'ม' },
-                        { name: 'ผศ.ดร. นักประดิษฐ์', role: 'อาจารย์มหาวิทยาลัย', img: 'น' },
-                      ].map((judge, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-100">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm ring-2 ring-white shadow-sm">
-                            {judge.img}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-800">{judge.name}</p>
-                            <p className="text-xs text-gray-500">{judge.role}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <h4 className="text-sm font-bold text-gray-800 mb-2">คณะกรรมการตัดสิน</h4>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      ยังไม่มีรายชื่อคณะกรรมการในระบบ — เมื่อมีตารางและ API สำหรับกรรมการ จะแสดงในส่วนนี้
+                    </p>
                   </div>
 
                   {/* Quick Actions */}
@@ -330,7 +367,7 @@ function Activities() {
       {/* Modal แก้ไข */}
       {isEditModalOpen && editingActivity && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-[500px] shadow-2xl overflow-hidden">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800">แก้ไขกิจกรรม</h2>
               <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
@@ -353,11 +390,23 @@ function Activities() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">วันที่จัดกิจกรรม</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">วันเริ่มโครงการ</label>
                   <input type="date" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     value={editingActivity.date_input || ''}
                     onChange={(e) => setEditingActivity({ ...editingActivity, date_input: e.target.value })} />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">วันสิ้นสุดโครงการ</label>
+                  <input type="date" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editingActivity.end_date_input || ''}
+                    onChange={(e) => setEditingActivity({ ...editingActivity, end_date_input: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด (แสดงในมุมมองกิจกรรม)</label>
+                <textarea rows={3} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  value={editingActivity.description ?? ''}
+                  onChange={(e) => setEditingActivity({ ...editingActivity, description: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -383,7 +432,7 @@ function Activities() {
       {/* Modal สร้างใหม่ */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-[500px] shadow-2xl overflow-hidden">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800">สร้างกิจกรรมใหม่</h2>
               <button onClick={() => setIsCreateModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={24} /></button>
@@ -406,10 +455,21 @@ function Activities() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">วันที่จัดกิจกรรม</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">วันเริ่มโครงการ</label>
                   <input type="date" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     value={newActivity.date_text} onChange={(e) => setNewActivity({ ...newActivity, date_text: e.target.value })} />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">วันสิ้นสุดโครงการ</label>
+                  <input type="date" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newActivity.end_date_input} onChange={(e) => setNewActivity({ ...newActivity, end_date_input: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
+                <textarea rows={3} placeholder="อธิบายโครงการสั้นๆ"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  value={newActivity.description} onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

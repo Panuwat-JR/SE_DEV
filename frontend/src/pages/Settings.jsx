@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { User, Bell, Shield, Palette, Database, Save } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Settings = () => {
-  // สร้าง State สำหรับเก็บว่าตอนนี้เลือกเมนูไหนอยู่ (เริ่มต้นที่ โปรไฟล์)
+  const { employee } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
 
   // ข้อมูลเมนูตั้งค่า
@@ -71,7 +72,7 @@ const Settings = () => {
                     <label className="text-sm font-medium text-gray-700">ชื่อ</label>
                     <input 
                       type="text" 
-                      defaultValue="อนุชา"
+                      defaultValue={employee?.first_name || ''}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
@@ -79,7 +80,7 @@ const Settings = () => {
                     <label className="text-sm font-medium text-gray-700">นามสกุล</label>
                     <input 
                       type="text" 
-                      defaultValue="สมศรี"
+                      defaultValue={employee?.last_name || ''}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
@@ -90,7 +91,7 @@ const Settings = () => {
                     <label className="text-sm font-medium text-gray-700">อีเมล</label>
                     <input 
                       type="email" 
-                      defaultValue="anucha@nuseed.ac.th"
+                      defaultValue={employee?.email || ''}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-600 bg-gray-50"
                       readOnly
                     />
@@ -99,7 +100,7 @@ const Settings = () => {
                     <label className="text-sm font-medium text-gray-700">เบอร์โทรศัพท์</label>
                     <input 
                       type="text" 
-                      defaultValue="081-234-5678"
+                      placeholder="ยังไม่เชื่อมกับฐานข้อมูล"
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
@@ -107,11 +108,12 @@ const Settings = () => {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">ตำแหน่ง</label>
-                  <select className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none">
-                    <option>เจ้าหน้าที่บริหารทั่วไป</option>
-                    <option>ผู้จัดการโครงการ</option>
-                    <option>ผู้อำนวยการ</option>
-                  </select>
+                  <input
+                    type="text"
+                    readOnly
+                    defaultValue={employee?.role || '—'}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700"
+                  />
                 </div>
 
                 <div className="pt-4">
