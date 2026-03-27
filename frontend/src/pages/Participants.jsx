@@ -12,10 +12,14 @@ const Participants = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    await addParticipant({
+    const result = await addParticipant({
       ...formData,
       year_of_study: formData.year_of_study === '' ? '' : Number(formData.year_of_study),
     });
+    if (result?.ok === false) {
+      alert(result.error || 'บันทึกไม่สำเร็จ');
+      return;
+    }
     setIsCreateOpen(false);
     setFormData({ firstname: '', lastname: '', team_id: '', faculty: '', major: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา' });
   };

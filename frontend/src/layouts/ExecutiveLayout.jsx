@@ -13,7 +13,17 @@ const MENUS = [
 export default function ExecutiveLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { logout } = useAuth();
+    const { logout, employee } = useAuth();
+
+    const displayName = employee
+        ? `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || employee.email
+        : 'ผู้บริหาร';
+    const subtitle = employee
+        ? [employee.role, employee.department].filter(Boolean).join(' · ') || employee.email
+        : 'เข้าสู่ระบบด้วยอีเมลพนักงาน';
+    const displayInitial = (
+        (employee?.initial || displayName.charAt(0) || '?').toString().charAt(0) || '?'
+    ).toUpperCase();
 
     const handleLogout = () => { logout(); navigate('/login'); };
     const isActive = (path) => location.pathname === path;
@@ -52,10 +62,10 @@ export default function ExecutiveLayout() {
                 {/* User footer */}
                 <div className="p-4 border-t border-blue-900/40">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">ด</div>
-                        <div>
-                            <div className="text-white text-sm font-bold">ดร.สมชาย วงศ์อุดม</div>
-                            <div className="text-[10px] text-blue-400">ผู้อำนวยการ NU SEED</div>
+                        <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">{displayInitial}</div>
+                        <div className="min-w-0">
+                            <div className="text-white text-sm font-bold truncate" title={displayName}>{displayName}</div>
+                            <div className="text-[10px] text-blue-400 truncate" title={subtitle}>{subtitle}</div>
                         </div>
                     </div>
                     <button onClick={handleLogout}
@@ -80,11 +90,18 @@ export default function ExecutiveLayout() {
                         <div className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200">
                             👑 ผู้บริหาร
                         </div>
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">ด</div>
+                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">{displayInitial}</div>
                     </div>
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-8">
+                    {!employee && (
+                        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                            <strong className="font-semibold">ตัวตนผู้บริหารไม่ครบ</strong>
+                            {' — '}
+                            ออกจากระบบแล้วเข้าใหม่ด้วยอีเมลพนักงานที่มีในระบบ (เช่น somchai@se.dev)
+                        </div>
+                    )}
                     <Outlet />
                 </main>
             </div>

@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const pool = require('./config/db');
 
 const app = express();
 app.use(cors());
@@ -36,6 +37,19 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/employees', employeeRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Backend server กำลังรันอยู่ที่ http://localhost:${PORT}`);
-});
+
+async function start() {
+  try {
+    await pool.query(`
+      ALTER TABLE employees
+        ADD COLUMN IF NOT EXISTS portal_access VARCHAR(32) NOT NULL DEFAULT 'employee'
+    `);
+  } catch (e) {
+    console.warn('⚠️  ตรวจสอบคอลัมน์ portal_access ไม่สำเร็จ:', e.message);
+  }
+  app.listen(PORT, () => {
+    console.log(`✅ Backend server กำลังรันอยู่ที่ http://localhost:${PORT}`);
+  });
+}
+
+start();

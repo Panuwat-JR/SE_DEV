@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, UserCog, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -47,15 +47,39 @@ const ROLES = [
   },
 ];
 
+const demoPassword =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_PASSWORD
+    ? String(import.meta.env.VITE_DEMO_PASSWORD)
+    : 'password123';
+
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, role: sessionRole } = useAuth();
   const [selectedRole, setSelectedRole] = useState('employee');
   const [participantFirstname, setParticipantFirstnameInput] = useState(
     () => getDefaultParticipantFirstname()
   );
+  const [employeeEmail, setEmployeeEmail] = useState(() => {
+    const env =
+      typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_EMPLOYEE_EMAIL
+        ? String(import.meta.env.VITE_DEMO_EMPLOYEE_EMAIL).trim()
+        : '';
+    return env || 'somchai@demo.nu.seed';
+  });
+  const [password, setPassword] = useState(demoPassword);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!sessionRole) return;
+    const to =
+      sessionRole === 'participant'
+        ? '/participant/dashboard'
+        : sessionRole === 'executive'
+          ? '/executive/dashboard'
+          : '/employee/dashboard';
+    navigate(to, { replace: true });
+  }, [sessionRole, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -69,8 +93,13 @@ const Login = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role: selectedRole,
+          password: String(password || ''),
           participantFirstname:
             selectedRole === 'participant' ? String(participantFirstname || '').trim() : undefined,
+          employeeEmail:
+            selectedRole === 'employee' || selectedRole === 'executive'
+              ? String(employeeEmail || '').trim().toLowerCase()
+              : undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -81,7 +110,14 @@ const Login = () => {
         const name = String(data.participantFirstname || participantFirstname || '').trim();
         if (name) setParticipantFirstname(name);
       }
-      login(selectedRole);
+      login({
+        role: selectedRole,
+        employee: data.employee,
+        participantFirstname:
+          selectedRole === 'participant'
+            ? String(data.participantFirstname || participantFirstname || '').trim()
+            : undefined,
+      });
       navigate(roleCfg.redirect);
     } catch (err) {
       setError(err.message || 'เข้าสู่ระบบไม่สำเร็จ');
@@ -166,6 +202,40 @@ const Login = () => {
               </div>
             )}
 
+            {(selectedRole === 'employee' || selectedRole === 'executive') && (
+              <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 space-y-2">
+                <label className="block text-xs font-medium text-blue-200">
+                  อีเมลพนักงาน (employees.email)
+                </label>
+                <input
+                  type="email"
+                  value={employeeEmail}
+                  onChange={(e) => setEmployeeEmail(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#0f172a]/80 px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="somchai@demo.nu.seed"
+                  autoComplete="email"
+                />
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  พนักงาน: somchai@demo.nu.seed — ผู้บริหาร: exec@demo.nu.seed (หรือ kanda@se.dev หลัง employee_seed)
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 space-y-2">
+              <label className="block text-xs font-medium text-gray-200">รหัสผ่าน</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-[#0f172a]/80 px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="password123"
+                autoComplete="current-password"
+              />
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                เดโม seed ใช้รหัสเดียวกันทุกบัญชี — ดูสรุปหลังรัน ./start.sh
+              </p>
+            </div>
+
             {error && (
               <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
                 {error}
@@ -183,7 +253,7 @@ const Login = () => {
             </button>
 
             <p className="text-center text-xs text-gray-500 pt-2">
-              บทบาทจำในเบราว์เซอร์หลังรีเฟรช; ผู้เข้าร่วมต้องผ่าน API (ชื่อ firstname ตรงฐานข้อมูล)
+              บทบาท ตัวตน และรหัสผ่านตรวจที่ API — ข้อมูลเซสชัน (ไม่มีรหัสผ่าน) เก็บในเบราว์เซอร์หลังรีเฟรช
             </p>
           </form>
         </div>

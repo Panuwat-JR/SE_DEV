@@ -1,13 +1,13 @@
 // layouts/EmployeeLayout.jsx
-// Sidebar navy (เหมือน design เดิม) สำหรับ Employee
-import React, { useEffect, useState } from 'react';
+// Sidebar navy (เหมือน design เดิม) สำหรับ Employee — ชื่อผู้ใช้จาก session ล็อกอิน (อีเมลใน DB)
+import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Calendar, CalendarDays, Briefcase,
     UsersRound, UserCircle, FileCheck, LogOut, ChevronRight, Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE } from '../config/api';
+import { useApp } from '../context/AppContext';
 
 const MENUS = [
     { name: 'แดชบอร์ด', icon: LayoutDashboard, path: '/employee/dashboard' },
@@ -23,24 +23,17 @@ const MENUS = [
 export default function EmployeeLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { logout } = useAuth();
-    const [headerEmployee, setHeaderEmployee] = useState(null);
+    const { logout, employee } = useAuth();
+    const { dashboardSyncError } = useApp();
 
-    useEffect(() => {
-        const url = API_BASE ? `${API_BASE}/api/employees` : '/api/employees';
-        fetch(url)
-            .then((r) => r.json())
-            .then((rows) => {
-                if (Array.isArray(rows) && rows.length > 0) setHeaderEmployee(rows[0]);
-            })
-            .catch(() => {});
-    }, []);
-
-    const displayName = headerEmployee
-        ? `${headerEmployee.first_name || ''} ${headerEmployee.last_name || ''}`.trim()
-        : 'สมชาย สมศรี';
-    const displayRole = headerEmployee?.role || 'ผู้จัดการโครงการ';
-    const displayInitial = (headerEmployee?.initial || displayName.charAt(0) || 'ส').toUpperCase();
+    const displayName = employee
+        ? `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || employee.email
+        : 'ยังไม่ผูกบัญชีพนักงาน';
+    const displayRole = employee?.role || '—';
+    const displayDept = employee?.department || '';
+    const displayInitial = (
+        (employee?.initial || displayName.charAt(0) || '?').toString().charAt(0) || '?'
+    ).toUpperCase();
 
     const handleLogout = () => { logout(); navigate('/login'); };
     const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
@@ -81,8 +74,10 @@ export default function EmployeeLayout() {
                     <div className="flex items-center gap-3 mb-3">
                         <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">{displayInitial}</div>
                         <div>
-                            <div className="text-white text-sm font-bold">{displayName}</div>
-                            <div className="text-[10px] text-gray-400">{displayRole}</div>
+                            <div className="text-white text-sm font-bold truncate max-w-[10rem]" title={displayName}>{displayName}</div>
+                            <div className="text-[10px] text-gray-400 truncate max-w-[10rem]" title={employee?.email || ''}>
+                                {displayRole}{displayDept ? ` · ${displayDept}` : ''}
+                            </div>
                         </div>
                     </div>
                     <button onClick={handleLogout}
@@ -112,6 +107,22 @@ export default function EmployeeLayout() {
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-8">
+                    {!employee && (
+                        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                            <strong className="font-semibold">ตัวตนพนักงานไม่ครบ</strong>
+                            {' — '}
+                            ออกจากระบบแล้วเข้าใหม่ด้วยอีเมลที่มีใน <code className="rounded bg-amber-100/80 px-1">employees.email</code>
+                            {' '}(เช่น somchai@se.dev)
+                        </div>
+                    )}
+                    {dashboardSyncError && (
+                        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+                            <strong className="font-semibold">โหลดข้อมูลจากเซิร์ฟเวอร์ไม่สำเร็จ</strong>
+                            {' — '}
+                            {dashboardSyncError}
+                            {' '}(รัน Backend คู่กับ Frontend และตรวจ <code className="rounded bg-red-100/80 px-1">VITE_DEV_API_PROXY</code>)
+                        </div>
+                    )}
                     <Outlet />
                 </main>
             </div>

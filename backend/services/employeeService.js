@@ -481,6 +481,68 @@ class EmployeeService {
     out.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
     return out;
   }
+
+  /** ค้นหาพนักงานตามอีเมล (case-insensitive) — ใช้ยืนยันตัวตนตอนล็อกอิน workspace พนักงาน/ผู้บริหาร */
+  async getEmployeeByEmail(emailRaw) {
+    const email = String(emailRaw || '').trim().toLowerCase();
+    if (!email) return null;
+    const result = await pool.query(
+      `
+      SELECT
+        e.employee_id   AS id,
+        ep.first_name,
+        ep.last_name,
+        ep.gender,
+        er.name         AS role,
+        d.name          AS department,
+        e.email,
+        e.status,
+        e.online_status,
+        LEFT(ep.first_name, 1) AS initial
+      FROM employees e
+      JOIN employee_profiles ep ON e.employee_profile_id = ep.employee_profile_id
+      LEFT JOIN employee_roles er ON ep.role_employee_id = er.role_employee_id
+      LEFT JOIN departments   d  ON ep.department_id     = d.department_id
+      WHERE LOWER(TRIM(e.email)) = $1
+      LIMIT 1
+    `,
+      [email]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * ล็อกอิน — รวม password_hash และ portal_access (หลัง migration)
+   */
+  async getEmployeeForLogin(emailRaw) {
+    const email = String(emailRaw || '').trim().toLowerCase();
+    if (!email) return null;
+    const result = await pool.query(
+      `
+      SELECT
+        e.employee_id   AS id,
+        ep.first_name,
+        ep.last_name,
+        ep.gender,
+        er.name         AS role,
+        d.name          AS department,
+        e.email,
+        e.status,
+        e.online_status,
+        e.password_hash,
+        COALESCE(NULLIF(TRIM(e.portal_access), ''), 'employee') AS portal_access,
+        LEFT(ep.first_name, 1) AS initial
+      FROM employees e
+      JOIN employee_profiles ep ON e.employee_profile_id = ep.employee_profile_id
+      LEFT JOIN employee_roles er ON ep.role_employee_id = er.role_employee_id
+      LEFT JOIN departments   d  ON ep.department_id     = d.department_id
+      WHERE LOWER(TRIM(e.email)) = $1
+      LIMIT 1
+    `,
+      [email]
+    );
+    return result.rows[0] || null;
+  }
 }
 
 module.exports = new EmployeeService();

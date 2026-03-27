@@ -87,7 +87,10 @@ exports.createActivity = async (req, res) => {
 exports.deleteActivity = async (req, res) => {
   const eventId = req.params.id;
   try {
-    await pool.query('DELETE FROM events WHERE event_id = $1', [eventId]);
+    const r = await pool.query('DELETE FROM events WHERE event_id = $1 RETURNING event_id', [eventId]);
+    if (r.rowCount === 0) {
+      return res.status(404).json({ error: 'ไม่พบกิจกรรม' });
+    }
     res.json({ message: 'ลบกิจกรรมสำเร็จ' });
   } catch (err) {
     console.error('เกิดข้อผิดพลาดในการลบ:', err.message);

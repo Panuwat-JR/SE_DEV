@@ -36,11 +36,20 @@ import ExecutiveLayout from './layouts/ExecutiveLayout';
 import X_Dashboard from './pages/executive/X_Dashboard';
 import X_Feedback from './pages/executive/X_Feedback';
 
-// ── Route Guard ────────────────────────────────────────
+// ── Route Guard — แยก workspace ตาม actor; ถ้าเข้าผิดพอร์ทัลส่งกลับหน้าแรกของบทบาทที่ล็อกอิน ──
+const roleHome = {
+  participant: '/participant/dashboard',
+  employee: '/employee/dashboard',
+  executive: '/executive/dashboard',
+};
+
 const RequireRole = ({ allowed, children }) => {
   const { role } = useAuth();
   if (!role) return <Navigate to="/login" replace />;
-  if (!allowed.includes(role)) return <Navigate to="/login" replace />;
+  if (!allowed.includes(role)) {
+    const to = roleHome[role] || '/login';
+    return <Navigate to={to} replace />;
+  }
   return children;
 };
 

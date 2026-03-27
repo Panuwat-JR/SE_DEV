@@ -366,6 +366,22 @@ class ParticipantService {
     };
   }
 
+  /** ดึง password_hash สำหรับล็อกอินพอร์ทัลผู้เข้าร่วม (ต้องมีแถวใน participants) */
+  async getParticipantAuthByFirstname(participantName) {
+    const r = await pool.query(
+      `
+      SELECT p.password_hash
+      FROM participant_profiles pp
+      INNER JOIN participants p ON p.participant_profile_id = pp.participant_profile_id
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
+      ORDER BY pp.participant_profile_id ASC
+      LIMIT 1
+      `,
+      [participantName]
+    );
+    return r.rows[0] || null;
+  }
+
   async resolveParticipantId(participantName) {
     const r = await pool.query(
       `

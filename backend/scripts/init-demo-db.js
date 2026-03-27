@@ -14,7 +14,9 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const pool = require('../config/db');
 
-const DEMO_VERSION = '2026-03-27-v2';
+const DEMO_VERSION = '2026-03-28-v1';
+/** รหัสผ่านเดโมทุกบัญชี: password123 (bcrypt cost 10) */
+const DEMO_PASSWORD_HASH = '$2a$10$DE8L1UqCUgU2NULIarUT2.MQCQTtTawrwJorCENPJdZKjWdcKFB56';
 const SCHEMA_FILE = path.join(__dirname, '..', '..', 'se.sql');
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'migrations');
 
@@ -110,6 +112,10 @@ async function ensureColumns(client) {
       ADD COLUMN IF NOT EXISTS max_participants INT DEFAULT 100,
       ADD COLUMN IF NOT EXISTS current_participants INT DEFAULT 0;
   `);
+  await client.query(`
+    ALTER TABLE employees
+      ADD COLUMN IF NOT EXISTS portal_access VARCHAR(32) NOT NULL DEFAULT 'employee';
+  `);
 }
 
 async function ensureMetaTable(client) {
@@ -146,13 +152,16 @@ async function wipeDemoData(client) {
        OR (firstname = 'สมหญิง' AND lastname = 'ร่วมทีม')`
   );
   await client.query(`DELETE FROM teams WHERE name = 'GreenBridge'`);
-  await client.query(`DELETE FROM employees WHERE email IN ('somchai@demo.nu.seed', 'anucha@demo.nu.seed')`);
+  await client.query(
+    `DELETE FROM employees WHERE email IN ('somchai@demo.nu.seed', 'anucha@demo.nu.seed', 'exec@demo.nu.seed')`
+  );
   await client.query(
     `DELETE FROM employee_profiles ep
      WHERE NOT EXISTS (SELECT 1 FROM employees e WHERE e.employee_profile_id = ep.employee_profile_id)
        AND (
          (ep.first_name = 'สมชาย' AND ep.last_name = 'ใจดี')
          OR (ep.first_name = 'อนุชา' AND ep.last_name = 'รักงาน')
+         OR (ep.first_name = 'ดำรง' AND ep.last_name = 'วิสัยทัศน์')
        )`
   );
 }
@@ -191,6 +200,8 @@ async function seedReference(client) {
      WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE name = 'ผู้จัดการโครงการ')`,
     `INSERT INTO employee_roles (name, description) SELECT 'ผู้ประสานงาน', 'ประสานงาน'
      WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE name = 'ผู้ประสานงาน')`,
+    `INSERT INTO employee_roles (name, description) SELECT 'ผู้บริหาร', 'ผู้บริหารระดับสูง / ภาพรวม KPI'
+     WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE name = 'ผู้บริหาร')`,
     `INSERT INTO departments (name, description, slug) SELECT 'ฝ่ายโครงการ', 'โครงการ', 'project'
      WHERE NOT EXISTS (SELECT 1 FROM departments WHERE slug = 'project')`,
   ];
@@ -232,8 +243,8 @@ async function seedDemo(client) {
 
   await client.query(
     `INSERT INTO participants (participant_profile_id, email, password_hash, status)
-     VALUES ($1, 'piya@demo.nu.seed', '$2b$10$demo.hash.placeholder.only', 'active')`,
-    [leaderPid]
+     VALUES ($1, 'piya@demo.nu.seed', $2, 'active')`,
+    [leaderPid, DEMO_PASSWORD_HASH]
   );
 
   const memberProfile = await client.query(
@@ -248,8 +259,8 @@ async function seedDemo(client) {
 
   await client.query(
     `INSERT INTO participants (participant_profile_id, email, password_hash, status)
-     VALUES ($1, 'somying@demo.nu.seed', '$2b$10$demo.hash.placeholder.only', 'active')`,
-    [memberPid]
+     VALUES ($1, 'somying@demo.nu.seed', $2, 'active')`,
+    [memberPid, DEMO_PASSWORD_HASH]
   );
 
   const ev1 = await client.query(
@@ -299,9 +310,11 @@ async function seedDemo(client) {
 
   const rolePm = await client.query(`SELECT role_employee_id FROM employee_roles WHERE name = 'ผู้จัดการโครงการ' LIMIT 1`);
   const roleCoord = await client.query(`SELECT role_employee_id FROM employee_roles WHERE name = 'ผู้ประสานงาน' LIMIT 1`);
+  const roleExec = await client.query(`SELECT role_employee_id FROM employee_roles WHERE name = 'ผู้บริหาร' LIMIT 1`);
   const dept = await client.query(`SELECT department_id FROM departments WHERE slug = 'project' LIMIT 1`);
   const rolePmId = rolePm.rows[0].role_employee_id;
   const roleCoordId = roleCoord.rows[0].role_employee_id;
+  const roleExecId = roleExec.rows[0].role_employee_id;
   const deptId = dept.rows[0].department_id;
 
   let emp1 = await client.query(
@@ -316,9 +329,9 @@ async function seedDemo(client) {
       [rolePmId, deptId]
     );
     await client.query(
-      `INSERT INTO employees (employee_profile_id, email, password_hash, status, online_status)
-       VALUES ($1, 'somchai@demo.nu.seed', '$2b$10$demo', 'active', 'online')`,
-      [ep1.rows[0].employee_profile_id]
+      `INSERT INTO employees (employee_profile_id, email, password_hash, status, online_status, portal_access)
+       VALUES ($1, 'somchai@demo.nu.seed', $2, 'active', 'online', 'employee')`,
+      [ep1.rows[0].employee_profile_id, DEMO_PASSWORD_HASH]
     );
     emp1 = await client.query(`SELECT employee_id FROM employees WHERE email = 'somchai@demo.nu.seed'`);
   }
@@ -336,13 +349,31 @@ async function seedDemo(client) {
       [roleCoordId, deptId]
     );
     await client.query(
-      `INSERT INTO employees (employee_profile_id, email, password_hash, status, online_status)
-       VALUES ($1, 'anucha@demo.nu.seed', '$2b$10$demo', 'active', 'online')`,
-      [ep2.rows[0].employee_profile_id]
+      `INSERT INTO employees (employee_profile_id, email, password_hash, status, online_status, portal_access)
+       VALUES ($1, 'anucha@demo.nu.seed', $2, 'active', 'online', 'employee')`,
+      [ep2.rows[0].employee_profile_id, DEMO_PASSWORD_HASH]
     );
     emp2 = await client.query(`SELECT employee_id FROM employees WHERE email = 'anucha@demo.nu.seed'`);
   }
   const employee2Id = emp2.rows[0].employee_id;
+
+  let empExec = await client.query(
+    `SELECT e.employee_id FROM employees e WHERE e.email = 'exec@demo.nu.seed' LIMIT 1`
+  );
+  if (empExec.rowCount === 0) {
+    const epExec = await client.query(
+      `INSERT INTO employee_profiles (role_employee_id, department_id, first_name, last_name, gender)
+       VALUES ($1, $2, 'ดำรง', 'วิสัยทัศน์', 'ชาย') RETURNING employee_profile_id`,
+      [roleExecId, deptId]
+    );
+    await client.query(
+      `INSERT INTO employees (employee_profile_id, email, password_hash, status, online_status, portal_access)
+       VALUES ($1, 'exec@demo.nu.seed', $2, 'active', 'online', 'executive')`,
+      [epExec.rows[0].employee_profile_id, DEMO_PASSWORD_HASH]
+    );
+    empExec = await client.query(`SELECT employee_id FROM employees WHERE email = 'exec@demo.nu.seed'`);
+  }
+  const executiveId = empExec.rows[0].employee_id;
 
   await client.query(
     `INSERT INTO mapping_event_employees (event_id, employee_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING`,
@@ -351,6 +382,10 @@ async function seedDemo(client) {
   await client.query(
     `INSERT INTO mapping_event_employees (event_id, employee_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
     [event2Id, employee1Id]
+  );
+  await client.query(
+    `INSERT INTO mapping_event_employees (event_id, employee_id) VALUES ($1, $2), ($3, $2) ON CONFLICT DO NOTHING`,
+    [event1Id, executiveId, event2Id]
   );
 
   const tsPending = await client.query(`SELECT status_task_id FROM task_statuses WHERE slug = 'pending' LIMIT 1`);

@@ -1,16 +1,15 @@
 // ไฟล์: src/context/AppContext.jsx
-// React Context กลาง — Dashboard ดึงข้อมูลจาก Backend API, ส่วนอื่นใช้ Mock Data
+// React Context กลาง — โหลดจาก Backend เท่านั้น (ไม่ fallback ไป mock แบบเงียบเมื่อ API ล้ม)
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import {
-    INITIAL_EVENTS,
-    INITIAL_TASKS,
-    INITIAL_TEAMS,
-    INITIAL_DOCUMENTS,
-    INITIAL_EMPLOYEES,
-    INITIAL_PARTICIPANTS,
-    INITIAL_LOGS,
-} from '../data/mockData';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    useCallback,
+    useMemo,
+} from 'react';
+import { useAuth } from './AuthContext';
 import { API_BASE as _API_ORIGIN } from '../config/api';
 
 const API_BASE = `${_API_ORIGIN}/api`;
@@ -21,14 +20,17 @@ export const DOCUMENTS_CHANGED_EVENT = 'nu-seed-documents-changed';
 const AppContext = createContext(null);
 
 export const AppProvider = ({ children }) => {
-    const [events, setEvents] = useState(INITIAL_EVENTS);
-    const [tasks, setTasks] = useState(INITIAL_TASKS);
-    const [teams, setTeams] = useState(INITIAL_TEAMS);
-    const [documents, setDocuments] = useState(INITIAL_DOCUMENTS);
-    const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
-    const [participants, setParticipants] = useState(INITIAL_PARTICIPANTS);
-    const [logs, setLogs] = useState(INITIAL_LOGS);
-    const [dbStats, setDbStats] = useState(null); // stats จาก DB จริง
+    const { employee, role, participantProfile } = useAuth();
+    const [events, setEvents] = useState([]);
+    const [tasks, setTasks] = useState([]);
+    const [teams, setTeams] = useState([]);
+    const [documents, setDocuments] = useState([]);
+    const [employees, setEmployees] = useState([]);
+    const [participants, setParticipants] = useState([]);
+    const [logs, setLogs] = useState([]);
+    const [dbStats, setDbStats] = useState(null);
+    /** ข้อความเมื่อ GET /api/dashboard-data ล้ม — ให้ EmployeeLayout แสดงแบนเนอร์ */
+    const [dashboardSyncError, setDashboardSyncError] = useState(null);
 
     const refreshDocumentsList = useCallback(async () => {
         try {
@@ -58,90 +60,108 @@ export const AppProvider = ({ children }) => {
         return () => window.removeEventListener(DOCUMENTS_CHANGED_EVENT, onDocsChanged);
     }, [refreshDocumentsList, refreshDashboardPayload]);
 
-    // ========== ดึง Dashboard Data จาก Backend API ==========
+    // ========== ดึงข้อมูลจาก Backend (ไม่เติม mock เมื่อล้ม) ==========
     useEffect(() => {
-        // ดึง Dashboard stats และ Tasks logs
+        const safeJson = async (res) => {
+            try {
+                return await res.json();
+            } catch {
+                return null;
+            }
+        };
+
         fetch(`${API_BASE}/dashboard-data`)
-            .then(res => res.json())
-            .then(data => {
+            .then(async (res) => {
+                const data = (await safeJson(res)) || {};
+                if (!res.ok) {
+                    setDashboardSyncError(
+                        data?.error || data?.details || `dashboard-data HTTP ${res.status}`
+                    );
+                    return;
+                }
+                setDashboardSyncError(null);
                 if (data.stats) setDbStats(data.stats);
-                // เราไม่ใช้ upcomingActivities จาก dashboard-data แล้ว เพราะจะดึง events ทั้งหมดจาก /api/activities แทน
                 if (Array.isArray(data.activityLogs)) setLogs(data.activityLogs);
             })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API dashboard-data ได้:', err.message);
+            .catch((err) => {
+                setDashboardSyncError(err?.message || 'เชื่อมต่อ dashboard-data ไม่ได้');
+                console.warn('dashboard-data:', err);
             });
 
-        // ดึง Activities (รายการกิจกรรม) ทั้งหมด
         fetch(`${API_BASE}/activities`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setEvents(data);
-                }
+            .then(async (res) => {
+                const data = await safeJson(res);
+                if (res.ok && Array.isArray(data)) setEvents(data);
+                else console.warn('activities API:', res.status, data?.error);
             })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API activities ได้ ใช้ Mock Data แทน:', err.message);
-            });
+            .catch((err) => console.warn('activities fetch:', err.message));
 
-        // ดึง Tasks ทั้งหมดสำหรับหน้า Tasks
         fetch(`${API_BASE}/tasks`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setTasks(data);
-                }
+            .then(async (res) => {
+                const data = await safeJson(res);
+                if (res.ok && Array.isArray(data)) setTasks(data);
+                else console.warn('tasks API:', res.status, data?.error);
             })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API tasks ได้ ใช้ Mock Data แทน:', err.message);
-            });
+            .catch((err) => console.warn('tasks fetch:', err.message));
 
-        // ดึง Employees (รายชื่อพนักงาน) ทั้งหมด
         fetch(`${API_BASE}/employees`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setEmployees(data);
-                }
+            .then(async (res) => {
+                const data = await safeJson(res);
+                if (res.ok && Array.isArray(data)) setEmployees(data);
+                else console.warn('employees API:', res.status, data?.error);
             })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API employees ได้ ใช้ Mock Data แทน:', err.message);
-            });
+            .catch((err) => console.warn('employees fetch:', err.message));
 
-        // ทีม — ดึงจาก DB ทั้งรายการและสมาชิก (สอดคล้องกับสถิติ dashboard)
         fetch(`${API_BASE}/teams`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data?.teamsData)) {
-                    setTeams(data.teamsData);
-                }
+            .then(async (res) => {
+                const data = await safeJson(res);
+                if (res.ok && Array.isArray(data?.teamsData)) setTeams(data.teamsData);
+                else console.warn('teams API:', res.status, data?.error);
             })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API teams ได้ ใช้ Mock Data แทน:', err.message);
-            });
+            .catch((err) => console.warn('teams fetch:', err.message));
 
         fetch(`${API_BASE}/participants-admin`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setParticipants(data);
-                }
+            .then(async (res) => {
+                const data = await safeJson(res);
+                if (res.ok && Array.isArray(data)) setParticipants(data);
+                else console.warn('participants-admin API:', res.status, data?.error);
             })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API participants-admin ได้ ใช้ Mock Data แทน:', err.message);
-            });
+            .catch((err) => console.warn('participants-admin fetch:', err.message));
 
         fetch(`${API_BASE}/documents`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setDocuments(data);
-                }
+            .then(async (res) => {
+                const data = await safeJson(res);
+                if (res.ok && Array.isArray(data)) setDocuments(data);
+                else console.warn('documents API:', res.status, data?.error);
             })
-            .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API documents ได้ ใช้ Mock Data แทน:', err.message);
-            });
+            .catch((err) => console.warn('documents fetch:', err.message));
     }, []);
+
+    const actorLabel = useCallback(() => {
+        if (employee) {
+            const n = `${employee.first_name || ''} ${employee.last_name || ''}`.trim();
+            return n || employee.email || 'พนักงาน';
+        }
+        if (participantProfile?.displayName) return participantProfile.displayName;
+        if (role === 'participant') return 'ผู้เข้าร่วมโครงการ';
+        if (role === 'executive') return 'ผู้บริหาร';
+        return 'ผู้ใช้งาน';
+    }, [employee, participantProfile, role]);
+
+    const _addLog = useCallback(
+        (type, title, description) => {
+            const newLog = {
+                id: 'log_' + Date.now(),
+                action_type: type,
+                title,
+                description,
+                user_name: actorLabel(),
+                time_ago: 'เมื่อสักครู่',
+            };
+            setLogs((prev) => [newLog, ...prev].slice(0, 10));
+        },
+        [actorLabel]
+    );
 
     // ==================== EVENTS ====================
     // --- Activity Actions ---
@@ -212,9 +232,8 @@ export const AppProvider = ({ children }) => {
                 body: JSON.stringify(data)
             });
             if (res.ok) {
-                // Refresh tasks from server to get ID and correct format
-                const freshTasks = await fetch(`${API_BASE}/tasks`).then(r => r.json());
-                setTasks(freshTasks);
+                const freshTasks = await fetch(`${API_BASE}/tasks`).then((r) => r.json());
+                if (Array.isArray(freshTasks)) setTasks(freshTasks);
                 _addLog('task', 'สร้างงานใหม่', data.title ?? data.task_name ?? '');
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
@@ -327,21 +346,15 @@ export const AppProvider = ({ children }) => {
                 if (dash.stats) setDbStats(dash.stats);
                 if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
                 window.dispatchEvent(new CustomEvent(DOCUMENTS_CHANGED_EVENT));
-                return;
+                return { ok: true };
             }
-            console.warn('addDocument API:', payload?.error || res.status);
+            const msg = payload?.error || `HTTP ${res.status}`;
+            console.warn('addDocument API:', msg);
+            return { ok: false, error: msg };
         } catch (err) {
             console.warn('addDocument Error:', err.message);
+            return { ok: false, error: err.message };
         }
-        const newDoc = {
-            ...data,
-            id: Date.now(),
-            name: docName,
-            date: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }),
-            doc_status: data.doc_status || 'ร่าง',
-        };
-        setDocuments(prev => [newDoc, ...prev]);
-        _addLog('document', 'สร้างเอกสารใหม่', newDoc.name);
     };
 
     const updateDocument = async (id, data) => {
@@ -496,18 +509,15 @@ export const AppProvider = ({ children }) => {
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
                 if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
-                return;
+                return { ok: true };
             }
-            console.error('addParticipant API:', payload?.error || res.status);
+            const msg = payload?.error || `HTTP ${res.status}`;
+            console.error('addParticipant API:', msg);
+            return { ok: false, error: msg };
         } catch (err) {
             console.error('addParticipant Error:', err);
+            return { ok: false, error: err.message };
         }
-        const teamName = teams.find(t => t.id === Number(data.team_id))?.name || 'ไม่ระบุทีม';
-        setParticipants(prev => [...prev, {
-            ...data,
-            id: Date.now(),
-            team_name: teamName,
-        }]);
     };
 
     const deleteParticipant = async (id) => {
@@ -519,37 +529,35 @@ export const AppProvider = ({ children }) => {
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
                 if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
-                return;
+                return { ok: true };
             }
+            const payload = await res.json().catch(() => ({}));
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
         } catch (err) {
             console.error('deleteParticipant Error:', err);
+            return { ok: false, error: err.message };
         }
-        setParticipants(prev => prev.filter(p => p.id !== id));
-    };
-
-    // ==================== LOGS ====================
-    const _addLog = (type, title, description) => {
-        const newLog = {
-            id: 'log_' + Date.now(),
-            action_type: type,
-            title,
-            description,
-            user_name: 'สมชาย สมศรี',
-            time_ago: 'เมื่อสักครู่',
-        };
-        setLogs(prev => [newLog, ...prev].slice(0, 10));
     };
 
     // ==================== COMPUTED STATS ====================
-    const stats = {
-        total_activities: dbStats?.total_activities ?? events.length,
-        registered_teams: dbStats?.registered_teams ?? teams.length,
-        total_tasks: dbStats?.total_tasks ?? tasks.length,
-        pending_tasks: dbStats?.pending_tasks ?? tasks.filter(t => t.status === 'รอดำเนินการ').length,
-        total_documents: dbStats?.total_documents ?? documents.length,
-        documents_this_month: dbStats?.documents_this_month ?? documents.length,
-        active_activities: dbStats?.active_activities ?? events.filter(e => e.status === 'กำลังดำเนินการ').length,
-    };
+    const stats = useMemo(() => {
+        const combinedDocs =
+            dbStats?.documents_combined_total != null
+                ? dbStats.documents_combined_total
+                : (dbStats?.total_documents ?? documents.length);
+        return {
+            total_activities: dbStats?.total_activities ?? events.length,
+            registered_teams: dbStats?.registered_teams ?? teams.length,
+            total_tasks: dbStats?.total_tasks ?? tasks.length,
+            pending_tasks: dbStats?.pending_tasks ?? tasks.filter((t) => t.status === 'รอดำเนินการ').length,
+            /** KPI รวม: เอกสารระบบหลัก + อัปโหลดทีม (เมื่อ backend ส่งมา) */
+            total_documents: combinedDocs,
+            documents_registry_count: dbStats?.total_documents ?? documents.length,
+            team_documents_count: dbStats?.team_documents_count ?? 0,
+            documents_this_month: dbStats?.documents_this_month ?? 0,
+            active_activities: dbStats?.active_activities ?? events.filter((e) => e.status === 'กำลังดำเนินการ').length,
+        };
+    }, [dbStats, events, tasks, teams, documents.length]);
 
     return (
         <AppContext.Provider value={{
@@ -557,6 +565,7 @@ export const AppProvider = ({ children }) => {
             events, tasks, teams, documents, employees, participants, logs,
             // Stats
             stats,
+            dashboardSyncError,
             // Event ops
             addEvent, updateEvent, deleteEvent,
             // Task ops

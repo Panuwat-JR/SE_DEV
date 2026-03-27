@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-// บริหาร role ของผู้ใช้ — ทุกอย่างอยู่ใน state เท่านั้น (reset on F5)
+// Session: role + ข้อมูลพนักงาน (อีเมลจาก DB) สำหรับ employee/executive + participant profile
 import React, {
     createContext,
     useCallback,
@@ -13,20 +13,49 @@ const AuthContext = createContext(null);
 
 const LS_AUTH = 'nu_seed_auth_v1';
 
-function readStoredRole() {
-    if (typeof localStorage === 'undefined') return null;
+/** ข้อมูลพนักงานที่เก็บหลังล็อกอินสำเร็จ (ไม่มี secret) */
+function normalizeStoredEmployee(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = Number(raw.id);
+    if (!Number.isFinite(id)) return null;
+    return {
+        id,
+        email: String(raw.email || '').trim(),
+        first_name: raw.first_name != null ? String(raw.first_name) : '',
+        last_name: raw.last_name != null ? String(raw.last_name) : '',
+        role: raw.role != null ? String(raw.role) : '',
+        department: raw.department != null ? String(raw.department) : '',
+        initial: raw.initial != null ? String(raw.initial) : '',
+    };
+}
+
+function readStoredAuth() {
+    if (typeof localStorage === 'undefined') {
+        return { role: null, employee: null, participantFirstname: null };
+    }
     try {
         const raw = localStorage.getItem(LS_AUTH);
-        if (!raw) return null;
-        const { role: r } = JSON.parse(raw);
-        return ['participant', 'employee', 'executive'].includes(r) ? r : null;
+        if (!raw) return { role: null, employee: null, participantFirstname: null };
+        const parsed = JSON.parse(raw);
+        const r = parsed?.role;
+        const role = ['participant', 'employee', 'executive'].includes(r) ? r : null;
+        return {
+            role,
+            employee: normalizeStoredEmployee(parsed?.employee),
+            participantFirstname:
+                parsed?.participantFirstname != null
+                    ? String(parsed.participantFirstname).trim() || null
+                    : null,
+        };
     } catch {
-        return null;
+        return { role: null, employee: null, participantFirstname: null };
     }
 }
 
 export const AuthProvider = ({ children }) => {
-    const [role, setRole] = useState(() => readStoredRole());
+    const initial = readStoredAuth();
+    const [role, setRole] = useState(initial.role);
+    const [employee, setEmployee] = useState(initial.employee);
     const [teamRole, setTeamRole] = useState('member');
     const [participantProfile, setParticipantProfile] = useState(null);
     const [participantProfileLoading, setParticipantProfileLoading] = useState(false);
@@ -58,17 +87,30 @@ export const AuthProvider = ({ children }) => {
         }
     }, [role, refreshParticipantProfile]);
 
-    const login = (selectedRole) => {
-        setRole(selectedRole);
+    const login = useCallback(({ role: nextRole, employee: emp, participantFirstname: pfn }) => {
+        setRole(nextRole);
+        setEmployee(nextRole === 'employee' || nextRole === 'executive' ? normalizeStoredEmployee(emp) : null);
         try {
-            localStorage.setItem(LS_AUTH, JSON.stringify({ role: selectedRole }));
+            localStorage.setItem(
+                LS_AUTH,
+                JSON.stringify({
+                    role: nextRole,
+                    employee:
+                        nextRole === 'employee' || nextRole === 'executive'
+                            ? normalizeStoredEmployee(emp)
+                            : null,
+                    participantFirstname:
+                        nextRole === 'participant' && pfn ? String(pfn).trim() : null,
+                })
+            );
         } catch {
-            /* ignore quota / private mode */
+            /* ignore */
         }
-    };
+    }, []);
 
-    const logout = () => {
+    const logout = useCallback(() => {
         setRole(null);
+        setEmployee(null);
         setTeamRole('member');
         setParticipantProfile(null);
         setParticipantProfileLoading(false);
@@ -77,12 +119,13 @@ export const AuthProvider = ({ children }) => {
         } catch {
             /* ignore */
         }
-    };
+    }, []);
 
     return (
         <AuthContext.Provider
             value={{
                 role,
+                employee,
                 teamRole,
                 setTeamRole,
                 login,

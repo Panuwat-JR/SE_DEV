@@ -17,7 +17,11 @@ const Documents = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     const docName = formData.name || `ใบเบิกจ่าย_${formData.project || 'ไม่ระบุ'}`;
-    await addDocument({ ...formData, name: docName });
+    const result = await addDocument({ ...formData, name: docName });
+    if (result?.ok === false) {
+      alert(result.error || 'สร้างเอกสารไม่สำเร็จ');
+      return;
+    }
     setIsCreateOpen(false);
     setActiveTab('all');
     setFormData({ name: '', project: '', doc_status: 'ร่าง', type: 'ใบเบิกจ่าย (NIA)', author: 'สมชาย สมศรี', fileName: '', expense_type: 'ค่าเดินทาง', amount: '', expense_date: '', description: '', agency: 'NIA' });

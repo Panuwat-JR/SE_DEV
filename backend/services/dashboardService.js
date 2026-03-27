@@ -33,17 +33,32 @@ class DashboardService {
       WHERE ts.slug = 'pending'
     `);
     const docsCount = await pool.query('SELECT COUNT(*) FROM documents');
+    const teamDocsCount = await pool.query('SELECT COUNT(*) FROM team_docs');
+    const docsThisMonth = await pool.query(`
+      SELECT COUNT(*) FROM documents
+      WHERE created_at >= date_trunc('month', CURRENT_TIMESTAMP)
+    `);
     const feedbackAvg = await pool.query('SELECT AVG(rating) as avg_rating FROM feedbacks');
+
+    const registryDocs = parseInt(docsCount.rows[0].count, 10);
+    const teamUploads = parseInt(teamDocsCount.rows[0].count, 10);
+    const monthRegistry = parseInt(docsThisMonth.rows[0].count, 10);
 
     return {
       total_activities: parseInt(eventsCount.rows[0].count),
       registered_teams: parseInt(teamsCount.rows[0].count),
       total_tasks: parseInt(tasksCount.rows[0].count),
       pending_tasks: parseInt(pendingTasksCount.rows[0].count),
-      total_documents: parseInt(docsCount.rows[0].count),
+      /** เอกสารในระบบหลัก (ตาราง documents — ผูกงาน/โครงการ) */
+      total_documents: registryDocs,
+      /** ไฟล์ที่ผู้เข้าร่วมอัปโหลด (team_docs) */
+      team_documents_count: teamUploads,
+      /** ใช้เป็น KPI รวมเมื่อต้องการภาพเดียวกับ “เอกสารทั้งหมดในองค์กร” */
+      documents_combined_total: registryDocs + teamUploads,
+      documents_this_month: monthRegistry,
       active_activities: parseInt(activeEventsCount.rows[0].count),
       total_budget: budgetQuery.rows[0].total_budget ? parseFloat(budgetQuery.rows[0].total_budget) : 0,
-      avg_feedback: feedbackAvg.rows[0].avg_rating ? parseFloat(feedbackAvg.rows[0].avg_rating).toFixed(1) : '0.0'
+      avg_feedback: feedbackAvg.rows[0].avg_rating ? parseFloat(feedbackAvg.rows[0].avg_rating).toFixed(1) : '0.0',
     };
   }
 

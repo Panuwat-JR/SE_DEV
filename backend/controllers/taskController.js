@@ -57,25 +57,47 @@ exports.updateTask = async (req, res) => {
   const { id } = req.params;
   const { title, status, priority, due_date, progress } = req.body;
   try {
-    // If status is 'เสร็จสิ้น' or its slug is 'completed', set progress to 100
     let finalProgress = progress;
     if (status === 'เสร็จสิ้น' || status === 'completed') {
       finalProgress = 100;
     }
 
     const dueIso = parseTaskDueDate(due_date);
-    
+
+    const st = await pool.query(
+      `SELECT status_task_id FROM task_statuses WHERE name = $1 OR slug = $1 LIMIT 1`,
+      [status]
+    );
+    if (st.rowCount === 0) {
+      return res.status(400).json({ error: `ไม่พบสถานะงาน "${status}" ในระบบ` });
+    }
+    const pr = await pool.query(
+      `SELECT priority_id FROM priority_levels WHERE name = $1 OR slug = $1 LIMIT 1`,
+      [priority]
+    );
+    if (pr.rowCount === 0) {
+      return res.status(400).json({ error: `ไม่พบระดับความสำคัญ "${priority}" ในระบบ` });
+    }
+
     const query = `
       UPDATE tasks
       SET 
         task_name = $1,
-        status_task_id = (SELECT status_task_id FROM task_statuses WHERE name = $2 OR slug = $2 LIMIT 1),
-        priority_id = (SELECT priority_id FROM priority_levels WHERE name = $3 OR slug = $3 LIMIT 1),
+        status_task_id = $2,
+        priority_id = $3,
         due_date = $4::date,
         progress_percent = $5
       WHERE task_id = $6
     `;
-    await pool.query(query, [title, status, priority, dueIso, finalProgress || 0, id]);
+    const r = await pool.query(query, [
+      title,
+      st.rows[0].status_task_id,
+      pr.rows[0].priority_id,
+      dueIso,
+      finalProgress || 0,
+      id,
+    ]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'ไม่พบงาน' });
     res.json({ message: 'อัปเดตงานสำเร็จ' });
   } catch (err) {
     console.error('updateTask Error:', err.message);
@@ -86,7 +108,8 @@ exports.updateTask = async (req, res) => {
 exports.deleteTask = async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM tasks WHERE task_id = $1', [id]);
+    const r = await pool.query('DELETE FROM tasks WHERE task_id = $1 RETURNING task_id', [id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'ไม่พบงาน' });
     res.json({ message: 'ลบงานสำเร็จ' });
   } catch (err) {
     console.error('deleteTask Error:', err.message);
@@ -103,18 +126,43 @@ exports.createTask = async (req, res) => {
     }
     const { event_id, status, priority, category, due_date } = body;
     const priorityNorm = String(priority || '').trim() === 'กลาง' ? 'ปกติ' : priority;
+
+    const st = await pool.query(
+      `SELECT status_task_id FROM task_statuses WHERE name = $1 OR slug = $1 LIMIT 1`,
+      [status]
+    );
+    if (st.rowCount === 0) {
+      return res.status(400).json({ error: `ไม่พบสถานะงาน "${status}" ในระบบ` });
+    }
+    const pr = await pool.query(
+      `SELECT priority_id FROM priority_levels WHERE name = $1 OR slug = $1 LIMIT 1`,
+      [priorityNorm]
+    );
+    if (pr.rowCount === 0) {
+      return res.status(400).json({ error: `ไม่พบระดับความสำคัญ "${priorityNorm}" ในระบบ` });
+    }
+    const catName = String(category || 'ทั่วไป').trim();
+    const ct = await pool.query(
+      `SELECT task_category_id FROM task_categories WHERE name = $1 LIMIT 1`,
+      [catName]
+    );
+    if (ct.rowCount === 0) {
+      return res.status(400).json({ error: `ไม่พบหมวดงาน "${catName}" ในระบบ` });
+    }
+
     const query = `
       INSERT INTO tasks (task_name, event_id, status_task_id, priority_id, task_category_id, due_date)
-      VALUES (
-        $1, $2,
-        (SELECT status_task_id FROM task_statuses WHERE name = $3 OR slug = $3 LIMIT 1),
-        (SELECT priority_id FROM priority_levels WHERE name = $4 OR slug = $4 LIMIT 1),
-        (SELECT task_category_id FROM task_categories WHERE name = $5 LIMIT 1),
-        $6::date
-      )
+      VALUES ($1, $2, $3, $4, $5, $6::date)
     `;
     const finalDate = parseTaskDueDate(due_date);
-    await pool.query(query, [title, event_id || null, status, priorityNorm, category, finalDate]);
+    await pool.query(query, [
+      title,
+      event_id || null,
+      st.rows[0].status_task_id,
+      pr.rows[0].priority_id,
+      ct.rows[0].task_category_id,
+      finalDate,
+    ]);
     res.json({ message: 'บันทึกงานสำเร็จ' });
   } catch (err) {
     console.error('เกิดข้อผิดพลาดในการบันทึกงาน:', err.message);

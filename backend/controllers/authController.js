@@ -1,17 +1,38 @@
 const participantService = require('../services/participantService');
+const employeeService = require('../services/employeeService');
+const { verifyPassword } = require('../utils/passwordVerify');
 
 const ALLOWED_ROLES = ['participant', 'employee', 'executive'];
 
+function isExecutivePortal(portalAccess) {
+  return String(portalAccess || '').trim().toLowerCase() === 'executive';
+}
+
+function emailInExecutiveAllowlist(email) {
+  const raw = process.env.EXECUTIVE_EMAILS || '';
+  const set = raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return set.includes(String(email || '').trim().toLowerCase());
+}
+
+function isExecutiveAccount(row) {
+  return isExecutivePortal(row?.portal_access) || emailInExecutiveAllowlist(row?.email);
+}
+
 /**
  * POST /api/auth/login
- * Demo: ไม่มีรหัสผ่าน — ตรวจบทบาท และถ้าเป็นผู้เข้าร่วมให้ยืนยันว่ามี firstname ในฐานข้อมูล
+ * ตรวจรหัสผ่าน (bcrypt) สำหรับพนักงาน/ผู้เข้าร่วม; แยกพอร์ทัล executive ตาม portal_access / EXECUTIVE_EMAILS
  */
 exports.login = async (req, res) => {
   try {
-    const { role, participantFirstname } = req.body || {};
+    const { role, participantFirstname, password } = req.body || {};
     if (!ALLOWED_ROLES.includes(role)) {
       return res.status(400).json({ error: 'บทบาทไม่ถูกต้อง' });
     }
+
+    const passwordPlain = password != null ? String(password) : '';
 
     if (role === 'participant') {
       const name = String(participantFirstname ?? '').trim();
@@ -24,12 +45,68 @@ exports.login = async (req, res) => {
           error: 'ไม่พบผู้เข้าร่วมในฐานข้อมูล — ตรวจสอบ firstname ให้ตรง participant_profiles',
         });
       }
+      const authRow = await participantService.getParticipantAuthByFirstname(name);
+      const hash = authRow?.password_hash;
+      const relax =
+        process.env.NU_SEED_RELAX_PARTICIPANT_AUTH === '1' && process.env.NODE_ENV !== 'production';
+      if (!relax && !passwordPlain) {
+        return res.status(400).json({ error: 'กรุณากรอกรหัสผ่าน' });
+      }
+      if (passwordPlain || !relax) {
+        if (!verifyPassword(passwordPlain, hash)) {
+          return res.status(401).json({ error: 'รหัสผ่านไม่ถูกต้อง' });
+        }
+      }
       return res.json({
         ok: true,
         role,
         participantFirstname: name,
         profile,
       });
+    }
+
+    if (role === 'employee' || role === 'executive') {
+      const employeeEmail = String(req.body?.employeeEmail ?? '').trim().toLowerCase();
+      if (!employeeEmail) {
+        return res.status(400).json({ error: 'กรุณาระบุอีเมลพนักงาน (ต้องตรงกับ employees.email ในฐานข้อมูล)' });
+      }
+      if (!passwordPlain) {
+        return res.status(400).json({ error: 'กรุณากรอกรหัสผ่าน' });
+      }
+
+      const row = await employeeService.getEmployeeForLogin(employeeEmail);
+      if (!row) {
+        return res.status(404).json({
+          error: 'ไม่พบพนักงานในระบบ — ตรวจสอบอีเมลหรือรัน employee_seed / init-demo-db',
+        });
+      }
+
+      if (!verifyPassword(passwordPlain, row.password_hash)) {
+        return res.status(401).json({ error: 'รหัสผ่านไม่ถูกต้อง' });
+      }
+
+      const execAcct = isExecutiveAccount(row);
+      if (role === 'executive' && !execAcct) {
+        return res.status(403).json({
+          error: 'บัญชีนี้ไม่มีสิทธิ์ผู้บริหาร — เลือก "ผู้รับผิดชอบโครงการ" หรือใช้บัญชีที่ได้รับมอบหมาย (เช่น exec@demo.nu.seed, kanda@se.dev)',
+        });
+      }
+      if (role === 'employee' && execAcct) {
+        return res.status(403).json({
+          error: 'บัญชีผู้บริหารต้องเลือกเมนู "ผู้บริหาร" เมื่อเข้าสู่ระบบ',
+        });
+      }
+
+      const employee = {
+        id: row.id,
+        email: row.email,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        role: row.role,
+        department: row.department,
+        initial: row.initial,
+      };
+      return res.json({ ok: true, role, employee });
     }
 
     return res.json({ ok: true, role });
@@ -42,7 +119,6 @@ exports.login = async (req, res) => {
 /**
  * GET /api/auth/session?role=employee
  * GET /api/auth/session?role=participant&as=ชื่อ
- * ใช้ยืนยันหลังรีเฟรชว่าบทบาท / ผู้เข้าร่วมยังใช้ได้ (optional — client อาจพึ่ง localStorage อย่างเดียว)
  */
 exports.session = async (req, res) => {
   try {
