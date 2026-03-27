@@ -2,9 +2,13 @@ const participantService = require('../services/participantService');
 const fs = require('fs');
 const path = require('path');
 
+function demoParticipant() {
+  return participantService.getDemoParticipantFirstname();
+}
+
 exports.getParticipantDashboardData = async (req, res) => {
   try {
-    const participantName = 'ปิยะ'; // Demo user
+    const participantName = demoParticipant();
     
     // 1. Get raw projects
     const projects = await participantService.getProjectList(participantName);
@@ -17,10 +21,13 @@ exports.getParticipantDashboardData = async (req, res) => {
       const total = parseInt(tasksSummary.total) || 0;
       const done = parseInt(tasksSummary.done) || 0;
       const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+      const progressColor =
+        progress >= 100 ? 'bg-emerald-500' : progress > 0 ? 'bg-blue-500' : 'bg-gray-300';
 
       return {
         ...proj,
         progress,
+        progressColor,
         doneItems: done,
         totalItems: total,
         nextTask: nextTask?.task_name || '—',
@@ -38,7 +45,7 @@ exports.getParticipantDashboardData = async (req, res) => {
 exports.getProjectDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    const participantName = 'ปิยะ';
+    const participantName = demoParticipant();
 
     const project = await participantService.getProjectDetail(id, participantName);
     if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -52,13 +59,16 @@ exports.getProjectDetail = async (req, res) => {
       { phase: 'ประกาศผล', start: project.end_date, end: project.end_date, done: false },
     ];
 
-    res.json({ ...project, tasks, timeline });
+    const documentCount = Number(project.documentCount) || 0;
+
+    res.json({ ...project, documentCount, tasks, timeline });
   } catch (err) {
     console.error('Project Detail Controller Error:', err.message);
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
+<<<<<<< Updated upstream
 // ===== Documents (DB) =====
 exports.listDocuments = async (req, res) => {
   try {
@@ -67,10 +77,19 @@ exports.listDocuments = async (req, res) => {
     res.json(docs);
   } catch (err) {
     console.error('List Documents Error:', err.message);
+=======
+exports.getDocuments = async (req, res) => {
+  try {
+    const rows = await participantService.getDocumentsForParticipant(demoParticipant());
+    res.json(rows);
+  } catch (err) {
+    console.error('Participant documents:', err.message);
+>>>>>>> Stashed changes
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
+<<<<<<< Updated upstream
 exports.uploadDocument = async (req, res) => {
   try {
     const participantName = 'ปิยะ'; // Demo user
@@ -110,10 +129,91 @@ exports.deleteDocument = async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Delete Document Error:', err.message);
+=======
+exports.createDocument = async (req, res) => {
+  try {
+    const { name, eventId, fileName, fileSize } = req.body || {};
+    const eid = Number(eventId);
+    if (!eid || Number.isNaN(eid)) {
+      return res.status(400).json({ error: 'ต้องระบุโครงการ (eventId)' });
+    }
+    const doc = await participantService.createParticipantDocument(demoParticipant(), {
+      name,
+      eventId: eid,
+      fileName,
+      fileSize,
+    });
+    res.status(201).json(doc);
+  } catch (err) {
+    if (err.code === 'FORBIDDEN_EVENT') {
+      return res.status(403).json({ error: 'ไม่มีสิทธิ์อัปโหลดในโครงการนี้' });
+    }
+    if (err.code === 'NO_TASKS_FOR_EVENT') {
+      return res.status(400).json({
+        error: 'โครงการนี้ยังไม่มีงานในระบบ — ต้องมีงานอย่างน้อย 1 รายการจึงจะผูกเอกสารได้',
+      });
+    }
+    console.error('Create participant document:', err.message);
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
+exports.getTeam = async (req, res) => {
+  try {
+    const team = await participantService.getTeamForParticipant(demoParticipant());
+    if (!team) return res.json(null);
+    res.json(team);
+  } catch (err) {
+    console.error('Participant team:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.getNotifications = async (req, res) => {
+  try {
+    const items = await participantService.getNotificationsForParticipant(demoParticipant());
+    res.json(items);
+  } catch (err) {
+    console.error('Participant notifications:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.getContacts = async (req, res) => {
+  try {
+    const rows = await participantService.getContactsForParticipant(demoParticipant());
+    res.json(rows);
+  } catch (err) {
+    console.error('Participant contacts:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.postContactMessage = async (req, res) => {
+  try {
+    const { employeeId, subject, body } = req.body || {};
+    if (!body || !String(body).trim()) {
+      return res.status(400).json({ error: 'กรุณากรอกข้อความ' });
+    }
+    await participantService.saveContactMessage(demoParticipant(), {
+      employeeId: employeeId != null ? Number(employeeId) : null,
+      subject,
+      body: String(body).trim(),
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === '42P01') {
+      return res.status(503).json({
+        error: 'ตารางข้อความยังไม่พร้อม — รัน backend/migrations/2026-03-27_participant_contact_messages.sql',
+      });
+    }
+    console.error('Contact message:', err.message);
+>>>>>>> Stashed changes
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+<<<<<<< Updated upstream
 // ===== Team members (DB) =====
 exports.getTeam = async (req, res) => {
   try {
@@ -123,10 +223,19 @@ exports.getTeam = async (req, res) => {
     res.json(team);
   } catch (err) {
     console.error('Get Team Error:', err.message);
+=======
+exports.getCalendar = async (req, res) => {
+  try {
+    const events = await participantService.getCalendarForParticipant(demoParticipant());
+    res.json(events);
+  } catch (err) {
+    console.error('Participant calendar:', err.message);
+>>>>>>> Stashed changes
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
+<<<<<<< Updated upstream
 exports.addTeamMember = async (req, res) => {
   try {
     const participantName = 'ปิยะ'; // Demo user
@@ -165,5 +274,37 @@ exports.removeTeamMember = async (req, res) => {
           : err.message === 'Cannot remove team leader' ? 403
             : 500;
     res.status(code).json({ error: err.message });
+=======
+exports.listFeedbacks = async (req, res) => {
+  try {
+    const rows = await participantService.listFeedbacksForParticipant(demoParticipant());
+    res.json(rows);
+  } catch (err) {
+    console.error('Participant feedbacks:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.createFeedback = async (req, res) => {
+  try {
+    const { rating, comment, aspects, projectTitle } = req.body || {};
+    const r = Number(rating);
+    if (!r || r < 1 || r > 5) {
+      return res.status(400).json({ error: 'คะแนนไม่ถูกต้อง' });
+    }
+    await participantService.createFeedbackForParticipant(demoParticipant(), {
+      rating: r,
+      comment: comment != null ? String(comment) : '',
+      aspects: aspects && typeof aspects === 'object' ? aspects : {},
+      projectTitle: projectTitle != null ? String(projectTitle) : '',
+    });
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    if (err.code === 'PARTICIPANT_NOT_FOUND') {
+      return res.status(404).json({ error: 'ไม่พบบัญชีผู้เข้าร่วมในระบบ (seed ผู้ใช้ก่อน)' });
+    }
+    console.error('Create feedback:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+>>>>>>> Stashed changes
   }
 };

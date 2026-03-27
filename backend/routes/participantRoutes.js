@@ -11,6 +11,7 @@ router.get('/dashboard', participantController.getParticipantDashboardData);
 // ดึงรายละเอียดโครงการที่นิสิตเข้าร่วม (แยกตาม ID)
 router.get('/projects/:id', participantController.getProjectDetail);
 
+<<<<<<< Updated upstream
 // Team (DB)
 router.get('/team', participantController.getTeam);
 router.post('/team/members', participantController.addTeamMember);
@@ -37,5 +38,17 @@ const upload = multer({
 router.get('/documents', participantController.listDocuments);
 router.post('/documents', upload.single('file'), participantController.uploadDocument);
 router.delete('/documents/:id', participantController.deleteDocument);
+=======
+router.get('/documents', participantController.getDocuments);
+router.post('/documents', participantController.createDocument);
+
+router.get('/team', participantController.getTeam);
+router.get('/notifications', participantController.getNotifications);
+router.get('/contacts', participantController.getContacts);
+router.post('/contact-messages', participantController.postContactMessage);
+router.get('/calendar', participantController.getCalendar);
+router.get('/feedbacks', participantController.listFeedbacks);
+router.post('/feedbacks', participantController.createFeedback);
+>>>>>>> Stashed changes
 
 module.exports = router;

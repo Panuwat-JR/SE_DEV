@@ -7,6 +7,7 @@ import {
     Bell, MessageCircle, Star, LogOut, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { ParticipantPortalProvider } from '../context/ParticipantPortalContext';
 
 const MENUS = [
     { name: 'แดชบอร์ด', icon: LayoutDashboard, path: '/participant/dashboard' },
@@ -113,7 +114,9 @@ export default function ParticipantLayout() {
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-8">
-                    <Outlet />
+                    <ParticipantPortalProvider>
+                        <Outlet />
+                    </ParticipantPortalProvider>
                 </main>
             </div>
         </div>

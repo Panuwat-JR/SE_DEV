@@ -11,12 +11,16 @@ import {
     Trophy
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { API_BASE } from '../../config/api';
+
+/** ตรงกับ status_events.name ใน seed (เช่น "เสร็จสิ้น") และข้อความเดิมใน UI */
+const COMPLETED_STATUS_LABELS = new Set(['เสร็จสิ้น', 'ดำเนินการสำเร็จ']);
 
 const STATUS_FILTERS = [
     { id: 'all', label: 'ทั้งหมด' },
     { id: 'in_progress', label: 'กำลังดำเนินการ' },
     { id: 'planning', label: 'วางแผน' },
-    { id: 'completed', label: 'ดำเนินการสำเร็จ' }
+    { id: 'completed', label: 'เสร็จสิ้น' }
 ];
 
 function normalizeText(v) {
@@ -61,7 +65,7 @@ export default function P_Projects() {
         const fetchProjects = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('http://localhost:5000/api/dashboard-data/participant-data');
+                const response = await fetch(`${API_BASE}/api/participants-data/dashboard`);
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
                 setProjects(data);
@@ -80,7 +84,7 @@ export default function P_Projects() {
         const total = projects.length;
         const inProgress = projects.filter(p => p.status === 'กำลังดำเนินการ').length;
         const planning = projects.filter(p => p.status === 'วางแผน').length;
-        const completed = projects.filter(p => p.status === 'ดำเนินการสำเร็จ').length;
+        const completed = projects.filter(p => COMPLETED_STATUS_LABELS.has(p.status)).length;
         return { total, inProgress, planning, completed };
     }, [projects]);
 
@@ -89,12 +93,15 @@ export default function P_Projects() {
         let list = projects.slice();
 
         if (status !== 'all') {
-            const statusText =
-                status === 'in_progress' ? 'กำลังดำเนินการ'
-                    : status === 'planning' ? 'วางแผน'
-                        : status === 'completed' ? 'ดำเนินการสำเร็จ'
+            if (status === 'completed') {
+                list = list.filter(p => COMPLETED_STATUS_LABELS.has(p.status));
+            } else {
+                const statusText =
+                    status === 'in_progress' ? 'กำลังดำเนินการ'
+                        : status === 'planning' ? 'วางแผน'
                             : '';
-            list = list.filter(p => p.status === statusText);
+                list = list.filter(p => p.status === statusText);
+            }
         }
 
         if (q) {

@@ -1,6 +1,18 @@
 const pool = require('../config/db');
 
+/** ชื่อตัวอย่างเดียวกับ controller — จนกว่าจะมี JWT/session */
+const DEMO_PARTICIPANT_FIRSTNAME = 'ปิยะ';
+
+function formatBytes(n) {
+  const v = Number(n);
+  if (!v || v <= 0) return '—';
+  if (v < 1024) return `${v} B`;
+  if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)} KB`;
+  return `${(v / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 class ParticipantService {
+<<<<<<< Updated upstream
   async getTeamIdByParticipantName(participantName) {
     const result = await pool.query(
       `
@@ -277,6 +289,37 @@ class ParticipantService {
       [docId, teamId]
     );
     return { deleted: deleted.rowCount, path: deleted.rows[0]?.path ?? null };
+=======
+  getDemoParticipantFirstname() {
+    return DEMO_PARTICIPANT_FIRSTNAME;
+  }
+
+  async resolveParticipantId(participantName) {
+    const r = await pool.query(
+      `
+      SELECT p.participant_id
+      FROM participants p
+      JOIN participant_profiles pp ON pp.participant_profile_id = p.participant_profile_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      LIMIT 1
+    `,
+      [participantName]
+    );
+    return r.rows[0]?.participant_id ?? null;
+  }
+
+  async resolveTeamId(participantName) {
+    const r = await pool.query(
+      `
+      SELECT pp.team_id
+      FROM participant_profiles pp
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%' AND pp.team_id IS NOT NULL
+      LIMIT 1
+    `,
+      [participantName]
+    );
+    return r.rows[0]?.team_id ?? null;
+>>>>>>> Stashed changes
   }
   async getProjectList(participantName) {
     const result = await pool.query(`
@@ -344,6 +387,13 @@ class ParticipantService {
         COALESCE(CAST(e.prize_pool AS TEXT) || ' บาท', 'ไม่ระบุ') AS prize,
         COALESCE(e.max_team_member, 5) AS "maxParticipants",
         (SELECT COUNT(*) FROM participant_profiles WHERE team_id = t.team_id) AS "currentParticipants",
+        (
+          SELECT COUNT(DISTINCT d.document_id)::int
+          FROM tasks tk
+          JOIN mapping_doc_tasks mdt ON mdt.task_id = tk.task_id
+          JOIN documents d ON d.document_id = mdt.document_id
+          WHERE tk.event_id = e.event_id
+        ) AS "documentCount",
         TO_CHAR(e.event_start_date, 'DD/MM/YYYY') as start_date,
         TO_CHAR(e.event_end_date, 'DD/MM/YYYY') as end_date
       FROM events e
@@ -368,6 +418,437 @@ class ParticipantService {
       ORDER BY task_id ASC
     `, [projectId]);
     return result.rows;
+  }
+
+  /** เอกสารที่โยงผ่านงาน (mapping_doc_tasks) ของอีเวนต์ที่ทีมเข้าร่วม */
+  async getDocumentsForParticipant(participantName) {
+    const result = await pool.query(
+      `
+      SELECT DISTINCT ON (d.document_id)
+        d.document_id AS id,
+        d.name,
+        COALESCE(ds.name, 'ไม่ระบุ') AS status,
+        TO_CHAR(d.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS date,
+        e.title AS project,
+        d.file_size AS "fileSizeBytes",
+        d.file_storage_path AS "filePath",
+        d.file_type AS "fileType"
+      FROM participant_profiles pp
+      JOIN teams t ON t.team_id = pp.team_id
+      JOIN mapping_event_teams met ON met.team_id = t.team_id
+      JOIN events e ON e.event_id = met.event_id
+      JOIN tasks tk ON tk.event_id = e.event_id
+      JOIN mapping_doc_tasks mdt ON mdt.task_id = tk.task_id
+      JOIN documents d ON d.document_id = mdt.document_id
+      LEFT JOIN document_statuses ds ON ds.doc_status_id = d.doc_status_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      ORDER BY d.document_id, d.updated_at DESC NULLS LAST
+    `,
+      [participantName]
+    );
+    return result.rows.map((row) => ({
+      ...row,
+      size: formatBytes(row.fileSizeBytes),
+    }));
+  }
+
+  async createParticipantDocument(participantName, { name, eventId, fileName, fileSize }) {
+    const access = await pool.query(
+      `
+      SELECT 1
+      FROM participant_profiles pp
+      JOIN mapping_event_teams met ON met.team_id = pp.team_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%' AND met.event_id = $2
+      LIMIT 1
+    `,
+      [participantName, eventId]
+    );
+    if (access.rows.length === 0) {
+      const err = new Error('FORBIDDEN_EVENT');
+      err.code = 'FORBIDDEN_EVENT';
+      throw err;
+    }
+
+    const taskR = await pool.query(
+      `SELECT task_id FROM tasks WHERE event_id = $1 ORDER BY task_id ASC LIMIT 1`,
+      [eventId]
+    );
+    if (taskR.rows.length === 0) {
+      const err = new Error('NO_TASKS_FOR_EVENT');
+      err.code = 'NO_TASKS_FOR_EVENT';
+      throw err;
+    }
+    const taskId = taskR.rows[0].task_id;
+
+    const statusR = await pool.query(
+      `SELECT doc_status_id FROM document_statuses WHERE slug IN ('draft', 'pending_approval') ORDER BY doc_status_id LIMIT 1`
+    );
+    const docStatusId = statusR.rows[0]?.doc_status_id ?? null;
+
+    const insert = await pool.query(
+      `
+      INSERT INTO documents (doc_status_id, name, file_storage_path, file_type, file_size, generation_status)
+      VALUES ($1, $2, $3, $4, $5, 'registered')
+      RETURNING document_id, name, created_at, file_size, file_storage_path, file_type, doc_status_id
+    `,
+      [docStatusId, name || fileName || 'เอกสารใหม่', fileName || null, null, fileSize || null]
+    );
+
+    const doc = insert.rows[0];
+    await pool.query(
+      `INSERT INTO mapping_doc_tasks (task_id, document_id) VALUES ($1, $2)
+       ON CONFLICT (task_id, document_id) DO NOTHING`,
+      [taskId, doc.document_id]
+    );
+
+    const ds = await pool.query(`SELECT name FROM document_statuses WHERE doc_status_id = $1`, [doc.doc_status_id]);
+    const eventTitle = await pool.query(`SELECT title FROM events WHERE event_id = $1`, [eventId]);
+
+    return {
+      id: doc.document_id,
+      name: doc.name,
+      status: ds.rows[0]?.name || 'ร่าง',
+      date: new Date(doc.created_at).toLocaleDateString('th-TH'),
+      project: eventTitle.rows[0]?.title || '',
+      fileSizeBytes: doc.file_size,
+      size: formatBytes(doc.file_size),
+      filePath: doc.file_storage_path,
+      fileType: doc.file_type,
+    };
+  }
+
+  /** สมาชิกทีม + โควต้า — หัวหน้า = คนแรกตาม participant_profile_id (สาธิต) */
+  async getTeamForParticipant(participantName) {
+    const teamR = await pool.query(
+      `
+      SELECT
+        t.team_id AS "teamId",
+        t.name AS "teamName",
+        COALESCE(t.project_name, (
+          SELECT ev2.title FROM mapping_event_teams met2
+          JOIN events ev2 ON ev2.event_id = met2.event_id
+          WHERE met2.team_id = t.team_id
+          ORDER BY ev2.event_id DESC
+          LIMIT 1
+        )) AS "projectLabel"
+      FROM participant_profiles pp
+      JOIN teams t ON t.team_id = pp.team_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      LIMIT 1
+    `,
+      [participantName]
+    );
+    if (teamR.rows.length === 0) return null;
+
+    const { teamId, teamName, projectLabel } = teamR.rows[0];
+
+    const maxR = await pool.query(
+      `
+      SELECT COALESCE(MAX(e.max_team_member), 5)::int AS max_members
+      FROM mapping_event_teams met
+      JOIN events e ON e.event_id = met.event_id
+      WHERE met.team_id = $1
+    `,
+      [teamId]
+    );
+    const maxMembers = maxR.rows[0]?.max_members ?? 5;
+
+    const membersR = await pool.query(
+      `
+      WITH ranked AS (
+        SELECT
+          pp.participant_profile_id,
+          TRIM(BOTH FROM pp.firstname || ' ' || COALESCE(pp.lastname, '')) AS full_name,
+          p.email,
+          COALESCE(pp.phone_number, '') AS phone,
+          COALESCE(f.name, '') AS faculty,
+          COALESCE(pp.year_of_study, 0) AS year_of_study,
+          ROW_NUMBER() OVER (ORDER BY pp.participant_profile_id ASC) AS rn
+        FROM participant_profiles pp
+        JOIN participants p ON p.participant_profile_id = pp.participant_profile_id
+        LEFT JOIN faculties f ON f.faculty_id = pp.faculty_id
+        WHERE pp.team_id = $1
+      )
+      SELECT
+        participant_profile_id AS id,
+        full_name AS name,
+        email,
+        phone,
+        faculty,
+        year_of_study AS year,
+        (rn = 1) AS "isLeader",
+        UPPER(SUBSTRING(full_name FROM 1 FOR 1)) AS initial
+      FROM ranked
+      ORDER BY participant_profile_id
+    `,
+      [teamId]
+    );
+
+    const palette = ['bg-emerald-600', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-amber-500', 'bg-cyan-600'];
+    const members = membersR.rows.map((m, i) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      phone: m.phone || '—',
+      faculty: m.faculty || '—',
+      year: m.year,
+      initial: m.initial || '?',
+      color: palette[i % palette.length],
+      isLeader: m.isLeader,
+    }));
+
+    const leaderCount = members.filter((x) => x.isLeader).length;
+
+    return {
+      teamId,
+      name: teamName,
+      project: projectLabel || '—',
+      maxMembers,
+      leaderCount,
+      members,
+    };
+  }
+
+  /** แจ้งเตือนเชิงสังเคราะห์จากงานที่ยังไม่เสร็จและกำหนดส่ง */
+  async getNotificationsForParticipant(participantName) {
+    const rows = await pool.query(
+      `
+      SELECT
+        tk.task_id,
+        tk.task_name,
+        tk.due_date,
+        e.event_id,
+        e.title AS event_title,
+        COALESCE(ts.slug, '') AS task_slug
+      FROM participant_profiles pp
+      JOIN teams t ON t.team_id = pp.team_id
+      JOIN mapping_event_teams met ON met.team_id = t.team_id
+      JOIN events e ON e.event_id = met.event_id
+      JOIN tasks tk ON tk.event_id = e.event_id
+      LEFT JOIN task_statuses ts ON ts.status_task_id = tk.status_task_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+        AND COALESCE(ts.slug, '') != 'completed'
+      ORDER BY tk.due_date ASC NULLS LAST
+    `,
+      [participantName]
+    );
+
+    const now = new Date();
+    const list = [];
+    const seen = new Set();
+
+    for (const r of rows.rows) {
+      const due = r.due_date ? new Date(r.due_date) : null;
+      const id = `task-${r.task_id}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      let type = 'status';
+      let title = 'งานที่ต้องทำ';
+      let body = `งาน "${r.task_name}" ในโครงการ "${r.event_title}" ยังไม่เสร็จ`;
+      if (due && !Number.isNaN(due.getTime())) {
+        const days = Math.ceil((due - now) / (86400000));
+        type = 'deadline';
+        title = days < 0 ? 'เลยกำหนดส่ง' : days <= 7 ? 'ใกล้ถึงกำหนดส่ง' : 'กำหนดส่งงาน';
+        body =
+          days < 0
+            ? `งาน "${r.task_name}" (${r.event_title}) เลยกำหนดแล้ว`
+            : `งาน "${r.task_name}" (${r.event_title}) ครบกำหนดในอีก ${days} วัน`;
+      }
+
+      list.push({
+        id,
+        type,
+        title,
+        body,
+        project: r.event_title,
+        occurredAt: (due && !Number.isNaN(due.getTime()) ? due : now).toISOString(),
+      });
+    }
+
+    return list;
+  }
+
+  /** เจ้าหน้าที่ที่ map กับอีเวนต์เดียวกับทีม */
+  async getContactsForParticipant(participantName) {
+    const result = await pool.query(
+      `
+      SELECT DISTINCT ON (em.employee_id)
+        em.employee_id AS id,
+        TRIM(BOTH FROM ep.first_name || ' ' || COALESCE(ep.last_name, '')) AS name,
+        COALESCE(er.name, 'เจ้าหน้าที่') AS role,
+        ev.title AS project,
+        em.email,
+        COALESCE(dp.name, 'NU SEED') AS dept,
+        COALESCE(em.online_status, 'offline') AS online_status
+      FROM participant_profiles pp
+      JOIN mapping_event_teams met ON met.team_id = pp.team_id
+      JOIN mapping_event_employees mee ON mee.event_id = met.event_id
+      JOIN employees em ON em.employee_id = mee.employee_id
+      JOIN employee_profiles ep ON ep.employee_profile_id = em.employee_profile_id
+      LEFT JOIN employee_roles er ON er.role_employee_id = ep.role_employee_id
+      LEFT JOIN departments dp ON dp.department_id = ep.department_id
+      JOIN events ev ON ev.event_id = met.event_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      ORDER BY em.employee_id, ev.event_id
+    `,
+      [participantName]
+    );
+
+    return result.rows.map((c) => ({
+      ...c,
+      online: String(c.online_status || '').toLowerCase() === 'online',
+      initial: (c.name || '?').charAt(0),
+      color: 'bg-blue-600',
+    }));
+  }
+
+  /** ปฏิทิน: งาน + วันเริ่ม/จบ อีเวนต์ */
+  async getCalendarForParticipant(participantName) {
+    const tasks = await pool.query(
+      `
+      SELECT
+        TO_CHAR(tk.due_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+        tk.task_name AS title,
+        e.title AS project,
+        'task' AS kind
+      FROM participant_profiles pp
+      JOIN mapping_event_teams met ON met.team_id = pp.team_id
+      JOIN events e ON e.event_id = met.event_id
+      JOIN tasks tk ON tk.event_id = e.event_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+        AND tk.due_date IS NOT NULL
+    `,
+      [participantName]
+    );
+
+    const evs = await pool.query(
+      `
+      SELECT
+        TO_CHAR(e.event_start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS d1,
+        TO_CHAR(e.event_end_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS d2,
+        e.title AS project
+      FROM participant_profiles pp
+      JOIN mapping_event_teams met ON met.team_id = pp.team_id
+      JOIN events e ON e.event_id = met.event_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+        AND (e.event_start_date IS NOT NULL OR e.event_end_date IS NOT NULL)
+    `,
+      [participantName]
+    );
+
+    const events = [];
+    const colors = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500'];
+    let ci = 0;
+    for (const r of evs.rows) {
+      const c = colors[ci % colors.length];
+      ci += 1;
+      if (r.d1) {
+        events.push({
+          date: r.d1,
+          title: `เริ่มโครงการ: ${r.project}`,
+          project: r.project,
+          color: c,
+          textColor: 'text-gray-800',
+          bg: 'bg-blue-50',
+          kind: 'event',
+        });
+      }
+      if (r.d2 && r.d2 !== r.d1) {
+        events.push({
+          date: r.d2,
+          title: `สิ้นสุดโครงการ: ${r.project}`,
+          project: r.project,
+          color: c,
+          textColor: 'text-gray-800',
+          bg: 'bg-emerald-50',
+          kind: 'event',
+        });
+      }
+    }
+
+    const taskEvents = tasks.rows.map((t, i) => {
+      const c = colors[i % colors.length];
+      return {
+        date: t.date,
+        title: t.title,
+        project: t.project,
+        color: c,
+        textColor: 'text-gray-800',
+        bg: 'bg-sky-50',
+        kind: 'task',
+      };
+    });
+
+    return [...taskEvents, ...events];
+  }
+
+  async saveContactMessage(participantName, { employeeId, subject, body }) {
+    await pool.query(
+      `
+      INSERT INTO participant_contact_messages (demo_participant_firstname, employee_id, subject, body)
+      VALUES ($1, $2, $3, $4)
+    `,
+      [participantName, employeeId || null, subject || null, body]
+    );
+  }
+
+  async listFeedbacksForParticipant(participantName) {
+    const pid = await this.resolveParticipantId(participantName);
+    if (!pid) return [];
+    const r = await pool.query(
+      `
+      SELECT
+        f.feedback_id AS id,
+        f.rating,
+        f.comment,
+        TO_CHAR(f.create_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS date
+      FROM feedbacks f
+      WHERE f.participant_id = $1
+      ORDER BY f.create_at DESC
+    `,
+      [pid]
+    );
+    const prefix = '[participant_portal] ';
+    return r.rows.map((row) => {
+      let project = 'ทั่วไป';
+      let text = row.comment || '';
+      if (text.startsWith(prefix)) {
+        try {
+          const meta = JSON.parse(text.slice(prefix.length));
+          project = meta.projectTitle || project;
+          text = meta.comment != null ? String(meta.comment) : '';
+        } catch {
+          /* เก็บข้อความดิบ */
+        }
+      }
+      return {
+        id: row.id,
+        rating: row.rating,
+        text,
+        project,
+        date: row.date,
+      };
+    });
+  }
+
+  async createFeedbackForParticipant(participantName, { rating, comment, aspects, projectTitle }) {
+    const pid = await this.resolveParticipantId(participantName);
+    if (!pid) {
+      const err = new Error('PARTICIPANT_NOT_FOUND');
+      err.code = 'PARTICIPANT_NOT_FOUND';
+      throw err;
+    }
+    const meta = {
+      projectTitle: projectTitle || null,
+      aspects: aspects || {},
+      comment: comment || '',
+    };
+    const fullComment = `[participant_portal] ${JSON.stringify(meta)}`;
+    await pool.query(
+      `INSERT INTO feedbacks (participant_id, rating, comment) VALUES ($1, $2, $3)`,
+      [pid, rating, fullComment]
+    );
   }
 }
 
