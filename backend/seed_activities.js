@@ -12,8 +12,6 @@ async function seedActivities() {
     `);
 
     // 2. Clear existing events for a clean state
-    await pool.query('DELETE FROM tasks'); // Depend on events
-    await pool.query('DELETE FROM teams'); // Depend on events
     await pool.query('DELETE FROM events');
 
     // Make sure we have the statuses
