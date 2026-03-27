@@ -32,7 +32,7 @@ export function getParticipantFetchErrorMessage(err, fallbackTh = 'เกิด�
     const name = err?.name;
     const msg = err?.message || '';
     if (msg === 'Failed to fetch' || name === 'TypeError') {
-        return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ให้รัน Backend ควบคู่กับ Frontend (เช่น ./start.sh) หรือตั้ง VITE_DEV_API_PROXY ใน frontend/.env ให้ตรงพอร์ต Backend';
+        return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — รัน Backend คู่กับ Frontend (เช่น ./start.sh) และตั้ง VITE_DEV_API_PROXY ใน frontend/.env ให้ตรงพอร์ต Backend; ถ้าใช้ VITE_USE_FULL_API_IN_DEV=true ให้ตรวจ VITE_API_BASE ด้วย';
     }
     return msg || fallbackTh;
 }
