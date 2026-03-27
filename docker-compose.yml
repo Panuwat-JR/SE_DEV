@@ -1,29 +1,22 @@
-version: '3.8'
+# PostgreSQL สำหรับรัน NU SEED แบบ local — ใช้คู่กับ start.sh / init-demo-db.js
 services:
   db:
-    image: postgres:15
-    container_name: my_postgres_db
-    restart: always
+    image: postgres:16-alpine
+    container_name: nuseed-postgres
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: SE_DB      
+      POSTGRES_USER: nuseed
+      POSTGRES_PASSWORD: nuseed
+      POSTGRES_DB: nuseed
+    # พอร์ตโฮสต์ 55432 — ลดโอกาสชนกับ Postgres อื่นที่ 5432/5433
     ports:
-      - "5555:5432"
+      - "55432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: my_pgadmin
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: root
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
+      - nuseed_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nuseed -d nuseed"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
 
 volumes:
-  pgdata:
+  nuseed_pg_data:

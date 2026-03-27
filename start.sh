@@ -44,10 +44,25 @@ if [ ! -f "$BACKEND_DIR/.env" ]; then
   if [ -f "$BACKEND_DIR/.env.example" ]; then
     echo -e "${YELLOW}⚠️   ไม่พบ .env — กำลังสร้างจาก .env.example...${NC}"
     cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
-    echo -e "${GREEN}✅  สร้าง .env เรียบร้อย — กรุณาแก้ไข DATABASE_URL ก่อนใช้งานจริง${NC}"
+    echo -e "${GREEN}✅  สร้าง .env เรียบร้อย — ค่าเริ่มต้นชี้ Postgres ใน Docker ที่พอร์ต 55432${NC}"
   else
     echo -e "${YELLOW}⚠️   ไม่พบ .env และ .env.example — ข้ามไปก่อน${NC}"
   fi
+fi
+
+# PostgreSQL ใน Docker (ถ้ามี Docker) — เพื่อนใหม่ pull แล้วรันได้ทันที
+if command -v docker >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+  echo ""
+  echo -e "${BLUE}🐘  กำลังเริ่ม PostgreSQL (docker compose)...${NC}"
+  (cd "$SCRIPT_DIR" && docker compose up -d) || echo -e "${YELLOW}⚠️   docker compose ไม่สำเร็จ — ตั้ง DATABASE_URL ใน backend/.env ให้ชี้ PostgreSQL ของคุณ${NC}"
+  for _i in $(seq 1 40); do
+    if (cd "$SCRIPT_DIR" && docker compose exec -T db pg_isready -U nuseed -d nuseed >/dev/null 2>&1); then
+      echo -e "${GREEN}✅  Postgres พร้อมรับ connection${NC}"
+      break
+    fi
+    sleep 1
+    [ "$_i" -eq 40 ] && echo -e "${YELLOW}⚠️   รอ Postgres นานเกินไป — ลองรันใหม่หรือตรวจ Docker${NC}"
+  done
 fi
 
 # ติดตั้ง dependencies
@@ -55,6 +70,13 @@ echo ""
 echo -e "${BLUE}📦  กำลังติดตั้ง Backend Dependencies...${NC}"
 cd "$BACKEND_DIR" && npm install --prefer-offline 2>&1 | tail -3
 echo -e "${GREEN}✅  Backend พร้อมแล้ว${NC}"
+
+# Schema + ข้อมูลเดโม (พอร์ทัลผู้เข้าร่วม / โครงการ / งาน / เอกสาร)
+if [ -f "$BACKEND_DIR/.env" ]; then
+  echo ""
+  echo -e "${BLUE}🌱  กำลังตรวจสอบและ seed ฐานข้อมูลเดโม...${NC}"
+  (cd "$BACKEND_DIR" && node scripts/init-demo-db.js) || echo -e "${YELLOW}⚠️   init-demo-db ข้ามหรือล้มเหลว — ตรวจ DATABASE_URL ใน backend/.env${NC}"
+fi
 
 echo ""
 echo -e "${BLUE}📦  กำลังติดตั้ง Frontend Dependencies...${NC}"
@@ -96,6 +118,9 @@ echo -e "${GREEN}  ✅  ระบบพร้อมใช้งาน!${NC}"
 echo ""
 echo -e "${GREEN}  🌐  Frontend:  http://localhost:5173${NC}"
 echo -e "${GREEN}  🔧  Backend:   http://localhost:5000${NC}"
+echo ""
+echo -e "${YELLOW}  เข้าพอร์ทัลผู้เข้าร่วม: Login → ผู้เข้าร่วม → ชื่อ firstname ใช้ ปิยะ (ตรง DB)${NC}"
+echo -e "${YELLOW}  Postgres (Docker): localhost:55432  user/db nuseed — รีเซ็ตข้อมูลเดโม: NU_SEED_FORCE_DEMO=1 npm run init-demo-db ใน backend${NC}"
 echo ""
 echo -e "${YELLOW}  กด Ctrl+C เพื่อหยุดทุกระบบ${NC}"
 echo -e "${GREEN}============================================${NC}"

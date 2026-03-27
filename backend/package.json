@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "seed": "node seed_employees.js && node seed_activities.js"
+    "seed": "node seed_employees.js && node seed_activities.js",
+    "init-demo-db": "node scripts/init-demo-db.js"
   },
   "keywords": [],
   "author": "",
