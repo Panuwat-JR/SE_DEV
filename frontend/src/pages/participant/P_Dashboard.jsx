@@ -1,16 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, AlertCircle, Bell, Trophy, Users, FileText, Star, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useParticipantPortal } from '../../context/ParticipantPortalContext';
+import { getParticipantFirstname, participantFetch } from '../../lib/participantApi';
 
-const NOTIFICATIONS = [
-    { id: 1, text: 'สถานะโครงการ "Startup Thailand League" เปลี่ยนเป็น กำลังดำเนินการ', time: '2 ชั่วโมงที่แล้ว', type: 'status', read: false },
-    { id: 2, text: 'เอกสาร "Pitch Deck v2" ได้รับการอนุมัติแล้ว', time: '1 วันที่แล้ว', type: 'doc', read: false },
-    { id: 3, text: 'กำหนดส่ง "Business Model Canvas" อีก 3 วัน', time: '2 วันที่แล้ว', type: 'deadline', read: true },
-];
+function formatNotifTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const diffMs = Date.now() - d.getTime();
+    const hrs = Math.floor(diffMs / 3600000);
+    if (hrs < 1) return 'เมื่อสักครู่';
+    if (hrs < 24) return `${hrs} ชั่วโมงที่แล้ว`;
+    const days = Math.floor(hrs / 24);
+    return `${days} วันที่แล้ว`;
+}
 
 export default function P_Dashboard() {
-    const { teamRole } = useAuth();
+    const { teamRole, participantProfile, participantProfileLoading } = useAuth();
+    const { notifications, unreadCount, readIds } = useParticipantPortal();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,7 +28,7 @@ export default function P_Dashboard() {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('http://localhost:5000/api/dashboard-data/participant-data');
+                const response = await participantFetch('/api/participants-data/dashboard');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
                 setProjects(data);
@@ -38,12 +47,24 @@ export default function P_Dashboard() {
     const inProgressCount = projects.filter(p => p.status === 'กำลังดำเนินการ').length;
     const planCount = projects.filter(p => p.status === 'วางแผน').length;
 
+    const previewNotif = useMemo(() => {
+        const unread = notifications.filter((n) => !readIds.has(n.id));
+        const list = unread.length ? unread : notifications;
+        return list[0];
+    }, [notifications, readIds]);
+
     return (
         <div className="space-y-8">
             {/* Welcome */}
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">สวัสดี ปิยะ 👋</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                        สวัสดี{' '}
+                        {participantProfileLoading
+                            ? '…'
+                            : participantProfile?.firstname || getParticipantFirstname()}{' '}
+                        👋
+                    </h1>
                     <p className="text-gray-500 text-sm mt-1">
                         {loading
                             ? 'กำลังโหลดข้อมูล...'
@@ -62,8 +83,18 @@ export default function P_Dashboard() {
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
                 <Bell size={18} className="text-amber-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
-                    <p className="text-sm font-bold text-amber-800">มีการแจ้งเตือนใหม่ {NOTIFICATIONS.filter(n => !n.read).length} รายการ</p>
-                    <p className="text-xs text-amber-600 mt-0.5">{NOTIFICATIONS[0].text}</p>
+                    <p className="text-sm font-bold text-amber-800">
+                        {notifications.length === 0
+                            ? 'ยังไม่มีการแจ้งเตือนจากระบบ'
+                            : unreadCount > 0
+                                ? `มีการแจ้งเตือนที่ยังไม่อ่าน ${unreadCount} รายการ`
+                                : 'อ่านการแจ้งเตือนล่าสุดแล้ว'}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                        {previewNotif
+                            ? `${previewNotif.title} — ${previewNotif.body} (${formatNotifTime(previewNotif.occurredAt)})`
+                            : 'เมื่อมีงานหรือกำหนดส่งที่เกี่ยวข้อง ระบบจะแสดงที่นี่'}
+                    </p>
                 </div>
                 <Link to="/participant/notifications" className="text-xs text-amber-700 font-bold hover:underline shrink-0">ดูทั้งหมด →</Link>
             </div>

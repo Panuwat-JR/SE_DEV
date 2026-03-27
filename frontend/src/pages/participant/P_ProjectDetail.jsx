@@ -1,7 +1,8 @@
 // pages/participant/P_ProjectDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, Trophy, Users, Clock, CheckCircle2, AlertCircle, ChevronDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Trophy, Users, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { participantFetch } from '../../lib/participantApi';
 
 export default function P_ProjectDetail() {
     const { id } = useParams();
@@ -13,7 +14,7 @@ export default function P_ProjectDetail() {
         const fetchProjectDetail = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`http://localhost:5000/api/participants-data/projects/${id}`);
+                const response = await participantFetch(`/api/participants-data/projects/${id}`);
                 if (!response.ok) {
                     // ดึงข้อความ error จากฝั่ง backend มาแสดง เพื่อช่วยชี้สาเหตุ (404/500 ฯลฯ)
                     const errData = await response.json().catch(() => null);
@@ -60,9 +61,13 @@ export default function P_ProjectDetail() {
         );
     }
 
-    const doneCount = project.tasks.filter(t => t.done).length;
-    const totalTasks = project.tasks.length;
+    const tasks = Array.isArray(project.tasks) ? project.tasks : [];
+    const doneCount = tasks.filter(t => t.done).length;
+    const totalTasks = tasks.length;
     const progress = totalTasks > 0 ? Math.round((doneCount / totalTasks) * 100) : 0;
+    const maxParticipantsSafe = Math.max(Number(project.maxParticipants) || 0, 1);
+    const memberBarPct = Math.min(100, ((Number(project.currentParticipants) || 0) / maxParticipantsSafe) * 100);
+    const docCount = Number(project.documentCount) || 0;
 
     return (
         <div className="space-y-6">
@@ -127,7 +132,7 @@ export default function P_ProjectDetail() {
                             <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${progress}%` }} />
                         </div>
                         <div className="space-y-2">
-                            {project.tasks.map(task => (
+                            {tasks.map(task => (
                                 <div key={task.id} className={`flex items-center gap-3 p-3 rounded-xl ${task.done ? 'opacity-60' : ''}`}>
                                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${task.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'
                                         }`}>
@@ -153,17 +158,17 @@ export default function P_ProjectDetail() {
                         <div>
                             <p className="text-xs text-gray-400 mb-1">สมาชิกในทีม</p>
                             <div className="flex justify-between text-sm font-bold text-gray-700">
-                                <span>{project.currentParticipants}/{project.maxParticipants} คน</span>
+                                <span>{project.currentParticipants}/{project.maxParticipants || '—'} คน</span>
                             </div>
                             <div className="w-full bg-gray-100 h-1.5 rounded-full mt-1.5">
-                                <div className="bg-blue-500 h-full rounded-full" style={{ width: `${(project.currentParticipants / project.maxParticipants) * 100}%` }} />
+                                <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${memberBarPct}%` }} />
                             </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <Link to="/participant/documents" className="bg-white border border-gray-100 rounded-2xl p-4 text-center hover:shadow-md hover:border-emerald-200 transition-all">
-                            <p className="text-2xl font-bold text-blue-600">0</p>
+                            <p className="text-2xl font-bold text-blue-600">{docCount}</p>
                             <p className="text-xs text-gray-500 mt-1">เอกสาร</p>
                         </Link>
                         <Link to="/participant/team" className="bg-white border border-gray-100 rounded-2xl p-4 text-center hover:shadow-md hover:border-emerald-200 transition-all">

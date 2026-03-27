@@ -15,6 +15,8 @@ const FeedbackCharts = ({ stats, projects }) => {
         score: Number(p.score)
     })) || [];
 
+    const BAR_COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Doughnut Chart: Sentiment */}
@@ -60,7 +62,11 @@ const FeedbackCharts = ({ stats, projects }) => {
                             <XAxis dataKey="name" fontSize={10} />
                             <YAxis domain={[0, 5]} fontSize={10} />
                             <Tooltip />
-                            <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                            <Bar dataKey="score" radius={[4, 4, 0, 0]} barSize={40}>
+                                {barData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                                ))}
+                            </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 </div>

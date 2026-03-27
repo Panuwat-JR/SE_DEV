@@ -17,6 +17,7 @@ class DashboardService {
       WHERE ts.slug = 'pending'
     `);
     const docsCount = await pool.query('SELECT COUNT(*) FROM documents');
+    const feedbackAvg = await pool.query('SELECT AVG(rating) as avg_rating FROM feedbacks');
 
     return {
       total_activities: parseInt(eventsCount.rows[0].count),
@@ -25,7 +26,8 @@ class DashboardService {
       pending_tasks: parseInt(pendingTasksCount.rows[0].count),
       total_documents: parseInt(docsCount.rows[0].count),
       active_activities: parseInt(activeEventsCount.rows[0].count),
-      total_budget: budgetQuery.rows[0].total_budget ? parseFloat(budgetQuery.rows[0].total_budget) : 0
+      total_budget: budgetQuery.rows[0].total_budget ? parseFloat(budgetQuery.rows[0].total_budget) : 0,
+      avg_feedback: feedbackAvg.rows[0].avg_rating ? parseFloat(feedbackAvg.rows[0].avg_rating).toFixed(1) : '0.0'
     };
   }
 

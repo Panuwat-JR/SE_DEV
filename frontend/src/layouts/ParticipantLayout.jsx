@@ -1,5 +1,5 @@
 // layouts/ParticipantLayout.jsx
-// Sidebar ฟ้าอ่อน + Team Role Toggle สำหรับ demo
+// Sidebar พอร์ทัลผู้เข้าร่วม — บทบาทหัวหน้าทีมมาจากฐานข้อมูล (สมาชิกแรกที่มีบัญชีในทีม)
 import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -7,6 +7,8 @@ import {
     Bell, MessageCircle, Star, LogOut, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { ParticipantPortalProvider } from '../context/ParticipantPortalContext';
+import { getParticipantFirstname } from '../lib/participantApi';
 
 const MENUS = [
     { name: 'แดชบอร์ด', icon: LayoutDashboard, path: '/participant/dashboard' },
@@ -23,7 +25,7 @@ const MENUS = [
 export default function ParticipantLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { logout, teamRole, setTeamRole } = useAuth();
+    const { logout, teamRole, participantProfile, participantProfileLoading } = useAuth();
 
     const handleLogout = () => { logout(); navigate('/login'); };
     const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
@@ -38,24 +40,6 @@ export default function ParticipantLayout() {
                     <div>
                         <div className="font-bold text-base leading-tight">NU SEED</div>
                         <div className="text-[10px] text-sky-400">ผู้เข้าร่วมโครงการ</div>
-                    </div>
-                </div>
-
-                {/* Team Role Toggle */}
-                <div className="px-4 py-4 border-b border-sky-900/50">
-                    <p className="text-[10px] text-sky-400 uppercase font-bold tracking-wider mb-2">บทบาทในทีม (Demo)</p>
-                    <div className="flex bg-sky-900/60 rounded-xl p-1 gap-1">
-                        {['leader', 'member'].map(r => (
-                            <button key={r}
-                                onClick={() => setTeamRole(r)}
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${teamRole === r
-                                    ? 'bg-sky-500 text-white shadow'
-                                    : 'text-sky-400 hover:text-white'
-                                    }`}
-                            >
-                                {r === 'leader' ? '🏆 หัวหน้า' : '👤 ลูกทีม'}
-                            </button>
-                        ))}
                     </div>
                 </div>
 
@@ -80,10 +64,24 @@ export default function ParticipantLayout() {
                 {/* User footer */}
                 <div className="p-4 border-t border-sky-900/50">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-sm">ป</div>
-                        <div>
-                            <div className="text-white text-sm font-bold">ปิยะ วงศ์ดี</div>
-                            <div className="text-[10px] text-sky-400">GreenBridge · ปี 3</div>
+                        <div className="w-9 h-9 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                            {participantProfileLoading
+                                ? '…'
+                                : participantProfile?.initial || (getParticipantFirstname().charAt(0) || '?')}
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-white text-sm font-bold truncate">
+                                {participantProfileLoading
+                                    ? 'กำลังโหลดโปรไฟล์...'
+                                    : participantProfile?.displayName || getParticipantFirstname()}
+                            </div>
+                            <div className="text-[10px] text-sky-400 truncate">
+                                {participantProfile?.teamName
+                                    ? `${participantProfile.teamName}${participantProfile.year != null ? ` · ปี ${participantProfile.year}` : ''}`
+                                    : participantProfile
+                                        ? 'ยังไม่ผูกทีมในระบบ'
+                                        : `คีย์เชื่อมต่อ: ${getParticipantFirstname()}`}
+                            </div>
                         </div>
                     </div>
                     <button onClick={handleLogout}
@@ -106,14 +104,22 @@ export default function ParticipantLayout() {
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="px-3 py-1.5 bg-sky-50 text-sky-700 text-xs font-bold rounded-full border border-sky-200">
-                            {teamRole === 'leader' ? '🏆 หัวหน้าทีม' : '👤 สมาชิกทีม'}
+                            {participantProfileLoading
+                                ? '…'
+                                : teamRole === 'leader'
+                                    ? '🏆 หัวหน้าทีม'
+                                    : '👤 สมาชิกทีม'}
                         </div>
-                        <div className="w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-sm">ป</div>
+                        <div className="w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                            {participantProfile?.initial || getParticipantFirstname().charAt(0) || '?'}
+                        </div>
                     </div>
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-8">
-                    <Outlet />
+                    <ParticipantPortalProvider>
+                        <Outlet />
+                    </ParticipantPortalProvider>
                 </main>
             </div>
         </div>
