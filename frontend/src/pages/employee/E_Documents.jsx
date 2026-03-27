@@ -143,7 +143,8 @@ export default function E_Documents() {
         setTemplateSubmitError(null);
         setSavingTemplate(true);
         try {
-            const name = `${tpl.name}_${new Date().toLocaleDateString('th-TH')}.pdf`;
+            const dateStamp = new Date().toISOString().slice(0, 10);
+            const name = `${tpl.name}_${dateStamp}_${Date.now()}.pdf`;
             const res = await fetch(`${apiRoot()}/documents`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -342,7 +343,8 @@ export default function E_Documents() {
                                 className="text-left p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 bg-white transition-all group relative overflow-hidden flex flex-col h-full"
                             >
                                 <div
-                                    className={`absolute top-0 right-0 w-32 h-32 rounded-bl-full -mr-16 -mt-16 transition-transform duration-500 group-hover:scale-110 opacity-30 ${tpl.color.split(' ')[0]}`}
+                                    aria-hidden
+                                    className={`pointer-events-none absolute top-0 right-0 w-32 h-32 rounded-bl-full -mr-16 -mt-16 transition-transform duration-500 group-hover:scale-110 opacity-30 ${tpl.color.split(' ')[0]}`}
                                 />
 
                                 <div
@@ -377,7 +379,7 @@ export default function E_Documents() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                         <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 p-8 relative overflow-hidden">
-                            <div className="absolute -top-10 -right-10 p-8 opacity-[0.03] pointer-events-none rotate-12">
+                            <div className="pointer-events-none absolute -top-10 -right-10 p-8 opacity-[0.03] rotate-12">
                                 <LayoutTemplate size={200} />
                             </div>
 

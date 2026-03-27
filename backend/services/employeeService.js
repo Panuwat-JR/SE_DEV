@@ -366,7 +366,7 @@ class EmployeeService {
     // We already have current_participants seeded directly in the events table
     // so we don't need to join mapping_event_teams anymore. 
 
-    // Enrich projects
+    // Enrich projects (node-pg มักคืน COUNT(*) เป็นสตริง — ต้องแปลงเป็นตัวเลขก่อน reduce ไม่งั้น 0 + "3" กลายเป็น "03")
     const projects = eventsResult.rows.map(ev => {
       const ts = taskMap[ev.id] || { total: 0, done: 0, pending: 0 };
       const progress = ts.total > 0 ? Math.round((ts.done / ts.total) * 100) : 0;
@@ -377,6 +377,8 @@ class EmployeeService {
         'ดำเนินการสำเร็จ':'bg-gray-100 text-gray-600',
         'ยกเลิก':         'bg-red-100 text-red-700',
       };
+      const participants = Number.parseInt(String(ev.current_participants ?? '0'), 10);
+      const maxP = Number.parseInt(String(ev.max_participants ?? '0'), 10);
       return {
         id:           ev.id,
         title:        ev.title,
@@ -384,8 +386,8 @@ class EmployeeService {
         statusColor:  statusColorMap[ev.status] || 'bg-gray-100 text-gray-600',
         deadline:     ev.deadline,
         teams:        teamMap[ev.id] ?? 0,
-        participants: ev.current_participants || 0,
-        maxParticipants: ev.max_participants || 100,
+        participants: Number.isFinite(participants) ? participants : 0,
+        maxParticipants: Number.isFinite(maxP) && maxP > 0 ? maxP : 100,
         prizePool:    ev.prize_pool || 'ไม่มีเงินรางวัล',
         tasks:        ts.total,
         tasksDone:    ts.done,
@@ -448,7 +450,7 @@ class EmployeeService {
     const activeProjects  = projects.filter(p =>
       ['กำลังดำเนินการ', 'เปิดรับสมัคร'].includes(p.status)
     ).length;
-    const totalParticipants = projects.reduce((s, p) => s + p.participants, 0);
+    const totalParticipants = projects.reduce((s, p) => s + (Number(p.participants) || 0), 0);
     const totalPendingTasks = projects.reduce((s, p) => s + p.issues, 0);
 
     return {

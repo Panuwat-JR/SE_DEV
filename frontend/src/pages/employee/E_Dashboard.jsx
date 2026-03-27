@@ -71,10 +71,10 @@ export default function E_Dashboard() {
             {/* KPI */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                 {[
-                    { label: 'โครงการทั้งหมด', value: stats.totalProjects,    icon: Activity,    color: 'bg-blue-50 text-blue-600',     numColor: 'text-blue-700' },
-                    { label: 'กำลังดำเนินการ', value: stats.activeProjects,   icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-600', numColor: 'text-emerald-700' },
-                    { label: 'ผู้เข้าร่วมรวม', value: stats.totalParticipants, icon: Users,       color: 'bg-purple-50 text-purple-600',  numColor: 'text-purple-700' },
-                    { label: 'งานรอดำเนินการ (รวม)', value: stats.totalPendingTasks ?? stats.totalIssues ?? 0, icon: AlertCircle, color: 'bg-amber-50 text-amber-600', numColor: 'text-amber-800' },
+                    { label: 'โครงการทั้งหมด', value: Number(stats.totalProjects) || 0,    icon: Activity,    color: 'bg-blue-50 text-blue-600',     numColor: 'text-blue-700' },
+                    { label: 'กำลังดำเนินการ', value: Number(stats.activeProjects) || 0,   icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-600', numColor: 'text-emerald-700' },
+                    { label: 'ผู้เข้าร่วมรวม', value: Number(stats.totalParticipants) || 0, icon: Users,       color: 'bg-purple-50 text-purple-600',  numColor: 'text-purple-700' },
+                    { label: 'งานรอดำเนินการ (รวม)', value: Number(stats.totalPendingTasks ?? stats.totalIssues ?? 0) || 0, icon: AlertCircle, color: 'bg-amber-50 text-amber-600', numColor: 'text-amber-800' },
                 ].map((kpi, i) => {
                     const Icon = kpi.icon;
                     return (

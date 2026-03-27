@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Search, Plus, Edit, Trash2, Clock, Trophy, Eye, X, Upload, File, Users, CalendarDays, MapPin, CheckCircle2, FileText, ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
@@ -26,6 +26,27 @@ function Activities() {
     prize_pool: '',
     fileName: '',
   });
+  const activityFileInputRef = useRef(null);
+
+  const handleActivityFileDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleActivityFileDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const f = e.dataTransfer?.files?.[0];
+    if (!f) return;
+    setNewActivity((prev) => ({ ...prev, fileName: f.name }));
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      if (activityFileInputRef.current) activityFileInputRef.current.files = dt.files;
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleDelete = (id, title) => {
     if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบกิจกรรม "${title}" ?`)) {
@@ -507,14 +528,25 @@ function Activities() {
               </div>
               <div className="pt-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">เอกสารแนบโครงการ (ทางเลือก)</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors relative group">
+                <div
+                  className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors relative group"
+                  onDragEnter={handleActivityFileDragOver}
+                  onDragOver={handleActivityFileDragOver}
+                  onDrop={handleActivityFileDrop}
+                >
                   <div className="space-y-1 text-center">
                     <Upload className="mx-auto h-8 w-8 text-gray-400 group-hover:text-blue-500 transition-colors" />
                     <div className="flex text-sm text-gray-600 justify-center">
                       <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-700">
                         <span>คลิกเพื่ออัปโหลดไฟล์</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only"
-                          onChange={(e) => setNewActivity({ ...newActivity, fileName: e.target.files[0]?.name })} />
+                        <input
+                          ref={activityFileInputRef}
+                          id="file-upload"
+                          name="file-upload"
+                          type="file"
+                          className="sr-only"
+                          onChange={(e) => setNewActivity((prev) => ({ ...prev, fileName: e.target.files[0]?.name || '' }))}
+                        />
                       </label>
                       <p className="pl-1">หรือลากไฟล์มาวาง</p>
                     </div>

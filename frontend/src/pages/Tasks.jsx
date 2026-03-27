@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Search, Plus, Filter, Clock, AlertCircle, CheckCircle2, Calendar, X, Upload, File } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -51,6 +51,27 @@ function Tasks() {
   const [formData, setFormData] = useState({
     task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: ''
   });
+  const taskFileInputRef = useRef(null);
+
+  const handleTaskFileDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleTaskFileDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const f = e.dataTransfer?.files?.[0];
+    if (!f) return;
+    setFormData((prev) => ({ ...prev, fileName: f.name }));
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      if (taskFileInputRef.current) taskFileInputRef.current.files = dt.files;
+    } catch {
+      /* ignore — ชื่อไฟล์ใน state ยังใช้ได้ */
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -335,14 +356,25 @@ function Tasks() {
               </div>
               <div className="pt-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">เอกสารแนบ (ทางเลือก)</label>
-                <div className="mt-1 flex justify-center px-6 pt-4 pb-4 border-2 border-gray-300 border-dashed rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors relative group bg-gray-50/30">
+                <div
+                  className="mt-1 flex justify-center px-6 pt-4 pb-4 border-2 border-gray-300 border-dashed rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors relative group bg-gray-50/30"
+                  onDragEnter={handleTaskFileDragOver}
+                  onDragOver={handleTaskFileDragOver}
+                  onDrop={handleTaskFileDrop}
+                >
                   <div className="space-y-1 text-center">
                     <Upload className="mx-auto h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
                     <div className="flex text-sm text-gray-600 justify-center">
                       <label htmlFor="task-file-upload" className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-700">
                         <span>คลิกเพื่ออัปโหลดไฟล์</span>
-                        <input id="task-file-upload" name="task-file-upload" type="file" className="sr-only"
-                          onChange={(e) => setFormData({ ...formData, fileName: e.target.files[0]?.name })} />
+                        <input
+                          ref={taskFileInputRef}
+                          id="task-file-upload"
+                          name="task-file-upload"
+                          type="file"
+                          className="sr-only"
+                          onChange={(e) => setFormData((prev) => ({ ...prev, fileName: e.target.files[0]?.name || '' }))}
+                        />
                       </label>
                       <p className="pl-1">หรือลากไฟล์มาวาง</p>
                     </div>
