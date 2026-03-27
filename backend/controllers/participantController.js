@@ -68,31 +68,30 @@ exports.getProjectDetail = async (req, res) => {
   }
 };
 
-<<<<<<< Updated upstream
 // ===== Documents (DB) =====
 exports.listDocuments = async (req, res) => {
   try {
-    const participantName = 'ปิยะ'; // Demo user
-    const docs = await participantService.listDocumentsForParticipant(participantName);
+    const docs = await participantService.listDocumentsForParticipant(demoParticipant());
     res.json(docs);
   } catch (err) {
     console.error('List Documents Error:', err.message);
-=======
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.getDocuments = async (req, res) => {
   try {
     const rows = await participantService.getDocumentsForParticipant(demoParticipant());
     res.json(rows);
   } catch (err) {
     console.error('Participant documents:', err.message);
->>>>>>> Stashed changes
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
-<<<<<<< Updated upstream
 exports.uploadDocument = async (req, res) => {
   try {
-    const participantName = 'ปิยะ'; // Demo user
+    const participantName = demoParticipant();
     const { project, name } = req.body || {};
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'File is required' });
@@ -102,7 +101,6 @@ exports.uploadDocument = async (req, res) => {
     res.status(201).json(doc);
   } catch (err) {
     console.error('Upload Document Error:', err.message);
-    // ถ้าสร้างไม่สำเร็จ ลบไฟล์ที่อัปโหลดทิ้ง
     if (req.file?.path) {
       fs.unlink(req.file.path, () => {});
     }
@@ -113,14 +111,13 @@ exports.uploadDocument = async (req, res) => {
 
 exports.deleteDocument = async (req, res) => {
   try {
-    const participantName = 'ปิยะ'; // Demo user
+    const participantName = demoParticipant();
     const docId = parseInt(req.params.id, 10);
     if (Number.isNaN(docId)) return res.status(400).json({ error: 'Invalid document id' });
 
     const result = await participantService.deleteDocument({ participantName, docId });
     if (!result.deleted) return res.status(404).json({ error: 'Document not found' });
 
-    // ลบไฟล์จากดิสก์ถ้ามี
     if (result.path?.startsWith('/uploads/')) {
       const abs = path.join(__dirname, '..', result.path.replace(/^\/+/, ''));
       fs.unlink(abs, () => {});
@@ -129,7 +126,10 @@ exports.deleteDocument = async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Delete Document Error:', err.message);
-=======
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.createDocument = async (req, res) => {
   try {
     const { name, eventId, fileName, fileSize } = req.body || {};
@@ -208,52 +208,41 @@ exports.postContactMessage = async (req, res) => {
       });
     }
     console.error('Contact message:', err.message);
->>>>>>> Stashed changes
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
-<<<<<<< Updated upstream
-// ===== Team members (DB) =====
-exports.getTeam = async (req, res) => {
-  try {
-    const participantName = 'ปิยะ'; // Demo user
-    const team = await participantService.getTeamInfo(participantName);
-    if (!team) return res.status(404).json({ error: 'Team not found' });
-    res.json(team);
-  } catch (err) {
-    console.error('Get Team Error:', err.message);
-=======
 exports.getCalendar = async (req, res) => {
   try {
     const events = await participantService.getCalendarForParticipant(demoParticipant());
     res.json(events);
   } catch (err) {
     console.error('Participant calendar:', err.message);
->>>>>>> Stashed changes
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
-<<<<<<< Updated upstream
 exports.addTeamMember = async (req, res) => {
   try {
-    const participantName = 'ปิยะ'; // Demo user
+    const participantName = demoParticipant();
     const { name, email, faculty, year } = req.body || {};
     const created = await participantService.addTeamMemberWithAccount({
       participantName,
       fullName: name,
       email,
       facultyName: faculty,
-      yearOfStudy: year
+      yearOfStudy: year,
     });
     res.status(201).json(created);
   } catch (err) {
     console.error('Add Team Member Error:', err.message);
     const code =
-      err.message === 'Participant has no team' ? 400
-        : err.message === 'Name is required' ? 400
-          : err.message === 'Email is required' ? 400
+      err.message === 'Participant has no team'
+        ? 400
+        : err.message === 'Name is required'
+          ? 400
+          : err.message === 'Email is required'
+            ? 400
             : 500;
     res.status(code).json({ error: err.message });
   }
@@ -261,7 +250,7 @@ exports.addTeamMember = async (req, res) => {
 
 exports.removeTeamMember = async (req, res) => {
   try {
-    const participantName = 'ปิยะ'; // Demo user
+    const participantName = demoParticipant();
     const memberId = req.params.id;
     const result = await participantService.removeTeamMember({ participantName, memberProfileId: memberId });
     if (!result.deleted) return res.status(404).json({ error: 'Member not found' });
@@ -269,12 +258,17 @@ exports.removeTeamMember = async (req, res) => {
   } catch (err) {
     console.error('Remove Team Member Error:', err.message);
     const code =
-      err.message === 'Participant has no team' ? 400
-        : err.message === 'Invalid member id' ? 400
-          : err.message === 'Cannot remove team leader' ? 403
+      err.message === 'Participant has no team'
+        ? 400
+        : err.message === 'Invalid member id'
+          ? 400
+          : err.message === 'Cannot remove team leader'
+            ? 403
             : 500;
     res.status(code).json({ error: err.message });
-=======
+  }
+};
+
 exports.listFeedbacks = async (req, res) => {
   try {
     const rows = await participantService.listFeedbacksForParticipant(demoParticipant());
@@ -305,6 +299,5 @@ exports.createFeedback = async (req, res) => {
     }
     console.error('Create feedback:', err.message);
     res.status(500).json({ error: 'Server Error' });
->>>>>>> Stashed changes
   }
 };

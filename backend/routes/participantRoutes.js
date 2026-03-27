@@ -11,8 +11,7 @@ router.get('/dashboard', participantController.getParticipantDashboardData);
 // ดึงรายละเอียดโครงการที่นิสิตเข้าร่วม (แยกตาม ID)
 router.get('/projects/:id', participantController.getProjectDetail);
 
-<<<<<<< Updated upstream
-// Team (DB)
+// Team
 router.get('/team', participantController.getTeam);
 router.post('/team/members', participantController.addTeamMember);
 router.delete('/team/members/:id', participantController.removeTeamMember);
@@ -27,28 +26,34 @@ const storage = multer.diskStorage({
     const safeBase = path.basename(file.originalname).replace(/[^\w.\-() ]+/g, '_');
     const stamp = Date.now();
     cb(null, `${stamp}-${safeBase}`);
-  }
+  },
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 } // 20MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
-router.get('/documents', participantController.listDocuments);
-router.post('/documents', upload.single('file'), participantController.uploadDocument);
-router.delete('/documents/:id', participantController.deleteDocument);
-=======
 router.get('/documents', participantController.getDocuments);
-router.post('/documents', participantController.createDocument);
 
-router.get('/team', participantController.getTeam);
+router.post('/documents', (req, res, next) => {
+  const ct = req.headers['content-type'] || '';
+  if (ct.includes('multipart/form-data')) {
+    return upload.single('file')(req, res, (err) => {
+      if (err) return next(err);
+      return participantController.uploadDocument(req, res, next);
+    });
+  }
+  return participantController.createDocument(req, res, next);
+});
+
+router.delete('/documents/:id', participantController.deleteDocument);
+
 router.get('/notifications', participantController.getNotifications);
 router.get('/contacts', participantController.getContacts);
 router.post('/contact-messages', participantController.postContactMessage);
 router.get('/calendar', participantController.getCalendar);
 router.get('/feedbacks', participantController.listFeedbacks);
 router.post('/feedbacks', participantController.createFeedback);
->>>>>>> Stashed changes
 
 module.exports = router;

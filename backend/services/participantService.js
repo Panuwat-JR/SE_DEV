@@ -12,7 +12,6 @@ function formatBytes(n) {
 }
 
 class ParticipantService {
-<<<<<<< Updated upstream
   async getTeamIdByParticipantName(participantName) {
     const result = await pool.query(
       `
@@ -289,7 +288,8 @@ class ParticipantService {
       [docId, teamId]
     );
     return { deleted: deleted.rowCount, path: deleted.rows[0]?.path ?? null };
-=======
+  }
+
   getDemoParticipantFirstname() {
     return DEMO_PARTICIPANT_FIRSTNAME;
   }
@@ -319,8 +319,8 @@ class ParticipantService {
       [participantName]
     );
     return r.rows[0]?.team_id ?? null;
->>>>>>> Stashed changes
   }
+
   async getProjectList(participantName) {
     const result = await pool.query(`
       SELECT 
