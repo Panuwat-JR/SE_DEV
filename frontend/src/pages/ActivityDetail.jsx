@@ -21,7 +21,7 @@ const ActivityDetail = () => {
   const [newTask, setNewTask] = useState({
     task_name: '',
     status: 'รอดำเนินการ',
-    priority: 'ปกติ',
+    priority: 'กลาง',
     category: 'ทั่วไป',
     due_date: '',
   });
@@ -106,7 +106,7 @@ const ActivityDetail = () => {
     setNewTask({
       task_name: '',
       status: 'รอดำเนินการ',
-      priority: 'ปกติ',
+      priority: 'กลาง',
       category: 'ทั่วไป',
       due_date: '',
     });
@@ -599,9 +599,10 @@ const ActivityDetail = () => {
                     value={newTask.priority}
                     onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
                   >
+                    <option value="เร่งด่วนที่สุด">เร่งด่วนที่สุด</option>
                     <option value="สูง">สูง</option>
                     <option value="กลาง">กลาง</option>
-                    <option value="ปกติ">ปกติ</option>
+                    <option value="ต่ำ">ต่ำ</option>
                   </select>
                 </div>
               </div>
@@ -617,6 +618,9 @@ const ActivityDetail = () => {
                     <option value="ประสานงาน">ประสานงาน</option>
                     <option value="สถานที่">สถานที่</option>
                     <option value="เอกสาร">เอกสาร</option>
+                    <option value="การตลาด">การตลาด</option>
+                    <option value="โลจิสติกส์">โลจิสติกส์</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
                   </select>
                 </div>
                 <div>

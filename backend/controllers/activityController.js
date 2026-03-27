@@ -172,6 +172,10 @@ exports.getAllActivities = async (req, res) => {
         TO_CHAR(e.event_start_date, 'YYYY-MM-DD') AS date_input,
         COALESCE(TO_CHAR(e.event_end_date, 'DD/MM/YYYY'), '') AS end_date_text,
         TO_CHAR(e.event_end_date, 'YYYY-MM-DD') AS end_date_input,
+        COALESCE(TO_CHAR(e.registration_start_date, 'DD/MM/YYYY'), '') AS registration_start,
+        TO_CHAR(e.registration_start_date, 'YYYY-MM-DD') AS registration_start_input,
+        COALESCE(TO_CHAR(e.registration_end_date, 'DD/MM/YYYY'), '') AS registration_end,
+        TO_CHAR(e.registration_end_date, 'YYYY-MM-DD') AS registration_end_input,
         COALESCE(l.max_participant, 100) AS max_participants,
         (SELECT COUNT(DISTINCT pp.participant_profile_id) FROM participant_profiles pp
          INNER JOIN mapping_event_teams met ON pp.team_id = met.team_id

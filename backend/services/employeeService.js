@@ -311,6 +311,9 @@ class EmployeeService {
         e.title,
         COALESCE(se.name, 'ไม่ระบุ') AS status,
         COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุ') AS deadline,
+        COALESCE(TO_CHAR(e.event_end_date, 'DD/MM/YYYY'), '—') AS event_end_text,
+        COALESCE(TO_CHAR(e.registration_start_date, 'DD/MM/YYYY'), '—') AS registration_start_text,
+        COALESCE(TO_CHAR(e.registration_end_date, 'DD/MM/YYYY'), '—') AS registration_end_text,
         (SELECT COUNT(DISTINCT pp.participant_profile_id) FROM participant_profiles pp
          INNER JOIN mapping_event_teams met ON pp.team_id = met.team_id
          WHERE met.event_id = e.event_id) AS current_participants,
@@ -372,12 +375,29 @@ class EmployeeService {
       };
       const participants = Number.parseInt(String(ev.current_participants ?? '0'), 10);
       const maxP = Number.parseInt(String(ev.max_participants ?? '0'), 10);
+      const regS = String(ev.registration_start_text || '').trim();
+      const regE = String(ev.registration_end_text || '').trim();
+      const regLine =
+        regS !== '—' && regS !== '' && regE !== '—' && regE !== ''
+          ? `${regS} – ${regE}`
+          : regS !== '—' && regS !== ''
+            ? `เปิด ${regS}`
+            : regE !== '—' && regE !== ''
+              ? `ปิด ${regE}`
+              : '—';
+      const evEnd = String(ev.event_end_text || '').trim();
+      const eventLine =
+        evEnd !== '—' && evEnd !== '' ? `${ev.deadline} – ${evEnd}` : ev.deadline;
+
       return {
         id:           ev.id,
         title:        ev.title,
         status:       ev.status,
         statusColor:  statusColorMap[ev.status] || 'bg-gray-100 text-gray-600',
         deadline:     ev.deadline,
+        eventEnd:     ev.event_end_text || '—',
+        registrationRange: regLine,
+        eventRange:   eventLine,
         teams:        teamMap[ev.id] ?? 0,
         participants: Number.isFinite(participants) ? participants : 0,
         maxParticipants: Number.isFinite(maxP) && maxP > 0 ? maxP : 100,
@@ -389,7 +409,17 @@ class EmployeeService {
       };
     });
 
-    // --- Urgent tasks (priority สูง, ยังไม่เสร็จ) — จำกัดโครงการที่พนักงานรับผิดชอบเมื่อมี employee_id ---
+    // --- งานเร่งด่วน: priority สูง/เร่งด่วนที่สุด หรือมีกำหนดส่งภายใน 7 วัน (รวมเลยกำหนดแล้วยังไม่เสร็จ) ---
+    const urgentWhere = `
+      COALESCE(TRIM(ts.slug), '') <> 'completed'
+      AND (
+        LOWER(TRIM(BOTH FROM COALESCE(pl.slug, ''))) IN ('high', 'urgent')
+        OR (
+          t.due_date IS NOT NULL
+          AND t.due_date::date <= (CURRENT_DATE + INTERVAL '7 days')
+        )
+      )
+    `;
     const urgentSql = employeeId
       ? `
       SELECT
@@ -399,9 +429,11 @@ class EmployeeService {
         pl.name           AS priority,
         COALESCE(
           CASE
+            WHEN t.due_date IS NULL THEN 'ไม่ระบุ'
+            WHEN t.due_date::date < CURRENT_DATE THEN 'เลยกำหนด'
             WHEN t.due_date::date = CURRENT_DATE       THEN 'วันนี้'
             WHEN t.due_date::date = CURRENT_DATE + 1   THEN 'พรุ่งนี้'
-            ELSE TO_CHAR(t.due_date, 'DD MMM')
+            ELSE TO_CHAR(t.due_date, 'DD/MM/YYYY')
           END, 'ไม่ระบุ'
         ) AS deadline
       FROM tasks t
@@ -409,10 +441,9 @@ class EmployeeService {
       LEFT JOIN events        ev ON t.event_id    = ev.event_id
       LEFT JOIN task_statuses ts ON t.status_task_id = ts.status_task_id
       LEFT JOIN priority_levels pl ON t.priority_id = pl.priority_id
-      WHERE TRIM(ts.slug) <> 'completed'
-        AND TRIM(pl.slug)  = 'high'
-      ORDER BY t.due_date NULLS LAST
-      LIMIT 5
+      WHERE ${urgentWhere}
+      ORDER BY t.due_date NULLS LAST, t.task_id ASC
+      LIMIT 8
     `
       : `
       SELECT
@@ -422,19 +453,20 @@ class EmployeeService {
         pl.name           AS priority,
         COALESCE(
           CASE
+            WHEN t.due_date IS NULL THEN 'ไม่ระบุ'
+            WHEN t.due_date::date < CURRENT_DATE THEN 'เลยกำหนด'
             WHEN t.due_date::date = CURRENT_DATE       THEN 'วันนี้'
             WHEN t.due_date::date = CURRENT_DATE + 1   THEN 'พรุ่งนี้'
-            ELSE TO_CHAR(t.due_date, 'DD MMM')
+            ELSE TO_CHAR(t.due_date, 'DD/MM/YYYY')
           END, 'ไม่ระบุ'
         ) AS deadline
       FROM tasks t
       LEFT JOIN events        ev ON t.event_id    = ev.event_id
       LEFT JOIN task_statuses ts ON t.status_task_id = ts.status_task_id
       LEFT JOIN priority_levels pl ON t.priority_id = pl.priority_id
-      WHERE TRIM(ts.slug) <> 'completed'
-        AND TRIM(pl.slug)  = 'high'
-      ORDER BY t.due_date NULLS LAST
-      LIMIT 5
+      WHERE ${urgentWhere}
+      ORDER BY t.due_date NULLS LAST, t.task_id ASC
+      LIMIT 8
     `;
     const urgentResult = await pool.query(urgentSql, employeeId ? [employeeId] : []);
 

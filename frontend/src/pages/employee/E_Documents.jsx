@@ -35,7 +35,7 @@ const TEMPLATE_FORMS = {
     ],
     summary: [
         { label: 'ชื่อโครงการ', type: 'text', placeholder: 'ระบุชื่อโครงการ' },
-        { label: 'วันที่จัดกิจกรรม', type: 'text', placeholder: 'วันที่ - วันที่' },
+        { label: 'วันที่จัดกิจกรรม', type: 'date' },
         { label: 'จำนวนผู้เข้าร่วมจริง', type: 'number', placeholder: '0' },
         { label: 'งบประมาณที่ใช้จริง (บาท)', type: 'number', placeholder: '0' },
         { label: 'สรุปผลการดำเนินงาน', type: 'textarea', placeholder: 'ระบุผลการดำเนินงาน ปัญหา และข้อเสนอแนะ' },
@@ -207,9 +207,31 @@ export default function E_Documents() {
         setTemplateSubmitError(null);
     };
 
-    const downloadDocument = (doc) => {
+    const downloadDocument = async (doc) => {
         const url = `${apiRoot()}/documents/${encodeURIComponent(String(doc.id))}/download`;
-        window.open(url, '_blank', 'noopener,noreferrer');
+        try {
+            const res = await fetch(url);
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                throw new Error(errText || `ดาวน์โหลดไม่สำเร็จ (${res.status})`);
+            }
+            const cd = res.headers.get('Content-Disposition');
+            let filename = `${String(doc.name || 'document').replace(/[/\\?%*:|"<>]/g, '_')}_summary.txt`;
+            const m = cd && /filename\*?=(?:UTF-8'')?["']?([^"';]+)/i.exec(cd);
+            if (m?.[1]) filename = decodeURIComponent(m[1].replace(/["']/g, ''));
+            const blob = await res.blob();
+            const href = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = href;
+            a.download = filename;
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(href);
+        } catch (e) {
+            alert(e?.message || 'ดาวน์โหลดไม่สำเร็จ — ตรวจสอบว่า Backend รันและ proxy /api ถูกต้อง');
+        }
     };
 
     return (

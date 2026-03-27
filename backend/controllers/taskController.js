@@ -25,19 +25,62 @@ function resolvePrioritySlug(raw) {
 
 /** คืน priority_id จาก slug หรือชื่อที่ตรงกับตาราง */
 async function lookupPriorityId(client, raw) {
-  const slug = resolvePrioritySlug(raw);
+  const trimmed = String(raw ?? '').trim();
+  const slug = resolvePrioritySlug(trimmed);
   if (slug) {
     const bySlug = await client.query(
-      `SELECT priority_id FROM priority_levels WHERE TRIM(LOWER(slug)) = TRIM(LOWER($1)) LIMIT 1`,
+      `SELECT priority_id FROM priority_levels WHERE LOWER(TRIM(BOTH FROM slug)) = LOWER(TRIM(BOTH FROM $1::text)) LIMIT 1`,
       [slug]
     );
     if (bySlug.rowCount > 0) return bySlug;
   }
-  const byName = await client.query(
-    `SELECT priority_id FROM priority_levels WHERE name = $1 OR TRIM(LOWER(slug)) = TRIM(LOWER($1)) LIMIT 1`,
-    [String(raw || '').trim()]
+  if (trimmed) {
+    const byName = await client.query(
+      `SELECT priority_id FROM priority_levels WHERE TRIM(name) = TRIM($1) LIMIT 1`,
+      [trimmed]
+    );
+    if (byName.rowCount > 0) return byName;
+  }
+  return { rowCount: 0, rows: [] };
+}
+
+/** ป้ายหมวดในฟอร์ม → slug ใน task_categories (รองรับ DB แบบ mock / seed) */
+const CATEGORY_LABEL_TO_SLUG = {
+  ทั่วไป: 'general',
+  ประสานงาน: 'prep',
+  สถานที่: 'prep',
+  เอกสาร: 'summary',
+  การตลาด: 'pr',
+  โลจิสติกส์: 'event',
+  อื่นๆ: 'general',
+  อย่างอื่น: 'general',
+};
+
+async function lookupCategoryId(client, raw) {
+  const name = String(raw ?? '').trim();
+  if (name) {
+    const exact = await client.query(
+      `SELECT task_category_id FROM task_categories WHERE TRIM(name) = TRIM($1) LIMIT 1`,
+      [name]
+    );
+    if (exact.rowCount > 0) return exact;
+  }
+  const slugHint = name ? CATEGORY_LABEL_TO_SLUG[name] : null;
+  if (slugHint) {
+    const bySlug = await client.query(
+      `SELECT task_category_id FROM task_categories WHERE LOWER(TRIM(BOTH FROM slug)) = LOWER(TRIM(BOTH FROM $1::text)) LIMIT 1`,
+      [slugHint]
+    );
+    if (bySlug.rowCount > 0) return bySlug;
+  }
+  const general = await client.query(
+    `SELECT task_category_id FROM task_categories WHERE LOWER(TRIM(BOTH FROM slug)) = 'general' LIMIT 1`
   );
-  return byName;
+  if (general.rowCount > 0) return general;
+  const first = await client.query(
+    `SELECT task_category_id FROM task_categories ORDER BY task_category_id ASC LIMIT 1`
+  );
+  return first;
 }
 
 function parseTaskDueDate(raw) {
@@ -71,7 +114,7 @@ exports.getTasks = async (req, res) => {
         END AS status,
         COALESCE(t.progress_percent, 0) AS progress,
         COALESCE(pl.name, 'ปกติ') AS priority,
-        COALESCE(TRIM(pl.slug), 'medium') AS priority_slug,
+        COALESCE(NULLIF(TRIM(pl.slug), ''), 'medium') AS priority_slug,
         COALESCE(TO_CHAR(t.due_date, 'DD/MM/YY'), 'ไม่ระบุวันที่') AS date,
         CASE WHEN t.due_date IS NULL THEN NULL ELSE TO_CHAR(t.due_date, 'YYYY-MM-DD') END AS due_date_iso,
         COALESCE(tc.name, 'ทั่วไป') AS category
@@ -177,7 +220,7 @@ exports.createTask = async (req, res) => {
     let pr = await lookupPriorityId(pool, priority);
     if (pr.rowCount === 0) {
       pr = await pool.query(
-        `SELECT priority_id FROM priority_levels WHERE slug = 'medium' LIMIT 1`
+        `SELECT priority_id FROM priority_levels WHERE LOWER(TRIM(BOTH FROM slug)) = 'medium' LIMIT 1`
       );
     }
     if (pr.rowCount === 0) {
@@ -187,18 +230,7 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ error: 'ไม่พบระดับความสำคัญในระบบ — รัน seed / init DB' });
     }
 
-    const catName = String(category || 'ทั่วไป').trim();
-    let ct = await pool.query(`SELECT task_category_id FROM task_categories WHERE name = $1 LIMIT 1`, [
-      catName,
-    ]);
-    if (ct.rowCount === 0) {
-      ct = await pool.query(
-        `SELECT task_category_id FROM task_categories WHERE slug = 'general' LIMIT 1`
-      );
-    }
-    if (ct.rowCount === 0) {
-      ct = await pool.query(`SELECT task_category_id FROM task_categories ORDER BY task_category_id ASC LIMIT 1`);
-    }
+    let ct = await lookupCategoryId(pool, category || 'ทั่วไป');
     if (ct.rowCount === 0) {
       return res.status(400).json({ error: 'ไม่พบหมวดงานในระบบ — รัน seed / init DB' });
     }

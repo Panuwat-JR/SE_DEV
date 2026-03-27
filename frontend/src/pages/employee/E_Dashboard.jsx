@@ -107,13 +107,14 @@ export default function E_Dashboard() {
                                 <th className="px-5 py-3 text-center">งาน</th>
                                 <th className="px-5 py-3 text-left">ความคืบหน้า</th>
                                 <th className="px-5 py-3 text-center">งานค้าง</th>
-                                <th className="px-5 py-3 text-left">กำหนด</th>
+                                <th className="px-5 py-3 text-left">รับสมัคร</th>
+                                <th className="px-5 py-3 text-left">วันเปิด–ปิดโครงการ</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-gray-700">
                             {projects.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-5 py-10 text-center text-gray-500 text-sm leading-relaxed">
+                                    <td colSpan={8} className="px-5 py-10 text-center text-gray-500 text-sm leading-relaxed">
                                         ยังไม่มีกิจกรรม (โครงการ) ในระบบ
                                         <span className="block text-xs text-gray-400 mt-2">
                                             สร้างกิจกรรมจากเมนู &quot;จัดการโครงการ&quot; หรือนำเข้าข้อมูลในตาราง events
@@ -162,8 +163,17 @@ export default function E_Dashboard() {
                                             </span>
                                         ) : <span className="text-gray-300 text-xs">—</span>}
                                     </td>
-                                    <td className="px-5 py-3.5 text-xs text-gray-500 flex items-center gap-1.5">
-                                        <Calendar size={12} className="text-gray-400" /> {proj.deadline}
+                                    <td className="px-5 py-3.5 text-xs text-gray-500">
+                                        <div className="flex items-start gap-1.5 max-w-[10rem]">
+                                            <Calendar size={12} className="text-gray-400 shrink-0 mt-0.5" />
+                                            <span>{proj.registrationRange ?? '—'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-3.5 text-xs text-gray-500">
+                                        <div className="flex items-start gap-1.5 max-w-[10rem]">
+                                            <Calendar size={12} className="text-gray-400 shrink-0 mt-0.5" />
+                                            <span>{proj.eventRange ?? proj.deadline}</span>
+                                        </div>
                                     </td>
                                 </tr>
                                 );
@@ -189,7 +199,13 @@ export default function E_Dashboard() {
                                 <p className="text-sm font-semibold text-gray-800 truncate">{task.name}</p>
                                 <p className="text-xs text-gray-500">{task.project}</p>
                             </div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${task.deadline === 'วันนี้' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                                task.deadline === 'วันนี้' || task.deadline === 'เลยกำหนด'
+                                    ? 'bg-red-100 text-red-700'
+                                    : task.deadline === 'พรุ่งนี้'
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : 'bg-amber-100 text-amber-700'
+                            }`}>
                                 {task.deadline}
                             </span>
                         </div>

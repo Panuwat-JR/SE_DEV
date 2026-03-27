@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Plus, Edit, Trash2, Clock, Trophy, Eye, X, Upload, File, Users, CalendarDays, MapPin, CheckCircle2, FileText, ChevronRight, Mail, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { API_BASE as API_ORIGIN } from '../config/api';
@@ -345,16 +346,19 @@ function Activities() {
         </div>
       </div>
 
-      {/* Modal ดูรายละเอียดกิจกรรม */}
-      {selectedActivity && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+      {/* Modal ดูรายละเอียด + รายชื่อผู้สมัคร — portal ไป body กันโดน parent overflow/stacking บังคลิก */}
+      {typeof document !== 'undefined' &&
+        selectedActivity &&
+        createPortal(
+          <>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[300] backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] pointer-events-auto">
 
             {/* Header คล้ายแบนเนอร์ */}
             <div className="relative bg-gradient-to-br from-blue-700 to-indigo-900 px-8 py-10 shrink-0 overflow-hidden">
               {/* Decorative background elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4"></div>
+              <div className="pointer-events-none absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" aria-hidden />
+              <div className="pointer-events-none absolute bottom-0 left-0 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4" aria-hidden />
 
               <div className="relative z-10 flex justify-between items-start">
                 <div className="text-white space-y-3">
@@ -428,11 +432,25 @@ function Activities() {
                     <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
                       {(() => {
                         const items = [];
+                        if ((selectedActivity.registration_start || '').trim()) {
+                          items.push({
+                            date: selectedActivity.registration_start,
+                            title: 'เปิดรับสมัคร',
+                            desc: 'จากวันที่ในระบบ (registration_start_date)',
+                          });
+                        }
+                        if ((selectedActivity.registration_end || '').trim()) {
+                          items.push({
+                            date: selectedActivity.registration_end,
+                            title: 'ปิดรับสมัคร',
+                            desc: 'จากวันที่ในระบบ (registration_end_date)',
+                          });
+                        }
                         if (selectedActivity.date_text && selectedActivity.date_text !== 'ยังไม่ระบุวันที่') {
                           items.push({
                             date: selectedActivity.date_text,
-                            title: 'วันเริ่ม / จุดอ้างอิงหลัก',
-                            desc: 'จากวันที่ลงทะเบียนกิจกรรมในระบบ',
+                            title: 'วันเริ่มโครงการ / จัดกิจกรรม',
+                            desc: 'จาก event_start_date ในระบบ',
                           });
                         }
                         if ((selectedActivity.end_date_text || '').trim()) {
@@ -543,10 +561,9 @@ function Activities() {
 
           </div>
         </div>
-      )}
 
-      {selectedActivity && applicantsOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
+      {applicantsOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[310] p-4">
           <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden">
             <div className="flex justify-between items-center p-5 border-b border-gray-100 shrink-0">
               <div>
@@ -609,6 +626,9 @@ function Activities() {
           </div>
         </div>
       )}
+          </>,
+          document.body
+        )}
 
       {/* Modal แก้ไข */}
       {isEditModalOpen && editingActivity && (

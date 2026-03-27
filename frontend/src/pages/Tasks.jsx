@@ -348,6 +348,7 @@ function Tasks() {
                     <option value="เอกสาร">เอกสาร</option>
                     <option value="การตลาด">การตลาด</option>
                     <option value="โลจิสติกส์">โลจิสติกส์</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
                   </select>
                 </div>
                 <div>
