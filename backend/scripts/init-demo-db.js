@@ -68,6 +68,29 @@ function applySchemaWithDocker() {
   return true;
 }
 
+/** สำรองเมื่อไม่มี Docker แต่มี psql + DATABASE_URL ชี้ Postgres โดยตรง */
+function applySchemaWithPsql() {
+  if (!fs.existsSync(SCHEMA_FILE)) {
+    console.error('❌ ไม่พบ se.sql ที่', SCHEMA_FILE);
+    return false;
+  }
+  if (!process.env.DATABASE_URL) return false;
+  const r = spawnSync(
+    'psql',
+    [process.env.DATABASE_URL, '-v', 'ON_ERROR_STOP=1', '-f', SCHEMA_FILE],
+    { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 }
+  );
+  if (r.error) {
+    console.warn('⚠️  psql ไม่พบใน PATH — ติดตั้ง postgresql-client หรือใช้ Docker (docker compose)');
+    return false;
+  }
+  if (r.status !== 0) {
+    console.error(r.stderr || r.stdout || 'psql -f se.sql failed');
+    return false;
+  }
+  return true;
+}
+
 async function runMigrations(client) {
   if (!fs.existsSync(MIGRATIONS_DIR)) return;
   const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
@@ -416,8 +439,13 @@ async function main() {
     if (!hasSchema) {
       client.release();
       client = null;
-      console.log('📐 ยังไม่มีตาราง — กำลังสร้าง schema จาก se.sql (Docker)...');
-      if (!applySchemaWithDocker()) {
+      console.log('📐 ยังไม่มีตาราง — กำลังสร้าง schema จาก se.sql...');
+      let schemaOk = applySchemaWithDocker();
+      if (!schemaOk) {
+        console.log('   (ลอง docker ไม่สำเร็จ — ลอง psql -f se.sql)');
+        schemaOk = applySchemaWithPsql();
+      }
+      if (!schemaOk) {
         process.exitCode = 1;
         return;
       }

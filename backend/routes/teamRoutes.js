@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const teamController = require('../controllers/teamController');
 
-// เมื่อหน้าเว็บเรียก API มาที่ /api/teams ให้ไปดึงข้อมูลจาก Controller
 router.get('/', teamController.getTeamsData);
+router.post('/', teamController.createTeam);
 
 module.exports = router;

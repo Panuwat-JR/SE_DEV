@@ -9,9 +9,9 @@ const Teams = () => {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [formData, setFormData] = useState({ name: '', project_name: '', event_id: '' });
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    addTeam({ ...formData, members: [] });
+    await addTeam({ ...formData, members: [] });
     setIsCreateOpen(false);
     setFormData({ name: '', project_name: '', event_id: '' });
   };
@@ -127,7 +127,7 @@ const Teams = () => {
                     <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600"><Trophy size={18} /></div>
                     <div>
                       <p className="text-xs text-gray-500 font-medium">กิจกรรมที่เข้าร่วม</p>
-                      <p className="text-lg font-bold text-gray-800">1 รายการ</p>
+                      <p className="text-lg font-bold text-gray-800">{selectedTeam.eventCount ?? 1} รายการ</p>
                     </div>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">

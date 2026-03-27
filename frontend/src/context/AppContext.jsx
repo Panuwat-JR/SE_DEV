@@ -76,6 +76,18 @@ export const AppProvider = ({ children }) => {
             .catch(err => {
                 console.warn('⚠️ ไม่สามารถเชื่อม API employees ได้ ใช้ Mock Data แทน:', err.message);
             });
+
+        // ทีม — ดึงจาก DB ทั้งรายการและสมาชิก (สอดคล้องกับสถิติ dashboard)
+        fetch(`${API_BASE}/teams`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data?.teamsData)) {
+                    setTeams(data.teamsData);
+                }
+            })
+            .catch(err => {
+                console.warn('⚠️ ไม่สามารถเชื่อม API teams ได้ ใช้ Mock Data แทน:', err.message);
+            });
     }, []);
 
     // ==================== EVENTS ====================
@@ -174,18 +186,32 @@ export const AppProvider = ({ children }) => {
     };
 
     // ==================== TEAMS ====================
-    const addTeam = (data) => {
-        const eventName = events.find(e => e.id === Number(data.event_id))?.title || '';
-        const newTeam = {
-            ...data,
-            id: Date.now(),
-            event: eventName,
-            memberCount: data.members?.length || 0,
-            docsCount: 0,
-            members: data.members || [],
-        };
-        setTeams(prev => [...prev, newTeam]);
-        _addLog('team', 'สร้างทีมใหม่', newTeam.name);
+    const addTeam = async (data) => {
+        try {
+            const res = await fetch(`${API_BASE}/teams`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: data.name,
+                    project_name: data.project_name || '',
+                    event_id: data.event_id === '' || data.event_id == null ? null : data.event_id,
+                }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                console.error('addTeam API:', payload?.error || res.status);
+                return;
+            }
+            const fresh = await fetch(`${API_BASE}/teams`).then(r => r.json());
+            if (Array.isArray(fresh.teamsData)) {
+                setTeams(fresh.teamsData);
+            }
+            _addLog('team', 'สร้างทีมใหม่', payload?.team?.name || data.name);
+            const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+            if (dash.stats) setDbStats(dash.stats);
+        } catch (err) {
+            console.error('addTeam Error:', err);
+        }
     };
 
     // ==================== DOCUMENTS ====================

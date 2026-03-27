@@ -48,6 +48,37 @@ normalize_backend_env() {
   tr -d '\r' < "$f" | sed 's/[[:space:]]*$//' > "$tmp" && mv "$tmp" "$f"
 }
 
+# ถ้า .env ยังชี้ DB คลาวด์เก่า (ตรวจจากโดเมนที่เคยใช้กับ hosted Postgres) — บังคับให้ใช้ Postgres ใน Docker ตาม .env.example
+ensure_local_postgres_database_url() {
+  local f="$BACKEND_DIR/.env"
+  local ex="$BACKEND_DIR/.env.example"
+  [ -f "$f" ] || return 0
+  if ! grep -qE '^[[:space:]]*DATABASE_URL=' "$f" 2>/dev/null; then
+    return 0
+  fi
+  if ! grep -qiE 'neon\.tech|neondatabase\.app|\.aws\.neon\.|neon\.aws' "$f" 2>/dev/null; then
+    return 0
+  fi
+  local replacement=""
+  if [ -f "$ex" ]; then
+    replacement="$(grep -E '^[[:space:]]*DATABASE_URL=' "$ex" | head -1 | tr -d '\r' | sed 's/[[:space:]]*$//')"
+  fi
+  if [ -z "$replacement" ]; then
+    replacement="DATABASE_URL=postgresql://nuseed:nuseed@127.0.0.1:55432/nuseed"
+  fi
+  local tmp
+  tmp="$(mktemp 2>/dev/null || echo "${f}.nuseed.dburl.$$")"
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line//$'\r'/}"
+    if [[ "$line" =~ ^[[:space:]]*DATABASE_URL= ]]; then
+      echo "$replacement"
+    else
+      echo "$line"
+    fi
+  done < "$f" > "$tmp" && mv "$tmp" "$f"
+  echo -e "${YELLOW}⚠️   พบ DATABASE_URL ชี้ DB คลาวด์ — แก้เป็นค่า local Postgres แล้ว (ดู backend/.env)${NC}"
+}
+
 # WSL2 + Docker Desktop: พอร์ต publish อยู่ฝั่ง Windows — จาก bash ใน WSL บางที 127.0.0.1:55432 ไม่ถึง
 # ถ้าเช็ค /dev/tcp แล้วต่อไม่ได้ แต่ DATABASE_URL ชี้ 127.0.0.1/local host:55432 จะ export URL ใหม่ชี้ IP ใน resolv.conf
 wsl2_fix_database_url_for_docker_desktop() {
@@ -91,6 +122,7 @@ if [ ! -f "$BACKEND_DIR/.env" ]; then
 fi
 
 normalize_backend_env
+ensure_local_postgres_database_url
 
 # PostgreSQL ใน Docker (ถ้ามี Docker) — เพื่อนใหม่ pull แล้วรันได้ทันที
 POSTGRES_READY=0
