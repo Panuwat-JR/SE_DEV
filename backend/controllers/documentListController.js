@@ -1,0 +1,113 @@
+const pool = require('../config/db');
+
+/** รายการเอกสารสำหรับหน้าผู้บริหาร — โยงโครงการผ่าน mapping_doc_tasks → tasks → events */
+exports.listDocuments = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT ON (d.document_id)
+        d.document_id AS id,
+        d.name,
+        COALESCE(ds.name, 'ไม่ระบุ') AS doc_status,
+        TO_CHAR(d.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS date,
+        COALESCE(e.title, 'ไม่ระบุ') AS project,
+        '—' AS author,
+        COALESCE(d.file_type, 'เอกสาร') AS type
+      FROM documents d
+      LEFT JOIN document_statuses ds ON ds.doc_status_id = d.doc_status_id
+      LEFT JOIN mapping_doc_tasks mdt ON mdt.document_id = d.document_id
+      LEFT JOIN tasks tk ON tk.task_id = mdt.task_id
+      LEFT JOIN events e ON e.event_id = tk.event_id
+      ORDER BY d.document_id, d.updated_at DESC NULLS LAST, e.event_id NULLS LAST
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('listDocuments:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+/**
+ * สร้างเอกสารและผูกกับงานแรกของโครงการ (ชื่อโครงการ = title ของ events)
+ */
+exports.createDocument = async (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  const projectTitle = String(req.body?.project || '').trim();
+  if (!name) return res.status(400).json({ error: 'ต้องระบุชื่อเอกสาร' });
+  if (!projectTitle) return res.status(400).json({ error: 'ต้องระบุโครงการ' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const ev = await client.query(
+      `SELECT event_id FROM events WHERE TRIM(title) = TRIM($1) LIMIT 1`,
+      [projectTitle]
+    );
+    if (ev.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'ไม่พบโครงการที่ตรงกับชื่อนี้' });
+    }
+    const eventId = ev.rows[0].event_id;
+
+    const taskR = await client.query(
+      `SELECT task_id FROM tasks WHERE event_id = $1 ORDER BY task_id ASC LIMIT 1`,
+      [eventId]
+    );
+    if (taskR.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'โครงการนี้ยังไม่มีงาน — สร้างงานก่อนจึงจะผูกเอกสารได้' });
+    }
+    const taskId = taskR.rows[0].task_id;
+
+    const statusR = await client.query(
+      `SELECT doc_status_id FROM document_statuses ORDER BY doc_status_id ASC LIMIT 1`
+    );
+    const docStatusId = statusR.rows[0]?.doc_status_id ?? null;
+
+    const ins = await client.query(
+      `
+      INSERT INTO documents (doc_status_id, name, file_storage_path, file_type, file_size, generation_status)
+      VALUES ($1, $2, NULL, NULL, NULL, 'registered')
+      RETURNING document_id, name, created_at, doc_status_id
+    `,
+      [docStatusId, name]
+    );
+    const doc = ins.rows[0];
+
+    await client.query(
+      `INSERT INTO mapping_doc_tasks (task_id, document_id) VALUES ($1, $2)
+       ON CONFLICT (task_id, document_id) DO NOTHING`,
+      [taskId, doc.document_id]
+    );
+
+    const ds = await client.query(`SELECT name FROM document_statuses WHERE doc_status_id = $1`, [
+      doc.doc_status_id,
+    ]);
+    const et = await client.query(`SELECT title FROM events WHERE event_id = $1`, [eventId]);
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      message: 'บันทึกสำเร็จ',
+      data: {
+        id: doc.document_id,
+        name: doc.name,
+        doc_status: ds.rows[0]?.name || 'ร่าง',
+        date: new Date(doc.created_at).toLocaleDateString('th-TH'),
+        project: et.rows[0]?.title || projectTitle,
+        author: '—',
+        type: 'เอกสาร',
+      },
+    });
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* ignore */
+    }
+    console.error('createDocument:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  } finally {
+    client.release();
+  }
+};

@@ -45,7 +45,7 @@ export const AppProvider = ({ children }) => {
         fetch(`${API_BASE}/activities`)
             .then(res => res.json())
             .then(data => {
-                if (data && data.length > 0) {
+                if (Array.isArray(data)) {
                     setEvents(data);
                 }
             })
@@ -57,7 +57,7 @@ export const AppProvider = ({ children }) => {
         fetch(`${API_BASE}/tasks`)
             .then(res => res.json())
             .then(data => {
-                if (data && data.length > 0) {
+                if (Array.isArray(data)) {
                     setTasks(data);
                 }
             })
@@ -69,7 +69,7 @@ export const AppProvider = ({ children }) => {
         fetch(`${API_BASE}/employees`)
             .then(res => res.json())
             .then(data => {
-                if (data && data.length > 0) {
+                if (Array.isArray(data)) {
                     setEmployees(data);
                 }
             })
@@ -88,6 +88,28 @@ export const AppProvider = ({ children }) => {
             .catch(err => {
                 console.warn('⚠️ ไม่สามารถเชื่อม API teams ได้ ใช้ Mock Data แทน:', err.message);
             });
+
+        fetch(`${API_BASE}/participants-admin`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setParticipants(data);
+                }
+            })
+            .catch(err => {
+                console.warn('⚠️ ไม่สามารถเชื่อม API participants-admin ได้ ใช้ Mock Data แทน:', err.message);
+            });
+
+        fetch(`${API_BASE}/documents`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setDocuments(data);
+                }
+            })
+            .catch(err => {
+                console.warn('⚠️ ไม่สามารถเชื่อม API documents ได้ ใช้ Mock Data แทน:', err.message);
+            });
     }, []);
 
     // ==================== EVENTS ====================
@@ -100,9 +122,11 @@ export const AppProvider = ({ children }) => {
                 body: JSON.stringify(data)
             });
             if (res.ok) {
-                const result = await res.json();
-                setEvents(prev => [...prev, { ...data, id: result.data.id }]);
+                const fresh = await fetch(`${API_BASE}/activities`).then(r => r.json());
+                if (Array.isArray(fresh)) setEvents(fresh);
                 _addLog('event', 'สร้างกิจกรรมใหม่', data.title);
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
             }
         } catch (err) {
             console.error('addEvent Error:', err);
@@ -117,8 +141,11 @@ export const AppProvider = ({ children }) => {
                 body: JSON.stringify(data)
             });
             if (res.ok) {
-                setEvents(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+                const fresh = await fetch(`${API_BASE}/activities`).then(r => r.json());
+                if (Array.isArray(fresh)) setEvents(fresh);
                 _addLog('event', 'อัปเดตกิจกรรม', data.title || '');
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
             }
         } catch (err) {
             console.error('updateEvent Error:', err);
@@ -130,8 +157,11 @@ export const AppProvider = ({ children }) => {
             const res = await fetch(`${API_BASE}/activities/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 const deleted = events.find(e => e.id === id);
-                setEvents(prev => prev.filter(e => e.id !== id));
+                const fresh = await fetch(`${API_BASE}/activities`).then(r => r.json());
+                if (Array.isArray(fresh)) setEvents(fresh);
                 _addLog('event', 'ลบกิจกรรม', deleted?.title || '');
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
             }
         } catch (err) {
             console.error('deleteEvent Error:', err);
@@ -215,10 +245,31 @@ export const AppProvider = ({ children }) => {
     };
 
     // ==================== DOCUMENTS ====================
-    const addDocument = (data) => {
+    const addDocument = async (data) => {
+        const docName = data.name || `เอกสาร_${data.project || 'ไม่ระบุ'}`;
+        try {
+            const res = await fetch(`${API_BASE}/documents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: docName, project: data.project }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok) {
+                const list = await fetch(`${API_BASE}/documents`).then(r => r.json());
+                if (Array.isArray(list)) setDocuments(list);
+                _addLog('document', 'สร้างเอกสารใหม่', docName);
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                return;
+            }
+            console.warn('addDocument API:', payload?.error || res.status);
+        } catch (err) {
+            console.warn('addDocument Error:', err.message);
+        }
         const newDoc = {
             ...data,
             id: Date.now(),
+            name: docName,
             date: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }),
             doc_status: data.doc_status || 'ร่าง',
         };
@@ -252,17 +303,58 @@ export const AppProvider = ({ children }) => {
     };
 
     // ==================== PARTICIPANTS ====================
-    const addParticipant = (data) => {
+    const addParticipant = async (data) => {
+        try {
+            const res = await fetch(`${API_BASE}/participants-admin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    firstname: data.firstname,
+                    lastname: data.lastname,
+                    team_id: data.team_id === '' ? null : data.team_id,
+                    faculty: data.faculty,
+                    major: data.major,
+                    student_id: data.student_id,
+                    year_of_study: data.year_of_study,
+                    phone: data.phone,
+                    email: data.email,
+                    type: data.type,
+                }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok) {
+                const list = await fetch(`${API_BASE}/participants-admin`).then(r => r.json());
+                if (Array.isArray(list)) setParticipants(list);
+                _addLog('team', 'เพิ่มผู้เข้าร่วม', `${data.firstname} ${data.lastname || ''}`.trim());
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                return;
+            }
+            console.error('addParticipant API:', payload?.error || res.status);
+        } catch (err) {
+            console.error('addParticipant Error:', err);
+        }
         const teamName = teams.find(t => t.id === Number(data.team_id))?.name || 'ไม่ระบุทีม';
-        const newP = {
+        setParticipants(prev => [...prev, {
             ...data,
             id: Date.now(),
             team_name: teamName,
-        };
-        setParticipants(prev => [...prev, newP]);
+        }]);
     };
 
-    const deleteParticipant = (id) => {
+    const deleteParticipant = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/participants-admin/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                const list = await fetch(`${API_BASE}/participants-admin`).then(r => r.json());
+                if (Array.isArray(list)) setParticipants(list);
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                return;
+            }
+        } catch (err) {
+            console.error('deleteParticipant Error:', err);
+        }
         setParticipants(prev => prev.filter(p => p.id !== id));
     };
 

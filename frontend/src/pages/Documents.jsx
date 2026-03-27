@@ -14,17 +14,18 @@ const Documents = () => {
     expense_type: 'ค่าเดินทาง', amount: '', expense_date: '', description: '', agency: 'NIA'
   });
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
     const docName = formData.name || `ใบเบิกจ่าย_${formData.project || 'ไม่ระบุ'}`;
-    addDocument({ ...formData, name: docName });
+    await addDocument({ ...formData, name: docName });
     setIsCreateOpen(false);
+    setActiveTab('all');
     setFormData({ name: '', project: '', doc_status: 'ร่าง', type: 'ใบเบิกจ่าย (NIA)', author: 'สมชาย สมศรี', fileName: '', expense_type: 'ค่าเดินทาง', amount: '', expense_date: '', description: '', agency: 'NIA' });
   };
 
   const filtered = documents.filter(d =>
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.project.toLowerCase().includes(searchTerm.toLowerCase())
+    (d.project || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusColor = (status) => {

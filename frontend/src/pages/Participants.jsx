@@ -10,9 +10,12 @@ const Participants = () => {
     firstname: '', lastname: '', team_id: '', faculty: '', major: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา'
   });
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    addParticipant({ ...formData, year_of_study: Number(formData.year_of_study) });
+    await addParticipant({
+      ...formData,
+      year_of_study: formData.year_of_study === '' ? '' : Number(formData.year_of_study),
+    });
     setIsCreateOpen(false);
     setFormData({ firstname: '', lastname: '', team_id: '', faculty: '', major: '', student_id: '', year_of_study: '', phone: '', email: '', type: 'นิสิต/นักศึกษา' });
   };
@@ -106,9 +109,9 @@ const Participants = () => {
                     <div className="flex items-center gap-1.5 text-xs text-gray-500"><Phone size={12} /> {person.phone || '-'}</div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-center text-xs font-medium">ปี {person.year_of_study}</td>
+                <td className="px-6 py-4 text-center text-xs font-medium">{person.year_of_study != null ? `ปี ${person.year_of_study}` : '—'}</td>
                 <td className="px-6 py-4 text-center">
-                  <button onClick={() => { if (window.confirm(`ลบ ${person.firstname}?`)) deleteParticipant(person.id); }}
+                  <button onClick={() => { if (window.confirm(`ลบ ${person.firstname}?`)) void deleteParticipant(person.id); }}
                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={16} />
                   </button>
@@ -177,8 +180,8 @@ const Participants = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
-                  <input type="email" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล <span className="text-red-500">*</span></label>
+                  <input type="email" required className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
                 </div>
                 <div>

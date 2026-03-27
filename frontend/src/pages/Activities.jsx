@@ -26,7 +26,11 @@ function Activities() {
 
   const handleSaveEdit = (e) => {
     e.preventDefault();
-    updateEvent(editingActivity.id, editingActivity);
+    const payload = {
+      ...editingActivity,
+      date_text: editingActivity.date_input || editingActivity.date_text,
+    };
+    updateEvent(editingActivity.id, payload);
     setIsEditModalOpen(false);
   };
 
@@ -351,8 +355,8 @@ function Activities() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">วันที่จัดกิจกรรม</label>
                   <input type="date" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                    value={editingActivity.date_text ? editingActivity.date_text.split('/').reverse().join('-') : ''} 
-                    onChange={(e) => setEditingActivity({ ...editingActivity, date_text: e.target.value })} />
+                    value={editingActivity.date_input || ''}
+                    onChange={(e) => setEditingActivity({ ...editingActivity, date_input: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
