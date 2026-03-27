@@ -1,8 +1,10 @@
 import React from 'react';
 import { MessageSquare, User, Calendar, Star } from 'lucide-react';
+import { displayFeedbackComment } from '../../utils/feedbackCommentDisplay';
 
 const FeedbackCard = ({ feedback }) => {
     const { user_name, project_name, comment, date, rating } = feedback;
+    const commentText = displayFeedbackComment(comment);
     const stars = Math.min(5, Math.max(0, Number(rating) || 0));
     
     return (
@@ -34,10 +36,10 @@ const FeedbackCard = ({ feedback }) => {
                         </div>
                     </div>
                     
-                    <div className="mt-4 flex gap-2">
-                        <MessageSquare className="text-gray-200 flex-shrink-0" size={16} />
-                        <p className="text-gray-600 text-sm leading-relaxed italic">
-                            "{comment}"
+                    <div className="mt-4 flex gap-2 items-start">
+                        <MessageSquare className="text-gray-300 flex-shrink-0 mt-0.5" size={16} />
+                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-words min-w-0">
+                            {commentText.trim() ? commentText : '—'}
                         </p>
                     </div>
                 </div>

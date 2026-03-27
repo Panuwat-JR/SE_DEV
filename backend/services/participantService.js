@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { parseParticipantPortalComment, PARTICIPANT_PORTAL_PREFIX } = require('../utils/feedbackComment');
 
 /** ค่าเริ่มต้นเมื่อไม่มี header/query — กำหนดทับด้วย DEMO_PARTICIPANT_FIRSTNAME ใน .env */
 const DEMO_PARTICIPANT_FIRSTNAME = 'ปิยะ';
@@ -972,18 +973,13 @@ class ParticipantService {
     `,
       [pid]
     );
-    const prefix = '[participant_portal] ';
     return r.rows.map((row) => {
       let project = 'ทั่วไป';
       let text = row.comment || '';
-      if (text.startsWith(prefix)) {
-        try {
-          const meta = JSON.parse(text.slice(prefix.length));
-          project = meta.projectTitle || project;
-          text = meta.comment != null ? String(meta.comment) : '';
-        } catch {
-          /* เก็บข้อความดิบ */
-        }
+      const meta = parseParticipantPortalComment(text);
+      if (meta) {
+        project = meta.projectTitle || project;
+        text = meta.comment != null ? String(meta.comment) : '';
       }
       return {
         id: row.id,
@@ -1031,7 +1027,7 @@ class ParticipantService {
       aspects: aspects || {},
       comment: comment || '',
     };
-    const fullComment = `[participant_portal] ${JSON.stringify(meta)}`;
+    const fullComment = `${PARTICIPANT_PORTAL_PREFIX}${JSON.stringify(meta)}`;
     await pool.query(
       `INSERT INTO feedbacks (participant_id, rating, comment) VALUES ($1, $2, $3)`,
       [pid, rating, fullComment]

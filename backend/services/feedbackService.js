@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { humanizeStoredFeedbackComment } = require('../utils/feedbackComment');
 
 /** ค่า event_id เมื่อ feedback ไม่ผูกกับ events (JOIN ได้ NULL) — ต้องตรงกับฝั่ง UI */
 const EVENT_UNASSIGNED = '__unassigned__';
@@ -43,7 +44,10 @@ class FeedbackService {
 
     query += ` ORDER BY f.feedback_id, f.create_at DESC`;
     const result = await pool.query(query, params);
-    return result.rows;
+    return result.rows.map((row) => ({
+      ...row,
+      comment: humanizeStoredFeedbackComment(row.comment),
+    }));
   }
 
   async getFeedbackStats(filters = {}) {
