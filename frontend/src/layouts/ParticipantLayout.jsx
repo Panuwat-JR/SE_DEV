@@ -10,7 +10,8 @@ import { useAuth } from '../context/AuthContext';
 
 const MENUS = [
     { name: 'แดชบอร์ด', icon: LayoutDashboard, path: '/participant/dashboard' },
-    { name: 'โครงการของฉัน', icon: ChevronRight, path: '/participant/projects/1' },
+    // แยกหน้ารายการ “โครงการของฉัน” ออกจากหน้าแดชบอร์ด เพื่อไม่ให้ดูเหมือนรวมกัน
+    { name: 'โครงการของฉัน', icon: ChevronRight, path: '/participant/projects' },
     { name: 'เอกสาร', icon: FileText, path: '/participant/documents' },
     { name: 'ทีม', icon: Users, path: '/participant/team' },
     { name: 'การแจ้งเตือน', icon: Bell, path: '/participant/notifications' },

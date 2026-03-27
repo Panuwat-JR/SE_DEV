@@ -8,6 +8,7 @@ import Login from './pages/Login';
 // ── Participant pages ──────────────────────────────────
 import ParticipantLayout from './layouts/ParticipantLayout';
 import P_Dashboard from './pages/participant/P_Dashboard';
+import P_Projects from './pages/participant/P_Projects';
 import P_ProjectDetail from './pages/participant/P_ProjectDetail';
 import P_Documents from './pages/participant/P_Documents';
 import P_Team from './pages/participant/P_Team';
@@ -58,6 +59,7 @@ function App() {
         }>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<P_Dashboard />} />
+          <Route path="projects" element={<P_Projects />} />
           <Route path="projects/:id" element={<P_ProjectDetail />} />
           <Route path="documents" element={<P_Documents />} />
           <Route path="team" element={<P_Team />} />
