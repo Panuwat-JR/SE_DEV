@@ -298,12 +298,49 @@ exports.downloadDocument = async (req, res) => {
       'หมายเหตุ: ยังไม่มีไฟล์แนบใน storage — ไฟล์นี้สร้างจากข้อมูลในฐานข้อมูลเท่านั้น',
     ];
     const buf = Buffer.from(lines.join('\n'), 'utf8');
+    const encodedName = encodeURIComponent(safeBase);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeBase}_summary.txt"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedName}_summary.txt"; filename*=UTF-8''${encodedName}_summary.txt`);
     res.setHeader('Content-Length', String(buf.length));
     return res.send(buf);
   } catch (err) {
-    console.error('downloadDocument:', err.message);
+    console.error(`downloadDocument(id=${id}):`, err);
+    res.status(500).json({ error: 'Server Error', details: err.message });
+  }
+};
+
+/** ข้อมูลสำหรับ Preview ก่อนพิมพ์: ส่งเป็น JSON ไปให้ Frontend จัดเอกสารสวยๆ */
+exports.getDocumentPreview = async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) return res.status(400).json({ error: 'รหัสเอกสารไม่ถูกต้อง' });
+  try {
+    const result = await pool.query(
+      `
+      SELECT DISTINCT ON (d.document_id)
+        d.document_id,
+        d.name,
+        COALESCE(ds.name, 'ไม่ระบุ') AS doc_status,
+        TO_CHAR(d.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS date,
+        COALESCE(e.title, 'ไม่ระบุ') AS project,
+        d.file_storage_path,
+        COALESCE(ep.first_name || ' ' || ep.last_name, '—') AS author
+      FROM documents d
+      LEFT JOIN document_statuses ds ON ds.doc_status_id = d.doc_status_id
+      LEFT JOIN mapping_doc_tasks mdt ON mdt.document_id = d.document_id
+      LEFT JOIN tasks tk ON tk.task_id = mdt.task_id
+      LEFT JOIN events e ON e.event_id = tk.event_id
+      LEFT JOIN mapping_event_employees mee ON mee.event_id = e.event_id
+      LEFT JOIN employees emp ON emp.employee_id = mee.employee_id
+      LEFT JOIN employee_profiles ep ON ep.employee_profile_id = emp.employee_profile_id
+      WHERE d.document_id = $1
+      ORDER BY d.document_id, d.updated_at DESC NULLS LAST, e.event_id NULLS LAST, emp.employee_id ASC
+    `,
+      [id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'ไม่พบเอกสาร' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(`getDocumentPreview(id=${id}):`, err);
     res.status(500).json({ error: 'Server Error' });
   }
 };
