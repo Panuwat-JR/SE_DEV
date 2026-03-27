@@ -150,6 +150,7 @@ CREATE TABLE events (
     max_team_member INT,
     min_team_member INT,
     budget DECIMAL(15, 2),
+    actual_spending DECIMAL(15, 2) DEFAULT 0,
     academic_year INT, -- ปีการศึกษา
     create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

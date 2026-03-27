@@ -10,6 +10,7 @@ function resolvePrioritySlug(raw) {
   const map = {
     urgent: 'urgent',
     เร่งด่วนที่สุด: 'urgent',
+    เร่งด่วน: 'urgent',
     high: 'high',
     สูง: 'high',
     medium: 'medium',
@@ -48,12 +49,12 @@ async function lookupPriorityId(client, raw) {
 const CATEGORY_LABEL_TO_SLUG = {
   ทั่วไป: 'general',
   ประสานงาน: 'prep',
-  สถานที่: 'prep',
+  สถานที่: 'place',
   เอกสาร: 'summary',
   การตลาด: 'pr',
   โลจิสติกส์: 'event',
-  อื่นๆ: 'general',
-  อย่างอื่น: 'general',
+  อื่นๆ: 'other',
+  อย่างอื่น: 'other',
 };
 
 async function lookupCategoryId(client, raw) {

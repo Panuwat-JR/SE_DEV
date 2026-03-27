@@ -96,48 +96,46 @@ INSERT INTO employee_roles (name, description) VALUES
 INSERT INTO participant_types (name) VALUES ('นิสิต'), ('บุคคลทั่วไป');
 
 INSERT INTO task_categories (name, description, slug) VALUES
-('งานเตรียมงาน', 'จองสถานที่ จัดทำเอกสาร', 'prep'),
-('งานประชาสัมพันธ์', 'โพสต์สื่อ แต่งรูป ยิงแอด', 'pr'),
-('งานจัดกิจกรรม', 'หน้างาน ดูแลผู้เข้าร่วม', 'event'),
-('งานสรุปผล', 'ทำรายงาน สรุปผลประเมิน', 'summary');
-
-INSERT INTO document_types (name, slug, code_color, description) VALUES
-('ฟอร์มสมัครเข้าร่วม', 'app-form', '#3b82f6', 'เอกสารกรอกข้อมูลใบสมัคร'),
-('รายงานสรุปผล', 'summary-report', '#10b981', 'เอกสารปิดท้ายโครงการพร้อมผลประกอบการ'),
-('หนังสือเชิญวิทยากร', 'invitation', '#f59e0b', 'เอกสารติดต่อภายนอก');
-
-
--- -------------------------------------------------------------
--- 2. เพิ่มข้อมูลกลุ่ม B: เจ้าหน้าที่ (Employees)
--- -------------------------------------------------------------
-INSERT INTO employee_profiles (role_employee_id, department_id, first_name, last_name, gender, birthday_date) VALUES
-((SELECT role_employee_id FROM employee_roles WHERE name='ผู้จัดการโครงการ' LIMIT 1), (SELECT department_id FROM departments WHERE slug='incubation' LIMIT 1), '[Mock] สมชาย', 'สายลุย', 'ชาย', '1990-05-15'),
-((SELECT role_employee_id FROM employee_roles WHERE name='เจ้าหน้าที่ประสานงาน' LIMIT 1), (SELECT department_id FROM departments WHERE slug='incubation' LIMIT 1), '[Mock] สมหญิง', 'จริงใจ', 'หญิง', '1995-12-10'),
-((SELECT role_employee_id FROM employee_roles WHERE name='ที่ปรึกษาธุรกิจ' LIMIT 1), (SELECT department_id FROM departments WHERE slug='ip' LIMIT 1), '[Mock] ชาติชาย', 'มีวิสัยทัศน์', 'ชาย', '1985-08-20');
-
-INSERT INTO employees (employee_profile_id, email, password_hash, status, online_status) VALUES
-((SELECT employee_profile_id FROM employee_profiles WHERE first_name='[Mock] สมชาย' LIMIT 1), 'somchai.s@nuscipark.ac.th', '12345678', 'Active', 'Online'),
-((SELECT employee_profile_id FROM employee_profiles WHERE first_name='[Mock] สมหญิง' LIMIT 1), 'somying.j@nuscipark.ac.th', '12345678', 'Active', 'Offline'),
-((SELECT employee_profile_id FROM employee_profiles WHERE first_name='[Mock] ชาติชาย' LIMIT 1), 'chartchai.m@nuscipark.ac.th', '12345678', 'Active', 'Online');
-
-
--- -------------------------------------------------------------
--- 3. เพิ่มข้อมูลกลุ่ม C: โครงการ (Events)
--- -------------------------------------------------------------
-INSERT INTO events (
+('งานเตรียมงาน', '�INSERT INTO events (
     title, description, organizer_id, event_type_id, event_category_id, logistics_id, requirement_tag_id, status_event_id, 
     registration_start_date, registration_end_date, event_start_date, event_end_date, announcement_date, 
-    prize_pool, is_team_based, max_team_member, min_team_member, budget, academic_year
+    prize_pool, is_team_based, max_team_member, min_team_member, budget, actual_spending, academic_year
 ) VALUES
 -- 1. STL (In Progress)
 ('Startup Thailand League (STL) 2026', 'เวทีแข่งขันสตาร์ทอัพระดับประเทศ ค้นหาสตาร์ทอัพไฟแรงเพื่อเป็นตัวแทนระดับภูมิภาค', 
  (SELECT organizer_id FROM organizers WHERE name LIKE 'NU SEED%' LIMIT 1), (SELECT event_type_id FROM event_types WHERE slug='comp' LIMIT 1), (SELECT event_category_id FROM event_categories WHERE slug='startup' LIMIT 1), (SELECT logistics_id FROM logistics WHERE max_participant=300 LIMIT 1), (SELECT requirement_tag_id FROM requirement_tags WHERE slug='nu-student' LIMIT 1), 
  (SELECT status_event_id FROM status_events WHERE slug='in_progress' LIMIT 1), 
- '2026-04-01', '2026-04-20', '2026-05-10', '2026-05-12', '2026-05-15', 50000.00, TRUE, 5, 3, 200000.00, 2567),
+ '2026-04-01', '2026-04-20', '2026-05-10', '2026-05-12', '2026-05-15', 50000.00, TRUE, 5, 3, 200000.00, 45000.00, 2567),
 
 -- 2. ELP (Open Registration)
 ('Experiential Learning Program (ELP) 2026', 'โครงการคัดเลือกตัวแทนนวัตกร ส่งไปเปิดประสบการณ์ระบบนิเวศธุรกิจต่างประเทศ',
  (SELECT organizer_id FROM organizers WHERE name LIKE 'NU SEED%' LIMIT 1), (SELECT event_type_id FROM event_types WHERE slug='bootcamp' LIMIT 1), (SELECT event_category_id FROM event_categories WHERE slug='innovation' LIMIT 1), (SELECT logistics_id FROM logistics WHERE max_participant=100 LIMIT 1), (SELECT requirement_tag_id FROM requirement_tags WHERE slug='team-3-5' LIMIT 1),
+ (SELECT status_event_id FROM status_events WHERE slug='open_registration' LIMIT 1),
+ '2026-05-01', '2026-06-01', '2026-06-15', '2026-06-20', '2026-06-25', 0.00, TRUE, 4, 2, 450000.00, 0.00, 2567),
+
+-- 3. New Regional Startups (Completed)
+('New Regional Startups', 'เฟ้นหาไอเดียธุรกิจจากผู้เข้าร่วม เพื่อเงินทุนสนับสนุนผลิตภัณฑ์ต้นแบบ',
+ (SELECT organizer_id FROM organizers WHERE name LIKE 'NU SEED%' LIMIT 1), (SELECT event_type_id FROM event_types WHERE slug='comp' LIMIT 1), (SELECT event_category_id FROM event_categories WHERE slug='startup' LIMIT 1), (SELECT logistics_id FROM logistics WHERE max_participant=300 LIMIT 1), (SELECT requirement_tag_id FROM requirement_tags WHERE slug='has-idea' LIMIT 1),
+ (SELECT status_event_id FROM status_events WHERE slug='completed' LIMIT 1),
+ '2025-10-01', '2025-10-31', '2025-12-01', '2025-12-03', '2025-12-05', 100000.00, TRUE, 5, 3, 150000.00, 142000.00, 2566),
+
+-- 4. R2M (Planning)
+('Research to Market (R2M)', 'เส้นทางสู่นวัตวณิชย์ นำ "งานวิจัย" บนหิ้งมาต่อยอดแผนธุรกิจสู่ตลาดพาณิชย์',
+ (SELECT organizer_id FROM organizers WHERE name LIKE 'NU SEED%' LIMIT 1), (SELECT event_type_id FROM event_types WHERE slug='workshop' LIMIT 1), (SELECT event_category_id FROM event_categories WHERE slug='commercial-research' LIMIT 1), (SELECT logistics_id FROM logistics WHERE max_participant=100 LIMIT 1), (SELECT requirement_tag_id FROM requirement_tags WHERE slug='has-research' LIMIT 1),
+ (SELECT status_event_id FROM status_events WHERE slug='planning' LIMIT 1),
+ '2026-07-01', '2026-07-31', '2026-08-15', '2026-08-16', '2026-08-20', 30000.00, TRUE, 3, 2, 80000.00, 0.00, 2567),
+
+-- 5. Idea Pitch Day (Closed Registration)
+('Idea Pitch Day / NU Hackathon', 'ประชันไอเดียธุรกิจแบบเปิดกว้าง "แค่มีไอเดียก็เข้าร่วมได้"',
+ (SELECT organizer_id FROM organizers WHERE name LIKE 'NU SEED%' LIMIT 1), (SELECT event_type_id FROM event_types WHERE slug='comp' LIMIT 1), (SELECT event_category_id FROM event_categories WHERE slug='innovation' LIMIT 1), (SELECT logistics_id FROM logistics WHERE max_participant=500 LIMIT 1), (SELECT requirement_tag_id FROM requirement_tags WHERE slug='nu-student' LIMIT 1),
+ (SELECT status_event_id FROM status_events WHERE slug='closed_registration' LIMIT 1),
+ '2026-03-01', '2026-03-25', '2026-04-05', '2026-04-06', '2026-04-07', 15000.00, TRUE, 5, 1, 50000.00, 12000.00, 2567),
+
+-- 6. TED Youth Startup (Announced)
+('TED Youth Startup', 'เวทีชิงทุนสนับสนุนก้อนใหญ่สูงสุด 1.5 ล้านบาท สำหรับผู้ประกอบการหน้าใหม่',
+ (SELECT organizer_id FROM organizers WHERE name LIKE 'NIA%' LIMIT 1), (SELECT event_type_id FROM event_types WHERE slug='comp' LIMIT 1), (SELECT event_category_id FROM event_categories WHERE slug='startup' LIMIT 1), (SELECT logistics_id FROM logistics WHERE max_participant=100 LIMIT 1), (SELECT requirement_tag_id FROM requirement_tags WHERE slug='has-idea' LIMIT 1),
+ (SELECT status_event_id FROM status_events WHERE slug='announced' LIMIT 1),
+ '2026-01-15', '2026-02-15', '2026-03-10', '2026-03-12', '2026-03-15', 1500000.00, TRUE, 5, 2, 20000.00, 0.00, 2566);ECT event_type_id FROM event_types WHERE slug='bootcamp' LIMIT 1), (SELECT event_category_id FROM event_categories WHERE slug='innovation' LIMIT 1), (SELECT logistics_id FROM logistics WHERE max_participant=100 LIMIT 1), (SELECT requirement_tag_id FROM requirement_tags WHERE slug='team-3-5' LIMIT 1),
  (SELECT status_event_id FROM status_events WHERE slug='open_registration' LIMIT 1),
  '2026-05-01', '2026-06-01', '2026-06-15', '2026-06-20', '2026-06-25', 0.00, TRUE, 4, 2, 450000.00, 2567),
 

@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+**/package-lock.json
 
 # Environment variables (ห้าม push ขึ้น Git)
 backend/.env
