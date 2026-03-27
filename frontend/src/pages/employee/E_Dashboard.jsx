@@ -88,7 +88,7 @@ export default function E_Dashboard() {
                             <tr className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
                                 <th className="px-5 py-3 text-left">โครงการ</th>
                                 <th className="px-5 py-3 text-left">สถานะ</th>
-                                <th className="px-5 py-3 text-center">ทีม</th>
+                                <th className="px-5 py-3 text-left">ผู้เข้าร่วม</th>
                                 <th className="px-5 py-3 text-center">งาน</th>
                                 <th className="px-5 py-3 text-left">ความคืบหน้า</th>
                                 <th className="px-5 py-3 text-center">ปัญหา</th>
@@ -110,7 +110,17 @@ export default function E_Dashboard() {
                                     <td className="px-5 py-3.5">
                                         <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${proj.statusColor}`}>{proj.status}</span>
                                     </td>
-                                    <td className="px-5 py-3.5 text-center text-sm font-medium">{proj.teams}</td>
+                                    <td className="px-5 py-3.5">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center justify-between text-[10px] font-bold text-gray-500">
+                                                <span>{proj.participants}/{proj.maxParticipants}</span>
+                                                <span>{Math.round((proj.participants / proj.maxParticipants) * 100)}%</span>
+                                            </div>
+                                            <div className="w-24 bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                                <div className="bg-blue-600 h-full rounded-full" style={{ width: `${Math.min((proj.participants / proj.maxParticipants) * 100, 100)}%` }} />
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td className="px-5 py-3.5 text-center text-sm font-medium">
                                         <span className="text-emerald-600">{proj.tasksDone}</span>/<span>{proj.tasks}</span>
                                     </td>
