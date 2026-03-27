@@ -39,9 +39,11 @@ class ParticipantService {
         COALESCE(pp.lastname, '') AS lastname,
         pp.phone_number AS phone,
         pp.year_of_study AS year,
-        f.name AS faculty
+        f.name AS faculty,
+        p.email AS email
       FROM participant_profiles pp
       LEFT JOIN faculties f ON pp.faculty_id = f.faculty_id
+      LEFT JOIN participants p ON pp.participant_profile_id = p.participant_profile_id
       WHERE pp.team_id = $1
       ORDER BY pp.participant_profile_id ASC
       `,
@@ -57,7 +59,8 @@ class ParticipantService {
         name: `${m.firstname}${m.lastname ? ` ${m.lastname}` : ''}`.trim(),
         faculty: m.faculty || '',
         year: m.year ?? null,
-        phone: m.phone || ''
+        phone: m.phone || '',
+        email: m.email || ''
       }))
     };
   }
@@ -92,6 +95,92 @@ class ParticipantService {
       [teamId, facultyId, firstname, lastname, Number.isNaN(year) ? null : year]
     );
     return inserted.rows[0];
+  }
+
+  async addTeamMemberWithAccount({ participantName, fullName, email, facultyName, yearOfStudy }) {
+    const teamId = await this.getTeamIdByParticipantName(participantName);
+    if (!teamId) throw new Error('Participant has no team');
+
+    const name = String(fullName || '').trim();
+    if (!name) throw new Error('Name is required');
+    const mail = String(email || '').trim();
+    if (!mail) throw new Error('Email is required');
+
+    const parts = name.split(/\s+/).filter(Boolean);
+    const firstname = parts[0] || name;
+    const lastname = parts.slice(1).join(' ') || null;
+
+    // faculty: find by exact name; if not found and user provided, create new faculty (data only)
+    let facultyId = null;
+    const fac = String(facultyName || '').trim();
+    if (fac) {
+      const facRes = await pool.query(`SELECT faculty_id FROM faculties WHERE name = $1 LIMIT 1`, [fac]);
+      facultyId = facRes.rows[0]?.faculty_id ?? null;
+      if (!facultyId) {
+        const ins = await pool.query(`INSERT INTO faculties (name) VALUES ($1) RETURNING faculty_id`, [fac]);
+        facultyId = ins.rows[0]?.faculty_id ?? null;
+      }
+    }
+
+    const year = yearOfStudy === undefined || yearOfStudy === null || yearOfStudy === ''
+      ? null
+      : parseInt(yearOfStudy, 10);
+
+    // 1) create profile
+    const profileIns = await pool.query(
+      `
+      INSERT INTO participant_profiles (team_id, faculty_id, firstname, lastname, year_of_study)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING participant_profile_id AS id, firstname, lastname, year_of_study AS year
+      `,
+      [teamId, facultyId, firstname, lastname, Number.isNaN(year) ? null : year]
+    );
+    const profile = profileIns.rows[0];
+
+    // 2) create participant account row (email required by schema)
+    // demo placeholder hash (ระบบ auth จริงค่อยเปลี่ยน)
+    const hash = '$2b$10$X9kl7g/.example.hash.placeholder.for.demo.only';
+    await pool.query(
+      `
+      INSERT INTO participants (participant_profile_id, email, password_hash, status)
+      VALUES ($1, $2, $3, $4)
+      `,
+      [profile.id, mail, hash, 'active']
+    );
+
+    return { ...profile, email: mail, faculty_id: facultyId };
+  }
+
+  async removeTeamMember({ participantName, memberProfileId }) {
+    const teamId = await this.getTeamIdByParticipantName(participantName);
+    if (!teamId) throw new Error('Participant has no team');
+
+    const id = parseInt(memberProfileId, 10);
+    if (Number.isNaN(id)) throw new Error('Invalid member id');
+
+    // กันลบตัวเอง (ปิยะ) ในโหมด demo
+    const selfRes = await pool.query(
+      `
+      SELECT participant_profile_id
+      FROM participant_profiles
+      WHERE team_id = $1 AND TRIM(firstname) ILIKE '%' || TRIM($2) || '%'
+      LIMIT 1
+      `,
+      [teamId, participantName]
+    );
+    const selfId = selfRes.rows[0]?.participant_profile_id ?? null;
+    if (selfId && id === selfId) throw new Error('Cannot remove team leader');
+
+    // ลบเฉพาะสมาชิกที่อยู่ในทีมเดียวกัน
+    const del = await pool.query(
+      `
+      DELETE FROM participant_profiles
+      WHERE participant_profile_id = $1 AND team_id = $2
+      RETURNING participant_profile_id AS id
+      `,
+      [id, teamId]
+    );
+    return { deleted: del.rowCount };
   }
 
   async listDocumentsForParticipant(participantName) {

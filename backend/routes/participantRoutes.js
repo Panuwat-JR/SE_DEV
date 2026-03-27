@@ -14,6 +14,7 @@ router.get('/projects/:id', participantController.getProjectDetail);
 // Team (DB)
 router.get('/team', participantController.getTeam);
 router.post('/team/members', participantController.addTeamMember);
+router.delete('/team/members/:id', participantController.removeTeamMember);
 
 // ===== Documents (DB) =====
 const uploadDir = path.join(__dirname, '..', 'uploads');

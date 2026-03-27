@@ -130,17 +130,40 @@ exports.getTeam = async (req, res) => {
 exports.addTeamMember = async (req, res) => {
   try {
     const participantName = 'ปิยะ'; // Demo user
-    const { name, faculty, year } = req.body || {};
-    const created = await participantService.addTeamMember({
+    const { name, email, faculty, year } = req.body || {};
+    const created = await participantService.addTeamMemberWithAccount({
       participantName,
       fullName: name,
+      email,
       facultyName: faculty,
       yearOfStudy: year
     });
     res.status(201).json(created);
   } catch (err) {
     console.error('Add Team Member Error:', err.message);
-    const code = err.message === 'Participant has no team' ? 400 : err.message === 'Name is required' ? 400 : 500;
+    const code =
+      err.message === 'Participant has no team' ? 400
+        : err.message === 'Name is required' ? 400
+          : err.message === 'Email is required' ? 400
+            : 500;
+    res.status(code).json({ error: err.message });
+  }
+};
+
+exports.removeTeamMember = async (req, res) => {
+  try {
+    const participantName = 'ปิยะ'; // Demo user
+    const memberId = req.params.id;
+    const result = await participantService.removeTeamMember({ participantName, memberProfileId: memberId });
+    if (!result.deleted) return res.status(404).json({ error: 'Member not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Remove Team Member Error:', err.message);
+    const code =
+      err.message === 'Participant has no team' ? 400
+        : err.message === 'Invalid member id' ? 400
+          : err.message === 'Cannot remove team leader' ? 403
+            : 500;
     res.status(code).json({ error: err.message });
   }
 };

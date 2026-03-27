@@ -63,6 +63,7 @@ export default function P_Team() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: newMember.name,
+                        email: newMember.email,
                         faculty: newMember.faculty,
                         year: Number(newMember.year)
                     })
@@ -80,7 +81,7 @@ export default function P_Team() {
                         name: memberName,
                         faculty: newMember.faculty,
                         year: created.year ?? Number(newMember.year) ?? null,
-                        email: newMember.email || '-',
+                        email: created.email || newMember.email || '-',
                         phone: '-'
                     }]
                 }));
@@ -93,9 +94,21 @@ export default function P_Team() {
     };
 
     const handleRemove = (id) => {
-        if (window.confirm('ลบสมาชิกออกจากทีม?')) {
-            setTeam(prev => ({ ...prev, members: prev.members.filter(m => m.id !== id) }));
-        }
+        if (!window.confirm('ลบสมาชิกออกจากทีม?')) return;
+        (async () => {
+            try {
+                const res = await fetch(`http://localhost:5000/api/participants-data/team/members/${id}`, {
+                    method: 'DELETE'
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => null);
+                    throw new Error(err?.error || `Remove member failed (HTTP ${res.status})`);
+                }
+                setTeam(prev => ({ ...prev, members: (prev.members || []).filter(m => m.id !== id) }));
+            } catch (e) {
+                alert(e.message);
+            }
+        })();
     };
 
     return (
@@ -193,8 +206,8 @@ export default function P_Team() {
                                     value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
-                                <input type="email" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                                <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล *</label>
+                                <input required type="email" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
                                     value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
