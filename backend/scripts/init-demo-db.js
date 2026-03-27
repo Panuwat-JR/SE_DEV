@@ -169,8 +169,13 @@ async function wipeDemoData(client) {
 async function seedReference(client) {
   const inserts = [
     `INSERT INTO priority_levels (name, slug, description, code_color)
-     SELECT * FROM (VALUES ('ปกติ', 'medium', 'งานทั่วไป', '#3b82f6')) AS v(name, slug, description, code_color)
-     WHERE NOT EXISTS (SELECT 1 FROM priority_levels WHERE slug = 'medium')`,
+     SELECT * FROM (VALUES 
+       ('เร่งด่วนที่สุด', 'urgent', 'งานที่ต้องทำทันที เนื่องจากส่งผลกระทบต่อกำหนดการหลักอย่างวิกฤต', '#ef4444'),
+       ('สูง', 'high', 'งานสำคัญที่ต้องดำเนินการให้เสร็จภายในวันหรือสัปดาห์ปัจจุบัน', '#f97316'),
+       ('กลาง', 'medium', 'งานทั่วไปที่สามารถดำเนินงานตามลำดับเวลาปกติได้', '#3b82f6'),
+       ('ต่ำ', 'low', 'งานที่ไม่เร่งด่วน สามารถรอทำหลังงานอื่นๆ เสร็จสิ้นได้', '#94a3b8')
+     ) AS v(name, slug, description, code_color)
+     WHERE NOT EXISTS (SELECT 1 FROM priority_levels WHERE priority_levels.slug = v.slug)`,
     `INSERT INTO task_statuses (name, slug, description, code_color)
      SELECT * FROM (VALUES
        ('รอดำเนินการ', 'pending', 'รอเริ่ม', '#94a3b8'),
@@ -178,8 +183,17 @@ async function seedReference(client) {
        ('เสร็จสิ้น', 'completed', 'เสร็จ', '#10b981')
      ) AS v(name, slug, description, code_color)
      WHERE NOT EXISTS (SELECT 1 FROM task_statuses WHERE task_statuses.slug = v.slug)`,
-    `INSERT INTO task_categories (name, slug) SELECT * FROM (VALUES ('ทั่วไป', 'general')) AS v(name, slug)
-     WHERE NOT EXISTS (SELECT 1 FROM task_categories WHERE slug = 'general')`,
+    `INSERT INTO task_categories (name, slug, description)
+     SELECT * FROM (VALUES 
+       ('ทั่วไป', 'general', 'งานทั่วไปที่ไม่จัดอยู่ในหมวดหมู่อื่น'),
+       ('ประสานงาน', 'prep', 'งานติดต่อประสานงานและจัดเตรียมความพร้อม'),
+       ('สถานที่', 'place', 'งานจัดเตรียมสถานที่และการจัดการพื้นที่'),
+       ('เอกสาร', 'summary', 'งานสรุปผล จัดการเอกสาร และรายงาน'),
+       ('การตลาด', 'pr', 'งานโฆษณา ประชาสัมพันธ์ และการตลาด'),
+       ('โลจิสติกส์', 'event', 'งานจัดการขนส่งและลำดับขั้นตอนกิจกรรม'),
+       ('อื่นๆ', 'other', 'งานอื่นๆ นอกเหนือจากที่ระบุ')
+     ) AS v(name, slug, description)
+     WHERE NOT EXISTS (SELECT 1 FROM task_categories WHERE task_categories.slug = v.slug)`,
     `INSERT INTO document_statuses (name, slug) SELECT * FROM (VALUES
        ('ร่าง', 'draft'),
        ('รอการดำเนินการ', 'pending_approval'),

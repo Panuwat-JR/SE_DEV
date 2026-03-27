@@ -68,6 +68,7 @@ exports.createActivity = async (req, res) => {
     max_participants,
     prize_pool,
     committee_members,
+    responsible_employee_ids,
   } = req.body;
   const titleTrim = String(title || '').trim();
   if (!titleTrim) {
@@ -121,6 +122,18 @@ exports.createActivity = async (req, res) => {
        RETURNING event_id AS id, title`,
       [titleTrim, desc, dateIso, endIso, prize, statusName, logisticsId, committee]
     );
+
+    const eventId = result.rows[0].id;
+
+    // บันทึกผู้รับผิดชอบ
+    if (Array.isArray(responsible_employee_ids) && responsible_employee_ids.length > 0) {
+      for (const empId of responsible_employee_ids) {
+        await client.query(
+          `INSERT INTO mapping_event_employees (event_id, employee_id) VALUES ($1, $2)`,
+          [eventId, empId]
+        );
+      }
+    }
 
     await client.query('COMMIT');
     res.json({ message: 'บันทึกสำเร็จ', data: result.rows[0] });
@@ -181,7 +194,17 @@ exports.getAllActivities = async (req, res) => {
          INNER JOIN mapping_event_teams met ON pp.team_id = met.team_id
          WHERE met.event_id = e.event_id) AS current_participants,
         COALESCE(CAST(e.prize_pool AS TEXT), 'ไม่มีเงินรางวัล') AS prize_pool,
-        COALESCE(NULLIF(TRIM(e.committee_members), ''), '') AS committee_members
+        COALESCE(NULLIF(TRIM(e.committee_members), ''), '') AS committee_members,
+        (
+          SELECT JSON_AGG(JSON_BUILD_OBJECT(
+            'id', ee.employee_id,
+            'name', ep.first_name || ' ' || ep.last_name
+          ))
+          FROM mapping_event_employees mee
+          JOIN employees ee ON mee.employee_id = ee.employee_id
+          JOIN employee_profiles ep ON ee.employee_profile_id = ep.employee_profile_id
+          WHERE mee.event_id = e.event_id
+        ) AS responsible_employees
       FROM events e
       LEFT JOIN status_events s ON e.status_event_id = s.status_event_id
       LEFT JOIN logistics l ON e.logistics_id = l.logistics_id
@@ -206,6 +229,7 @@ exports.updateActivity = async (req, res) => {
     max_participants,
     prize_pool,
     committee_members,
+    responsible_employee_ids,
   } = req.body;
 
   const dateIso = parseEventDateInput(date_text);
@@ -282,6 +306,19 @@ exports.updateActivity = async (req, res) => {
     `,
       [String(title || '').trim(), desc, statusName, dateIso, endIso, prize, id, committeeVal]
     );
+
+    // อัปเดตผู้รับผิดชอบ
+    if (responsible_employee_ids !== undefined) {
+      await client.query(`DELETE FROM mapping_event_employees WHERE event_id = $1`, [id]);
+      if (Array.isArray(responsible_employee_ids)) {
+        for (const empId of responsible_employee_ids) {
+          await client.query(
+            `INSERT INTO mapping_event_employees (event_id, employee_id) VALUES ($1, $2)`,
+            [id, empId]
+          );
+        }
+      }
+    }
 
     await client.query('COMMIT');
     res.json({ message: 'อัปเดตกิจกรรมสำเร็จ' });

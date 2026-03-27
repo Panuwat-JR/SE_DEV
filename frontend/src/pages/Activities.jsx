@@ -13,7 +13,7 @@ import {
 } from '../lib/eventStatuses';
 
 function Activities() {
-  const { events, addEvent, updateEvent, deleteEvent } = useApp();
+  const { events, addEvent, updateEvent, deleteEvent, employees } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedActivity, setSelectedActivity] = useState(null);
@@ -37,6 +37,7 @@ function Activities() {
     max_participants: 100,
     prize_pool: '',
     committee_members: '',
+    responsible_employee_ids: [],
     fileName: '',
   });
   const activityFileInputRef = useRef(null);
@@ -93,6 +94,7 @@ function Activities() {
       ...activity,
       status: toEventStatusSelectValue(activity.status),
       committee_members: activity.committee_members ?? '',
+      responsible_employee_ids: (activity.responsible_employees || []).map(e => e.id),
     });
     setIsEditModalOpen(true);
   };
@@ -179,6 +181,7 @@ function Activities() {
     max_participants: activity.max_participants,
     prize_pool: activity.prize_pool,
     committee_members: activity.committee_members ?? '',
+    responsible_employee_ids: activity.responsible_employee_ids,
   });
 
   const saveActivityStatusFromDetail = async (nextStatus) => {
@@ -232,6 +235,7 @@ function Activities() {
       max_participants: Number(newActivity.max_participants),
       prize_pool: newActivity.prize_pool || 'ไม่มีเงินรางวัล',
       committee_members: newActivity.committee_members || '',
+      responsible_employee_ids: newActivity.responsible_employee_ids,
     });
     if (r?.ok === false) {
       window.alert(r.error || 'สร้างกิจกรรมไม่สำเร็จ');
@@ -434,6 +438,27 @@ function Activities() {
                       <p className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1">สถานที่จัดงาน</p>
                       <p className="text-xl font-extrabold text-blue-900">อุทยานวิทยาศาสตร์ ภาคใต้</p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Responsible Persons */}
+                <div className="mb-8">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <Users size={16} className="text-blue-600" /> ผู้รับผิดชอบโครงการ
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedActivity.responsible_employees && selectedActivity.responsible_employees.length > 0 ? (
+                      selectedActivity.responsible_employees.map(emp => (
+                        <div key={emp.id} className="bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                          <div className="w-6 h-6 bg-blue-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                            {emp.name.charAt(0)}
+                          </div>
+                          <span className="text-xs font-semibold text-blue-800">{emp.name}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-gray-400 text-xs italic">ยังไม่มีผู้รับผิดชอบ</span>
+                    )}
                   </div>
                 </div>
 
@@ -747,6 +772,30 @@ function Activities() {
                     value={editingActivity.prize_pool} onChange={(e) => setEditingActivity({ ...editingActivity, prize_pool: e.target.value })} />
                 </div>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">ผู้รับผิดชอบโครงการ</label>
+                <div className="grid grid-cols-2 gap-2 border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto bg-gray-50/30">
+                  {employees.map(emp => (
+                    <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded-md transition-colors">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 text-blue-600 rounded"
+                        checked={(editingActivity.responsible_employee_ids || []).includes(emp.id)}
+                        onChange={(e) => {
+                          const ids = editingActivity.responsible_employee_ids || [];
+                          if (e.target.checked) {
+                            setEditingActivity({ ...editingActivity, responsible_employee_ids: [...ids, emp.id] });
+                          } else {
+                            setEditingActivity({ ...editingActivity, responsible_employee_ids: ids.filter(x => x !== emp.id) });
+                          }
+                        }}
+                      />
+                      <span className="text-xs text-gray-700 leading-none">{emp.first_name} {emp.last_name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-gray-100">
                 <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl">ยกเลิก</button>
                 <button type="submit" className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl">ยืนยันการแก้ไข</button>
@@ -817,6 +866,30 @@ function Activities() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">เงินรางวัล</label>
                   <input type="text" placeholder="เช่น 10,000 บาท" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     value={newActivity.prize_pool} onChange={(e) => setNewActivity({ ...newActivity, prize_pool: e.target.value })} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">ผู้รับผิดชอบโครงการ</label>
+                <div className="grid grid-cols-2 gap-2 border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto bg-gray-50/30">
+                  {employees.map(emp => (
+                    <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded-md transition-colors">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 text-blue-600 rounded"
+                        checked={(newActivity.responsible_employee_ids || []).includes(emp.id)}
+                        onChange={(e) => {
+                          const ids = newActivity.responsible_employee_ids || [];
+                          if (e.target.checked) {
+                            setNewActivity({ ...newActivity, responsible_employee_ids: [...ids, emp.id] });
+                          } else {
+                            setNewActivity({ ...newActivity, responsible_employee_ids: ids.filter(x => x !== emp.id) });
+                          }
+                        }}
+                      />
+                      <span className="text-xs text-gray-700 leading-none">{emp.first_name} {emp.last_name}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
               <div className="pt-2">

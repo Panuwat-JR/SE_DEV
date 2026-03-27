@@ -169,18 +169,25 @@ exports.updateTask = async (req, res) => {
     if (st.rowCount === 0) {
       return res.status(400).json({ error: `ไม่พบสถานะงาน "${status}" ในระบบ` });
     }
-    const pr = await lookupPriorityId(pool, priority);
+    let pr = await lookupPriorityId(pool, priority);
     if (pr.rowCount === 0) {
-      return res.status(400).json({ error: `ไม่พบระดับความสำคัญ "${priority}" ในระบบ` });
+      pr = await pool.query(
+        `SELECT priority_id FROM priority_levels WHERE LOWER(TRIM(BOTH FROM slug)) = 'medium' LIMIT 1`
+      );
+    }
+    if (pr.rowCount === 0) {
+      pr = await pool.query(`SELECT priority_id FROM priority_levels ORDER BY priority_id ASC LIMIT 1`);
+    }
+    if (pr.rowCount === 0) {
+      return res.status(400).json({ error: `ไม่พบระดับความสำคัญในระบบ` });
     }
 
     let taskCategoryId = ex.rows[0].task_category_id;
     if (category != null && String(category).trim() !== '') {
       const ct = await lookupCategoryId(pool, category);
-      if (ct.rowCount === 0) {
-        return res.status(400).json({ error: `ไม่พบหมวดงาน "${category}" ในระบบ` });
+      if (ct.rowCount > 0) {
+        taskCategoryId = ct.rows[0].task_category_id;
       }
-      taskCategoryId = ct.rows[0].task_category_id;
     }
 
     let assigneePayload;

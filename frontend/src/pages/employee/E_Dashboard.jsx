@@ -64,14 +64,14 @@ export default function E_Dashboard() {
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">แดชบอร์ด</h1>
                 <p className="text-gray-500 text-sm mt-1">
-                    จำนวนโครงการและตารางด้านล่างมาจากชุดข้อมูลเดียวกับหน้าจัดการกิจกรรม ผู้เข้าร่วมรวมตรงกับจำนวนโปรไฟล์ในหน้าผู้เข้าร่วม — คอลัมน์ผู้เข้าร่วมต่อโครงการนับเฉพาะสมาชิกทีมที่ผูกกับกิจกรรมนั้น
+                    แสดงเฉพาะโครงการที่คุณได้รับมอบหมายและเป็นผู้รับผิดชอบหลัก คุณสามารถดูโครงการทั้งหมดในระบบได้จากปุ่ม "จัดการโครงการ" ด้านล่างครับ
                 </p>
             </div>
 
             {/* KPI */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                 {[
-                    { label: 'โครงการทั้งหมด', value: projects.length,    icon: Activity,    color: 'bg-blue-50 text-blue-600',     numColor: 'text-blue-700' },
+                    { label: 'โครงการที่รับผิดชอบ', value: projects.length,    icon: Activity,    color: 'bg-blue-50 text-blue-600',     numColor: 'text-blue-700' },
                     { label: 'กำลังดำเนินการ', value: Number(stats.activeProjects) || 0,   icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-600', numColor: 'text-emerald-700' },
                     { label: 'ผู้เข้าร่วมรวม', value: Number(stats.totalParticipants) || 0, icon: Users,       color: 'bg-purple-50 text-purple-600',  numColor: 'text-purple-700' },
                     { label: 'งานรอดำเนินการ (รวม)', value: Number(stats.totalPendingTasks ?? stats.totalIssues ?? 0) || 0, icon: AlertCircle, color: 'bg-amber-50 text-amber-600', numColor: 'text-amber-800' },
@@ -92,7 +92,7 @@ export default function E_Dashboard() {
             {/* Project table */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="flex justify-between items-center p-5 border-b border-gray-100">
-                    <h2 className="font-bold text-gray-900">โครงการทั้งหมด ({projects.length})</h2>
+                    <h2 className="font-bold text-gray-900">โครงการที่รับผิดชอบ ({projects.length})</h2>
                     <Link to="/employee/activities" className="text-sm text-blue-600 font-medium hover:underline flex items-center gap-1">
                         จัดการโครงการ <ChevronRight size={14} />
                     </Link>
