@@ -4,6 +4,7 @@ const router = express.Router();
 const activityController = require('../controllers/activityController');
 
 // เส้นทางสำหรับ /api/activities
+router.get('/', activityController.getAllActivities);
 router.post('/', activityController.createActivity);
 router.delete('/:id', activityController.deleteActivity);
 

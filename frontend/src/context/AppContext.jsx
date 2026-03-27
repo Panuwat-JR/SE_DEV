@@ -28,11 +28,12 @@ export const AppProvider = ({ children }) => {
 
     // ========== ดึง Dashboard Data จาก Backend API ==========
     useEffect(() => {
+        // ดึง Dashboard stats และ Tasks logs
         fetch(`${API_BASE}/dashboard-data`)
             .then(res => res.json())
             .then(data => {
                 if (data.stats) setDbStats(data.stats);
-                if (data.upcomingActivities?.length > 0) setEvents(data.upcomingActivities);
+                // เราไม่ใช้ upcomingActivities จาก dashboard-data แล้ว เพราะจะดึง events ทั้งหมดจาก /api/activities แทน
                 if (data.recentTasks?.length > 0) {
                     const mapped = data.recentTasks.map(t => ({
                         ...t,
@@ -45,7 +46,31 @@ export const AppProvider = ({ children }) => {
                 if (data.activityLogs?.length > 0) setLogs(data.activityLogs);
             })
             .catch(err => {
-                console.warn('⚠️ ไม่สามารถเชื่อม API ได้ ใช้ Mock Data แทน:', err.message);
+                console.warn('⚠️ ไม่สามารถเชื่อม API dashboard-data ได้:', err.message);
+            });
+
+        // ดึง Activities (รายการกิจกรรม) ทั้งหมด
+        fetch(`${API_BASE}/activities`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    setEvents(data);
+                }
+            })
+            .catch(err => {
+                console.warn('⚠️ ไม่สามารถเชื่อม API activities ได้ ใช้ Mock Data แทน:', err.message);
+            });
+
+        // ดึง Employees (รายชื่อพนักงาน) ทั้งหมด
+        fetch(`${API_BASE}/employees`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    setEmployees(data);
+                }
+            })
+            .catch(err => {
+                console.warn('⚠️ ไม่สามารถเชื่อม API employees ได้ ใช้ Mock Data แทน:', err.message);
             });
     }, []);
 
