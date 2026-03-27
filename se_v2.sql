@@ -150,6 +150,7 @@ CREATE TABLE events (
     max_team_member INT,
     min_team_member INT,
     budget DECIMAL(15, 2),
+    academic_year INT, -- ปีการศึกษา
     create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -288,6 +289,7 @@ CREATE TABLE feedbacks (
     feedback_id SERIAL PRIMARY KEY,
     participant_id INT NOT NULL,
     comment TEXT,
+    rating INT CHECK (rating BETWEEN 1 AND 5), -- เพิ่มคะแนน 1-5 ดาว
     create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
