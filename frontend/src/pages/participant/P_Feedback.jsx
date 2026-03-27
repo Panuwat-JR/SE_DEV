@@ -1,7 +1,7 @@
 // pages/participant/P_Feedback.jsx
 import React, { useEffect, useState } from 'react';
 import { Star, Send, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
-import { participantFetch } from '../../lib/participantApi';
+import { participantFetch, getParticipantFetchErrorMessage } from '../../lib/participantApi';
 
 const ASPECTS = [
     'การจัดการโครงการ',
@@ -64,7 +64,7 @@ export default function P_Feedback() {
             if (plist.length && !selectedProject) setSelectedProject(plist[0].title);
             setAllFeedback(Array.isArray(fJson) ? fJson : []);
         } catch (e) {
-            setListError(e.message);
+            setListError(getParticipantFetchErrorMessage(e, 'โหลดข้อมูลไม่สำเร็จ'));
         } finally {
             setLoading(false);
         }

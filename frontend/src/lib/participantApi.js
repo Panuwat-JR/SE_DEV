@@ -23,12 +23,34 @@ export function setParticipantFirstname(name) {
 
 export function participantApiUrl(path) {
     const p = path.startsWith('/') ? path : `/${path}`;
+    if (!API_BASE) return p;
     return `${API_BASE}${p}`;
 }
 
-/** เรียก API พอร์ทัลผู้เข้าร่วม — แนบ X-Participant-Firstname ให้ตรงกับ participant_profiles.firstname */
+/** แปลง network error จาก fetch เป็นข้อความที่ผู้ใช้เข้าใจ */
+export function getParticipantFetchErrorMessage(err, fallbackTh = 'เกิดข้อผิดพลาด') {
+    const name = err?.name;
+    const msg = err?.message || '';
+    if (msg === 'Failed to fetch' || name === 'TypeError') {
+        return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ให้รัน Backend ควบคู่กับ Frontend (เช่น ./start.sh) หรือตั้ง VITE_DEV_API_PROXY ใน frontend/.env ให้ตรงพอร์ต Backend';
+    }
+    return msg || fallbackTh;
+}
+
+/**
+ * ค่า HTTP header ต้องเป็น ISO-8859-1 เท่านั้น — ชื่อภาษาไทยต้อง encode ก่อนส่ง
+ * (มิฉะนั้น browser จะ throw: Failed to execute 'set' on 'Headers'…)
+ */
+export function encodeParticipantFirstnameForHeader(name) {
+    return encodeURIComponent(String(name ?? '').trim());
+}
+
+/** เรียก API พอร์ทัลผู้เข้าร่วม — แนบ X-Participant-Firstname (UTF-8 → percent-encoding ASCII) */
 export async function participantFetch(path, init = {}) {
     const headers = new Headers(init.headers || {});
-    headers.set('X-Participant-Firstname', getParticipantFirstname());
+    headers.set(
+        'X-Participant-Firstname',
+        encodeParticipantFirstnameForHeader(getParticipantFirstname())
+    );
     return fetch(participantApiUrl(path), { ...init, headers });
 }

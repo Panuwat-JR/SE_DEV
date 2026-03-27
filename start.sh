@@ -97,9 +97,44 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM
 
+# อ่านพอร์ต backend จาก .env (ค่าเริ่มต้น 5000)
+read_backend_port() {
+  local envf="$BACKEND_DIR/.env"
+  local p="5000"
+  if [ -f "$envf" ]; then
+    local line
+    line=$(grep -E '^[[:space:]]*PORT=' "$envf" | head -1 || true)
+    if [ -n "$line" ]; then
+      p="${line#*=}"
+      p="${p//$'\r'/}"
+      p="${p//\"/}"
+      p="${p//\'/}"
+      p="$(echo "$p" | tr -d '[:space:]')"
+      [ -n "$p" ] || p="5000"
+    fi
+  fi
+  printf '%s' "$p"
+}
+
+# หยุด process ที่ LISTEN พอร์ตเดียวกัน — ป้องกัน node เก่าค้าง (ไม่มี route /documents /team → 404)
+free_listen_port() {
+  local port="$1"
+  command -v lsof >/dev/null 2>&1 || return 0
+  local pids
+  pids=$(lsof -ti:"$port" -sTCP:LISTEN 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo -e "${YELLOW}⚠️   พอร์ต ${port} ถูกใช้งาน — หยุด process เดิมเพื่อให้ backend โหลด route ล่าสุด${NC}"
+    echo "$pids" | xargs -r kill 2>/dev/null || kill $pids 2>/dev/null || true
+    sleep 0.5
+  fi
+}
+
+BACKEND_PORT="$(read_backend_port)"
+free_listen_port "$BACKEND_PORT"
+
 # เริ่ม Backend
 echo ""
-echo -e "${BLUE}🚀  กำลังเริ่ม Backend (Port 5000)...${NC}"
+echo -e "${BLUE}🚀  กำลังเริ่ม Backend (Port ${BACKEND_PORT})...${NC}"
 cd "$BACKEND_DIR" && node server.js &
 BACKEND_PID=$!
 
@@ -117,7 +152,7 @@ echo -e "${GREEN}============================================${NC}"
 echo -e "${GREEN}  ✅  ระบบพร้อมใช้งาน!${NC}"
 echo ""
 echo -e "${GREEN}  🌐  Frontend:  http://localhost:5173${NC}"
-echo -e "${GREEN}  🔧  Backend:   http://localhost:5000${NC}"
+echo -e "${GREEN}  🔧  Backend:   http://localhost:${BACKEND_PORT}${NC}"
 echo ""
 echo -e "${YELLOW}  เข้าพอร์ทัลผู้เข้าร่วม: Login → ผู้เข้าร่วม → ชื่อ firstname ใช้ ปิยะ (ตรง DB)${NC}"
 echo -e "${YELLOW}  Postgres (Docker): localhost:55432  user/db nuseed — รีเซ็ตข้อมูลเดโม: NU_SEED_FORCE_DEMO=1 npm run init-demo-db ใน backend${NC}"

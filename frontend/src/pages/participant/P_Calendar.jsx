@@ -1,7 +1,7 @@
 // pages/participant/P_Calendar.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalIcon, Loader2, AlertCircle } from 'lucide-react';
-import { participantFetch } from '../../lib/participantApi';
+import { participantFetch, getParticipantFetchErrorMessage } from '../../lib/participantApi';
 
 const DAYS_TH = [
     { key: 'sun', label: 'อา' },
@@ -31,7 +31,7 @@ export default function P_Calendar() {
                 const data = await res.json();
                 setEvents(Array.isArray(data) ? data : []);
             } catch (e) {
-                setError(e.message);
+                setError(getParticipantFetchErrorMessage(e, 'โหลดปฏิทินไม่สำเร็จ'));
             } finally {
                 setLoading(false);
             }

@@ -2,12 +2,25 @@ const participantService = require('../services/participantService');
 const fs = require('fs');
 const path = require('path');
 
+/** ถอดรหัสชื่อจาก header (ส่งมาแบบ encodeURIComponent) หรือ query — ถ้าไม่ใช่รูปแบบ encode ก็คืนตามเดิม */
+function decodeParticipantToken(raw) {
+  if (raw == null) return '';
+  const s = String(raw).trim();
+  if (!s) return '';
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 /** ระบุตัวผู้เข้าร่วม: header X-Participant-Firstname → query ?as= → env DEMO_PARTICIPANT_FIRSTNAME */
 function participantFromRequest(req) {
   const h = typeof req.get === 'function' ? req.get('x-participant-firstname') : req.headers['x-participant-firstname'];
-  const fromHeader = h != null ? String(h).trim() : '';
-  const q = req.query?.as != null ? String(req.query.as).trim() : '';
-  const raw = fromHeader || q;
+  const fromHeader = h != null ? decodeParticipantToken(String(h).trim()) : '';
+  const qRaw = req.query?.as != null ? String(req.query.as).trim() : '';
+  const fromQuery = qRaw ? decodeParticipantToken(qRaw) : '';
+  const raw = fromHeader || fromQuery;
   if (raw) return raw;
   return participantService.getDemoParticipantFirstname();
 }
