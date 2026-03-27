@@ -11,8 +11,22 @@ import { participantFetch } from '../lib/participantApi';
 
 const AuthContext = createContext(null);
 
+const LS_AUTH = 'nu_seed_auth_v1';
+
+function readStoredRole() {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+        const raw = localStorage.getItem(LS_AUTH);
+        if (!raw) return null;
+        const { role: r } = JSON.parse(raw);
+        return ['participant', 'employee', 'executive'].includes(r) ? r : null;
+    } catch {
+        return null;
+    }
+}
+
 export const AuthProvider = ({ children }) => {
-    const [role, setRole] = useState(null);
+    const [role, setRole] = useState(() => readStoredRole());
     const [teamRole, setTeamRole] = useState('member');
     const [participantProfile, setParticipantProfile] = useState(null);
     const [participantProfileLoading, setParticipantProfileLoading] = useState(false);
@@ -46,6 +60,11 @@ export const AuthProvider = ({ children }) => {
 
     const login = (selectedRole) => {
         setRole(selectedRole);
+        try {
+            localStorage.setItem(LS_AUTH, JSON.stringify({ role: selectedRole }));
+        } catch {
+            /* ignore quota / private mode */
+        }
     };
 
     const logout = () => {
@@ -53,6 +72,11 @@ export const AuthProvider = ({ children }) => {
         setTeamRole('member');
         setParticipantProfile(null);
         setParticipantProfileLoading(false);
+        try {
+            localStorage.removeItem(LS_AUTH);
+        } catch {
+            /* ignore */
+        }
     };
 
     return (

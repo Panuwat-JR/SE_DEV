@@ -3,7 +3,7 @@ import { Plus, Search, Filter, Users, FolderKanban, FileText, MoreVertical, X, T
 import { useApp } from '../context/AppContext';
 
 const Teams = () => {
-  const { teams, events, addTeam, stats } = useApp();
+  const { teams, events, addTeam, deleteTeam, stats } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -83,7 +83,7 @@ const Teams = () => {
               </div>
             </div>
             <div className="flex items-center gap-4 pt-4 border-t border-gray-50 text-xs text-gray-500 font-medium">
-              <div className="flex items-center gap-1.5"><FolderKanban size={14} /> <span>1 โครงการ</span></div>
+              <div className="flex items-center gap-1.5"><FolderKanban size={14} /> <span>{team.eventCount ?? 0} โครงการ</span></div>
               <div className="flex items-center gap-1.5"><FileText size={14} /> <span>{team.docsCount} เอกสาร</span></div>
             </div>
             <div className="absolute top-6 right-12 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity font-medium">ดูรายละเอียด &rarr;</div>
@@ -212,7 +212,20 @@ const Teams = () => {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
+            <div className="flex justify-between items-center gap-3 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!selectedTeam?.id) return;
+                  if (!window.confirm(`ลบทีม "${selectedTeam.name}" และยกเลิกการผูกกิจกรรม? (สมาชิกจะถูกถอดออกจากทีมในระบบ)`)) return;
+                  const r = await deleteTeam(selectedTeam.id);
+                  if (r?.ok) setSelectedTeam(null);
+                  else alert(r?.error || 'ลบทีมไม่สำเร็จ');
+                }}
+                className="px-6 py-2.5 text-sm font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-xl shadow-sm transition-colors"
+              >
+                ลบทีม
+              </button>
               <button onClick={() => setSelectedTeam(null)} className="px-6 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl shadow-sm transition-colors">ปิดหน้าต่าง</button>
             </div>
           </div>

@@ -21,8 +21,10 @@ const feedbackRoutes = require('./routes/feedbackRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
 const participantAdminRoutes = require('./routes/participantAdminRoutes');
 const documentListRoutes = require('./routes/documentListRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 // เสียบปลั๊ก Routes เข้ากับเส้นทางหลัก
+app.use('/api/auth', authRoutes);
 app.use('/api/dashboard-data', dashboardRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/tasks', taskRoutes);

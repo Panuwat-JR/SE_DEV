@@ -2,17 +2,18 @@ const dashboardService = require('../services/dashboardService');
 
 exports.getDashboardData = async (req, res) => {
   try {
-    const [stats, upcomingActivities, recentTasks] = await Promise.all([
+    const [stats, upcomingActivities, recentTasks, activityLogs] = await Promise.all([
       dashboardService.getStats(),
       dashboardService.getUpcomingActivities(),
       dashboardService.getRecentTasks(),
+      dashboardService.getActivityLogs(12),
     ]);
 
     res.json({
       stats,
       upcomingActivities,
       recentTasks,
-      activityLogs: [] // Can be added later as a service method
+      activityLogs,
     });
   } catch (err) {
     console.error('Dashboard Controller Error:', err);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, UserCog, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE } from '../config/api';
 import {
     getDefaultParticipantFirstname,
     setParticipantFirstname,
@@ -53,15 +54,40 @@ const Login = () => {
   const [participantFirstname, setParticipantFirstnameInput] = useState(
     () => getDefaultParticipantFirstname()
   );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const role = ROLES.find(r => r.id === selectedRole);
-    if (selectedRole === 'participant') {
-      setParticipantFirstname(participantFirstname);
+    setError(null);
+    const roleCfg = ROLES.find(r => r.id === selectedRole);
+    const apiRoot = API_BASE ? `${API_BASE}/api` : '/api';
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${apiRoot}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: selectedRole,
+          participantFirstname:
+            selectedRole === 'participant' ? String(participantFirstname || '').trim() : undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'เข้าสู่ระบบไม่สำเร็จ');
+      }
+      if (selectedRole === 'participant') {
+        const name = String(data.participantFirstname || participantFirstname || '').trim();
+        if (name) setParticipantFirstname(name);
+      }
+      login(selectedRole);
+      navigate(roleCfg.redirect);
+    } catch (err) {
+      setError(err.message || 'เข้าสู่ระบบไม่สำเร็จ');
+    } finally {
+      setSubmitting(false);
     }
-    login(selectedRole);
-    navigate(role.redirect);
   };
 
   const selected = ROLES.find(r => r.id === selectedRole);
@@ -140,17 +166,24 @@ const Login = () => {
               </div>
             )}
 
+            {error && (
+              <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
+                {error}
+              </p>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
-              className={`w-full mt-2 py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2.5 bg-gradient-to-r ${selected?.accent} shadow-xl transition-all hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]`}
+              disabled={submitting}
+              className={`w-full mt-2 py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2.5 bg-gradient-to-r ${selected?.accent} shadow-xl transition-all hover:opacity-90 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none`}
             >
-              เข้าสู่ระบบ
+              {submitting ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
               <ArrowRight size={20} />
             </button>
 
             <p className="text-center text-xs text-gray-500 pt-2">
-              Demo — role รีเซ็ตเมื่อรีเฟรช; ชื่อผู้เข้าร่วมเก็บในเบราว์เซอร์สำหรับเรียก API
+              บทบาทจำในเบราว์เซอร์หลังรีเฟรช; ผู้เข้าร่วมต้องผ่าน API (ชื่อ firstname ตรงฐานข้อมูล)
             </p>
           </form>
         </div>

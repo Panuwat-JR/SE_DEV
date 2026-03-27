@@ -23,20 +23,33 @@ export default function X_Feedback() {
         setRefreshing(true);
         try {
             const academicYearParam = filters.academicYear !== 'all' ? `academic_year=${filters.academicYear}` : 'academic_year=all';
-            const projectIdParam = filters.projectId !== 'all' ? `&event_id=${filters.projectId}` : '';
-            
+            const projectIdParam =
+                filters.projectId !== 'all' && filters.projectId != null && filters.projectId !== ''
+                    ? `&event_id=${encodeURIComponent(filters.projectId)}`
+                    : '';
+            const apiRoot = API_BASE ? `${API_BASE}/api` : '/api';
+
             const [statsRes, listRes] = await Promise.all([
-                fetch(`${API_BASE}/api/feedback/stats?${academicYearParam}${projectIdParam}`),
-                fetch(`${API_BASE}/api/feedback?${academicYearParam}${projectIdParam}`)
+                fetch(`${apiRoot}/feedback/stats?${academicYearParam}${projectIdParam}`),
+                fetch(`${apiRoot}/feedback?${academicYearParam}${projectIdParam}`)
             ]);
-            
-            const stats = await statsRes.json();
-            const list = await listRes.json();
-            
+
+            const stats = await statsRes.json().catch(() => ({}));
+            const listRaw = await listRes.json().catch(() => []);
+
+            const summary =
+                stats && typeof stats === 'object' && !stats.error && stats.summary
+                    ? stats.summary
+                    : {};
+            const projectBreakdown = Array.isArray(stats?.projectBreakdown)
+                ? stats.projectBreakdown
+                : [];
+            const list = Array.isArray(listRaw) ? listRaw : [];
+
             setData({
-                summary: stats.summary || {},
-                projectBreakdown: stats.projectBreakdown || [],
-                list: list || []
+                summary,
+                projectBreakdown,
+                list
             });
         } catch (error) {
             console.error("Error fetching feedback:", error);
@@ -50,7 +63,7 @@ export default function X_Feedback() {
         fetchData();
     }, [filters]);
 
-    if (loading && !data.summary.total_responses) return (
+    if (loading && data.summary.total_responses == null) return (
         <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-gray-500 animate-pulse font-medium">กำลังรวบรวมข้อมูล Feedback...</div>
         </div>
@@ -112,8 +125,13 @@ export default function X_Feedback() {
                                 onChange={(e) => setFilters({...filters, projectId: e.target.value})}
                             >
                                 <option value="all">ทุกโครงการ</option>
-                                {data.projectBreakdown.map(p => (
-                                    <option key={p.name} value={p.id}>{p.name} ({p.score})</option>
+                                {data.projectBreakdown.map((p, idx) => (
+                                    <option
+                                        key={p.id != null ? String(p.id) : `row-${idx}`}
+                                        value={p.id != null ? String(p.id) : ''}
+                                    >
+                                        {p.id === '__unassigned__' ? `${p.name} (ไม่ระบุโครงการ)` : `${p.name} (${p.score})`}
+                                    </option>
                                 ))}
                             </select>
                         </div>

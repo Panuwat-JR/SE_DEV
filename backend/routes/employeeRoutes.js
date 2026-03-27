@@ -5,6 +5,7 @@ const employeeController = require('../controllers/employeeController');
 
 // GET /api/employees/dashboard — ต้องอยู่ก่อน /:id
 router.get('/dashboard', employeeController.getDashboard);
+router.get('/calendar', employeeController.getCalendar);
 
 // GET /api/employees — รายชื่อพนักงานทั้งหมด
 router.get('/', employeeController.getEmployees);

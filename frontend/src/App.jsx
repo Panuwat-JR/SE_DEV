@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
 // ── Login ──────────────────────────────────────────────
@@ -43,6 +43,12 @@ const RequireRole = ({ allowed, children }) => {
   if (!allowed.includes(role)) return <Navigate to="/login" replace />;
   return children;
 };
+
+/** URL แบบ flat ก่อนมี prefix /employee — ส่งต่อให้ workspace ปัจจุบัน */
+function LegacyEmployeeNestedRedirect({ segment }) {
+  const { id } = useParams();
+  return <Navigate to={`/employee/${segment}/${id}`} replace />;
+}
 
 function App() {
   return (
@@ -100,6 +106,21 @@ function App() {
           <Route path="dashboard" element={<X_Dashboard />} />
           <Route path="feedback" element={<X_Feedback />} />
         </Route>
+
+        {/* Legacy flat URLs (employee / executive) */}
+        <Route path="/dashboard" element={<Navigate to="/employee/dashboard" replace />} />
+        <Route path="/activities" element={<Navigate to="/employee/activities" replace />} />
+        <Route path="/activities/:id" element={<LegacyEmployeeNestedRedirect segment="activities" />} />
+        <Route path="/tasks" element={<Navigate to="/employee/tasks" replace />} />
+        <Route path="/tasks/:id" element={<LegacyEmployeeNestedRedirect segment="tasks" />} />
+        <Route path="/teams" element={<Navigate to="/employee/teams" replace />} />
+        <Route path="/teams/:id" element={<LegacyEmployeeNestedRedirect segment="teams" />} />
+        <Route path="/participants" element={<Navigate to="/employee/participants" replace />} />
+        <Route path="/staff" element={<Navigate to="/employee/staff" replace />} />
+        <Route path="/documents" element={<Navigate to="/employee/documents" replace />} />
+        <Route path="/calendar" element={<Navigate to="/employee/calendar" replace />} />
+        <Route path="/settings" element={<Navigate to="/employee/dashboard" replace />} />
+        <Route path="/feedback" element={<Navigate to="/executive/feedback" replace />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />

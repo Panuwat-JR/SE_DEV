@@ -21,6 +21,16 @@ exports.getDashboard = async (req, res) => {
   }
 };
 
+exports.getCalendar = async (req, res) => {
+  try {
+    const items = await employeeService.getStaffCalendar();
+    res.json(items);
+  } catch (err) {
+    console.error('Employee calendar:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.createEmployee = async (req, res) => {
   try {
     const row = await employeeService.createEmployee(req.body || {});

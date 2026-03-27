@@ -3,6 +3,7 @@ import { MessageSquare, User, Calendar, Star } from 'lucide-react';
 
 const FeedbackCard = ({ feedback }) => {
     const { user_name, project_name, comment, date, rating } = feedback;
+    const stars = Math.min(5, Math.max(0, Number(rating) || 0));
     
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow group">
@@ -22,7 +23,7 @@ const FeedbackCard = ({ feedback }) => {
                                     <Star 
                                         key={i} 
                                         size={10} 
-                                        className={i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"} 
+                                        className={i < stars ? "fill-yellow-400 text-yellow-400" : "text-gray-200"} 
                                     />
                                 ))}
                             </div>

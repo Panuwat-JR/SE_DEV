@@ -410,6 +410,77 @@ class EmployeeService {
       urgentTasks: urgentResult.rows,
     };
   }
+
+  /**
+   * ปฏิทินพนักงาน: งานที่มี due_date + วันเริ่ม/จบโครงการ (ทุก event)
+   */
+  async getStaffCalendar() {
+    const tasksR = await pool.query(`
+      SELECT
+        t.task_id,
+        TO_CHAR(t.due_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+        t.task_name AS title,
+        COALESCE(e.title, 'ไม่ระบุ') AS project,
+        'กำหนดส่ง' AS type,
+        CASE
+          WHEN t.due_date IS NULL THEN 'สิ้นวัน'
+          ELSE TO_CHAR(t.due_date AT TIME ZONE 'Asia/Bangkok', 'HH24:MI')
+        END AS time
+      FROM tasks t
+      LEFT JOIN events e ON e.event_id = t.event_id
+      WHERE t.due_date IS NOT NULL
+    `);
+
+    const evR = await pool.query(`
+      SELECT
+        e.event_id,
+        TO_CHAR(e.event_start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+        ('เริ่มโครงการ: ' || e.title) AS title,
+        e.title AS project,
+        'กิจกรรม' AS type,
+        COALESCE(TO_CHAR(e.event_start_date AT TIME ZONE 'Asia/Bangkok', 'HH24:MI'), '08:00') AS time,
+        'start' AS ev_kind
+      FROM events e
+      WHERE e.event_start_date IS NOT NULL
+      UNION ALL
+      SELECT
+        e.event_id,
+        TO_CHAR(e.event_end_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+        ('สิ้นสุดโครงการ: ' || e.title) AS title,
+        e.title AS project,
+        'กิจกรรม' AS type,
+        COALESCE(TO_CHAR(e.event_end_date AT TIME ZONE 'Asia/Bangkok', 'HH24:MI'), '17:00') AS time,
+        'end' AS ev_kind
+      FROM events e
+      WHERE e.event_end_date IS NOT NULL
+    `);
+
+    const out = [];
+
+    for (const r of tasksR.rows) {
+      out.push({
+        id: `task_${r.task_id}`,
+        date: r.date,
+        title: r.title,
+        project: r.project,
+        type: r.type,
+        time: r.time,
+      });
+    }
+    for (const r of evR.rows) {
+      out.push({
+        id: `event_${r.event_id}_${r.ev_kind}_${r.date}`,
+        date: r.date,
+        title: r.title,
+        project: r.project,
+        type: r.type,
+        time: r.time,
+      });
+    }
+
+    out.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+    return out;
+  }
 }
 
 module.exports = new EmployeeService();

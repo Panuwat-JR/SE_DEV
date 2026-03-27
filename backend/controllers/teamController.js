@@ -214,3 +214,18 @@ exports.createTeam = async (req, res) => {
     client.release();
   }
 };
+
+exports.deleteTeam = async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'รหัสทีมไม่ถูกต้อง' });
+  }
+  try {
+    const r = await pool.query(`DELETE FROM teams WHERE team_id = $1 RETURNING team_id`, [id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'ไม่พบทีม' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('deleteTeam:', err.message);
+    res.status(500).json({ error: 'Server Error: ' + err.message });
+  }
+};

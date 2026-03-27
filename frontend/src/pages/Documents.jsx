@@ -3,7 +3,7 @@ import { Search, Plus, Filter, FileText, Download, Eye, Trash2, X, Upload, File,
 import { useApp } from '../context/AppContext';
 
 const Documents = () => {
-  const { documents, addDocument, updateDocument } = useApp();
+  const { documents, addDocument, deleteDocument } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'template'
@@ -130,7 +130,11 @@ const Documents = () => {
                             <Download size={16} />
                           </button>
                           <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="ลบ"
-                            onClick={() => { if (window.confirm(`ลบเอกสาร "${doc.name}" ?`)) updateDocument(doc.id, { doc_status: 'ลบแล้ว' }); }}>
+                            onClick={async () => {
+                              if (!window.confirm(`ลบเอกสาร "${doc.name}" จากระบบถาวร?`)) return;
+                              const r = await deleteDocument(doc.id);
+                              if (!r?.ok) alert(r?.error || 'ลบไม่สำเร็จ');
+                            }}>
                             <Trash2 size={16} />
                           </button>
                         </div>

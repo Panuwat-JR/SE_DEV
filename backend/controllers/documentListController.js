@@ -111,3 +111,90 @@ exports.createDocument = async (req, res) => {
     client.release();
   }
 };
+
+/** อัปเดตชื่อเอกสารและ/หรือสถานะ (ชื่อสถานะต้องตรง document_statuses.name) */
+exports.updateDocument = async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) return res.status(400).json({ error: 'รหัสเอกสารไม่ถูกต้อง' });
+
+  const nameRaw = req.body?.name;
+  const statusRaw = req.body?.doc_status;
+  const name = nameRaw != null ? String(nameRaw).trim() : null;
+  const docStatusName = statusRaw != null ? String(statusRaw).trim() : null;
+
+  if (!name && !docStatusName) {
+    return res.status(400).json({ error: 'ระบุ name หรือ doc_status อย่างน้อยหนึ่งอย่าง' });
+  }
+
+  try {
+    const ev = await pool.query(`SELECT document_id FROM documents WHERE document_id = $1`, [id]);
+    if (ev.rowCount === 0) return res.status(404).json({ error: 'ไม่พบเอกสาร' });
+
+    let statusId = null;
+    if (docStatusName) {
+      const st = await pool.query(
+        `SELECT doc_status_id FROM document_statuses WHERE TRIM(name) = TRIM($1) LIMIT 1`,
+        [docStatusName]
+      );
+      if (st.rowCount === 0) {
+        return res.status(400).json({ error: `ไม่พบสถานะเอกสาร "${docStatusName}" ในระบบ` });
+      }
+      statusId = st.rows[0].doc_status_id;
+    }
+
+    const sets = [];
+    const vals = [];
+    let i = 1;
+    if (name) {
+      sets.push(`name = $${i++}`);
+      vals.push(name);
+    }
+    if (statusId != null) {
+      sets.push(`doc_status_id = $${i++}`);
+      vals.push(statusId);
+    }
+    sets.push('updated_at = CURRENT_TIMESTAMP');
+    vals.push(id);
+
+    await pool.query(`UPDATE documents SET ${sets.join(', ')} WHERE document_id = $${i}`, vals);
+
+    const list = await pool.query(
+      `
+      SELECT DISTINCT ON (d.document_id)
+        d.document_id AS id,
+        d.name,
+        COALESCE(ds.name, 'ไม่ระบุ') AS doc_status,
+        TO_CHAR(d.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS date,
+        COALESCE(e.title, 'ไม่ระบุ') AS project,
+        '—' AS author,
+        COALESCE(d.file_type, 'เอกสาร') AS type
+      FROM documents d
+      LEFT JOIN document_statuses ds ON ds.doc_status_id = d.doc_status_id
+      LEFT JOIN mapping_doc_tasks mdt ON mdt.document_id = d.document_id
+      LEFT JOIN tasks tk ON tk.task_id = mdt.task_id
+      LEFT JOIN events e ON e.event_id = tk.event_id
+      WHERE d.document_id = $1
+      ORDER BY d.document_id, d.updated_at DESC NULLS LAST, e.event_id NULLS LAST
+    `,
+      [id]
+    );
+
+    res.json(list.rows[0] || { id, ok: true });
+  } catch (err) {
+    console.error('updateDocument:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+exports.deleteDocument = async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) return res.status(400).json({ error: 'รหัสเอกสารไม่ถูกต้อง' });
+  try {
+    const r = await pool.query(`DELETE FROM documents WHERE document_id = $1 RETURNING document_id`, [id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'ไม่พบเอกสาร' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('deleteDocument:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};

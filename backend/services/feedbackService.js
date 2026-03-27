@@ -1,5 +1,19 @@
 const pool = require('../config/db');
 
+/** ค่า event_id เมื่อ feedback ไม่ผูกกับ events (JOIN ได้ NULL) — ต้องตรงกับฝั่ง UI */
+const EVENT_UNASSIGNED = '__unassigned__';
+
+function appendEventIdFilter(fragment, params, event_id, columnSql = 'e.event_id') {
+  if (!event_id || event_id === 'all') return fragment;
+  if (String(event_id) === EVENT_UNASSIGNED) {
+    return `${fragment} AND ${columnSql} IS NULL`;
+  }
+  const eid = parseInt(String(event_id), 10);
+  if (Number.isNaN(eid)) return fragment;
+  params.push(eid);
+  return `${fragment} AND ${columnSql} = $${params.length}`;
+}
+
 class FeedbackService {
   async getFeedbacks(filters = {}) {
     const { event_id, academic_year } = filters;
@@ -21,11 +35,7 @@ class FeedbackService {
       WHERE 1=1
     `;
     const params = [];
-
-    if (event_id && event_id !== 'all') {
-      params.push(event_id);
-      query += ` AND e.event_id = $${params.length}`;
-    }
+    query = appendEventIdFilter(query, params, event_id, 'e.event_id');
     if (academic_year && academic_year !== 'all') {
       params.push(academic_year);
       query += ` AND (e.academic_year = $${params.length} OR e.academic_year IS NULL)`;
@@ -51,11 +61,7 @@ class FeedbackService {
       WHERE 1=1
     `;
     const params = [];
-
-    if (event_id && event_id !== 'all') {
-      params.push(event_id);
-      baseQuery += ` AND f.event_id = $${params.length}`;
-    }
+    baseQuery = appendEventIdFilter(baseQuery, params, event_id, 'f.event_id');
     if (academic_year && academic_year !== 'all') {
       params.push(academic_year);
       baseQuery += ` AND (f.academic_year = $${params.length} OR f.academic_year IS NULL)`;
@@ -93,8 +99,8 @@ class FeedbackService {
     // 2. Rating Breakdown by Project
     const projectBreakdownQuery = `
       SELECT 
-        f.event_id AS id,
-        COALESCE(f.title, 'อื่นๆ') AS name,
+        CASE WHEN f.event_id IS NULL THEN '${EVENT_UNASSIGNED}' ELSE f.event_id::text END AS id,
+        COALESCE(NULLIF(TRIM(f.title), ''), 'อื่นๆ') AS name,
         ROUND(AVG(rating), 1) AS score
       ${breakdownBaseQuery}
       GROUP BY f.event_id, f.title

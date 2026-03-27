@@ -1,7 +1,7 @@
 // ไฟล์: src/context/AppContext.jsx
 // React Context กลาง — Dashboard ดึงข้อมูลจาก Backend API, ส่วนอื่นใช้ Mock Data
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
     INITIAL_EVENTS,
     INITIAL_TASKS,
@@ -15,6 +15,9 @@ import { API_BASE as _API_ORIGIN } from '../config/api';
 
 const API_BASE = `${_API_ORIGIN}/api`;
 
+/** แจ้ง AppContext ให้รีเฟรชรายการเอกสาร + dashboard (ใช้หลังบันทึกจาก E_Documents) */
+export const DOCUMENTS_CHANGED_EVENT = 'nu-seed-documents-changed';
+
 const AppContext = createContext(null);
 
 export const AppProvider = ({ children }) => {
@@ -27,6 +30,34 @@ export const AppProvider = ({ children }) => {
     const [logs, setLogs] = useState(INITIAL_LOGS);
     const [dbStats, setDbStats] = useState(null); // stats จาก DB จริง
 
+    const refreshDocumentsList = useCallback(async () => {
+        try {
+            const list = await fetch(`${API_BASE}/documents`).then((r) => r.json());
+            if (Array.isArray(list)) setDocuments(list);
+        } catch (err) {
+            console.warn('refreshDocumentsList:', err.message);
+        }
+    }, []);
+
+    const refreshDashboardPayload = useCallback(async () => {
+        try {
+            const data = await fetch(`${API_BASE}/dashboard-data`).then((r) => r.json());
+            if (data.stats) setDbStats(data.stats);
+            if (Array.isArray(data.activityLogs)) setLogs(data.activityLogs);
+        } catch (err) {
+            console.warn('refreshDashboardPayload:', err.message);
+        }
+    }, []);
+
+    useEffect(() => {
+        const onDocsChanged = () => {
+            refreshDocumentsList();
+            refreshDashboardPayload();
+        };
+        window.addEventListener(DOCUMENTS_CHANGED_EVENT, onDocsChanged);
+        return () => window.removeEventListener(DOCUMENTS_CHANGED_EVENT, onDocsChanged);
+    }, [refreshDocumentsList, refreshDashboardPayload]);
+
     // ========== ดึง Dashboard Data จาก Backend API ==========
     useEffect(() => {
         // ดึง Dashboard stats และ Tasks logs
@@ -35,7 +66,7 @@ export const AppProvider = ({ children }) => {
             .then(data => {
                 if (data.stats) setDbStats(data.stats);
                 // เราไม่ใช้ upcomingActivities จาก dashboard-data แล้ว เพราะจะดึง events ทั้งหมดจาก /api/activities แทน
-                if (data.activityLogs?.length > 0) setLogs(data.activityLogs);
+                if (Array.isArray(data.activityLogs)) setLogs(data.activityLogs);
             })
             .catch(err => {
                 console.warn('⚠️ ไม่สามารถเชื่อม API dashboard-data ได้:', err.message);
@@ -127,6 +158,7 @@ export const AppProvider = ({ children }) => {
                 _addLog('event', 'สร้างกิจกรรมใหม่', data.title);
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
             }
         } catch (err) {
             console.error('addEvent Error:', err);
@@ -146,6 +178,7 @@ export const AppProvider = ({ children }) => {
                 _addLog('event', 'อัปเดตกิจกรรม', data.title || '');
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
             }
         } catch (err) {
             console.error('updateEvent Error:', err);
@@ -162,6 +195,7 @@ export const AppProvider = ({ children }) => {
                 _addLog('event', 'ลบกิจกรรม', deleted?.title || '');
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
             }
         } catch (err) {
             console.error('deleteEvent Error:', err);
@@ -182,6 +216,9 @@ export const AppProvider = ({ children }) => {
                 const freshTasks = await fetch(`${API_BASE}/tasks`).then(r => r.json());
                 setTasks(freshTasks);
                 _addLog('task', 'สร้างงานใหม่', data.title ?? data.task_name ?? '');
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
             }
         } catch (err) {
             console.error('addTask Error:', err);
@@ -199,6 +236,9 @@ export const AppProvider = ({ children }) => {
                 const freshTasks = await fetch(`${API_BASE}/tasks`).then(r => r.json());
                 if (Array.isArray(freshTasks)) setTasks(freshTasks);
                 _addLog('task', 'อัปเดตงาน', data.title || '');
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
             }
         } catch (err) {
             console.error('updateTask Error:', err);
@@ -210,6 +250,9 @@ export const AppProvider = ({ children }) => {
             const res = await fetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 setTasks(prev => prev.filter(t => t.id !== id));
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
             }
         } catch (err) {
             console.error('deleteTask Error:', err);
@@ -240,8 +283,29 @@ export const AppProvider = ({ children }) => {
             _addLog('team', 'สร้างทีมใหม่', payload?.team?.name || data.name);
             const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
             if (dash.stats) setDbStats(dash.stats);
+            if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
         } catch (err) {
             console.error('addTeam Error:', err);
+        }
+    };
+
+    const deleteTeam = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/teams/${id}`, { method: 'DELETE' });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok) {
+                const fresh = await fetch(`${API_BASE}/teams`).then(r => r.json());
+                if (Array.isArray(fresh.teamsData)) setTeams(fresh.teamsData);
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
+                _addLog('team', 'ลบทีม', String(id));
+                return { ok: true };
+            }
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+        } catch (err) {
+            console.error('deleteTeam Error:', err);
+            return { ok: false, error: err.message };
         }
     };
 
@@ -261,6 +325,8 @@ export const AppProvider = ({ children }) => {
                 _addLog('document', 'สร้างเอกสารใหม่', docName);
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
+                window.dispatchEvent(new CustomEvent(DOCUMENTS_CHANGED_EVENT));
                 return;
             }
             console.warn('addDocument API:', payload?.error || res.status);
@@ -278,8 +344,53 @@ export const AppProvider = ({ children }) => {
         _addLog('document', 'สร้างเอกสารใหม่', newDoc.name);
     };
 
-    const updateDocument = (id, data) => {
-        setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...data } : d));
+    const updateDocument = async (id, data) => {
+        try {
+            const body = {};
+            if (data.name != null) body.name = data.name;
+            if (data.doc_status != null) body.doc_status = data.doc_status;
+            if (Object.keys(body).length === 0) {
+                setDocuments(prev => prev.map(d => (d.id === id ? { ...d, ...data } : d)));
+                return { ok: true };
+            }
+            const res = await fetch(`${API_BASE}/documents/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+            const list = await fetch(`${API_BASE}/documents`).then(r => r.json());
+            if (Array.isArray(list)) setDocuments(list);
+            const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+            if (dash.stats) setDbStats(dash.stats);
+            if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
+            window.dispatchEvent(new CustomEvent(DOCUMENTS_CHANGED_EVENT));
+            return { ok: true, row: payload };
+        } catch (err) {
+            console.error('updateDocument Error:', err);
+            return { ok: false, error: err.message };
+        }
+    };
+
+    const deleteDocument = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok) {
+                const list = await fetch(`${API_BASE}/documents`).then(r => r.json());
+                if (Array.isArray(list)) setDocuments(list);
+                const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
+                if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
+                window.dispatchEvent(new CustomEvent(DOCUMENTS_CHANGED_EVENT));
+                return { ok: true };
+            }
+            return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+        } catch (err) {
+            console.error('deleteDocument Error:', err);
+            return { ok: false, error: err.message };
+        }
     };
 
     // ==================== EMPLOYEES (DB) ====================
@@ -384,6 +495,7 @@ export const AppProvider = ({ children }) => {
                 _addLog('team', 'เพิ่มผู้เข้าร่วม', `${data.firstname} ${data.lastname || ''}`.trim());
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
                 return;
             }
             console.error('addParticipant API:', payload?.error || res.status);
@@ -406,6 +518,7 @@ export const AppProvider = ({ children }) => {
                 if (Array.isArray(list)) setParticipants(list);
                 const dash = await fetch(`${API_BASE}/dashboard-data`).then(r => r.json());
                 if (dash.stats) setDbStats(dash.stats);
+                if (Array.isArray(dash.activityLogs)) setLogs(dash.activityLogs);
                 return;
             }
         } catch (err) {
@@ -449,9 +562,10 @@ export const AppProvider = ({ children }) => {
             // Task ops
             addTask, updateTask, deleteTask,
             // Team ops
-            addTeam,
+            addTeam, deleteTeam,
             // Document ops
-            addDocument, updateDocument,
+            addDocument, updateDocument, deleteDocument,
+            refreshDocumentsList, refreshDashboardPayload,
             // Employee ops
             addEmployee, updateEmployee, deleteEmployee,
             // Participant ops

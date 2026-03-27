@@ -44,7 +44,8 @@ exports.getTasks = async (req, res) => {
       ORDER BY t.task_id DESC
     `;
     const result = await pool.query(query);
-    const tasksWithAssignees = result.rows.map(task => ({ ...task, assignees: ['ส'] }));
+    // ยังไม่มีตารางผู้รับผิดชอบงานใน schema — ส่ง array ว่างแทนค่าปลอม
+    const tasksWithAssignees = result.rows.map((task) => ({ ...task, assignees: [] }));
     res.json(tasksWithAssignees);
   } catch (err) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลงาน:', err.message);

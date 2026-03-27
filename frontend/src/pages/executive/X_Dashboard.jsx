@@ -1,6 +1,6 @@
 // pages/executive/X_Dashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { Activity, Users, TrendingUp, Star } from 'lucide-react';
+import { Activity, Users, TrendingUp, Star, AlertCircle } from 'lucide-react';
 import { API_BASE } from '../../config/api';
 import StatsCard from '../../components/executive/StatsCard';
 import ActivityTable from '../../components/executive/ActivityTable';
@@ -9,16 +9,33 @@ import TaskTimeline from '../../components/executive/TaskTimeline';
 export default function X_Dashboard() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
+            setError(null);
             try {
                 const response = await fetch(`${API_BASE}/api/dashboard-data`);
-                const result = await response.json();
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    setData(null);
+                    setError(
+                        result?.error ||
+                            result?.details ||
+                            `โหลดข้อมูลไม่สำเร็จ (HTTP ${response.status})`
+                    );
+                    return;
+                }
                 setData(result);
-                setLoading(false);
-            } catch (error) {
-                console.error("Error fetching dashboard data:", error);
+            } catch (err) {
+                console.error('Error fetching dashboard data:', err);
+                setData(null);
+                setError(
+                    err?.message === 'Failed to fetch' || err?.name === 'TypeError'
+                        ? 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่ารัน Backend และตั้งค่า proxy / VITE_API_BASE'
+                        : err?.message || 'เกิดข้อผิดพลาดขณะโหลดข้อมูล'
+                );
+            } finally {
                 setLoading(false);
             }
         };
@@ -30,6 +47,16 @@ export default function X_Dashboard() {
             <div className="text-gray-500 animate-pulse font-medium">กำลังโหลดข้อมูลภาพรวม...</div>
         </div>
     );
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4">
+                <AlertCircle size={40} className="text-red-400 mb-3" aria-hidden />
+                <p className="text-gray-800 font-semibold">ไม่สามารถโหลด Executive Dashboard ได้</p>
+                <p className="text-gray-500 text-sm mt-2 max-w-md">{error}</p>
+            </div>
+        );
+    }
 
     const stats = [
         { label: 'โครงการทั้งหมด', value: data?.stats?.total_activities || '0', sub: 'ชิ้นงานทั้งหมด', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-50' },

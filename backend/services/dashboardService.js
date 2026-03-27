@@ -1,5 +1,21 @@
 const pool = require('../config/db');
 
+function timeAgoThai(at) {
+  if (!at) return '—';
+  const t = at instanceof Date ? at.getTime() : new Date(at).getTime();
+  if (Number.isNaN(t)) return '—';
+  const sec = Math.floor((Date.now() - t) / 1000);
+  if (sec < 45) return 'เมื่อสักครู่';
+  if (sec < 3600) return `${Math.floor(sec / 60)} นาทีที่แล้ว`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)} ชั่วโมงที่แล้ว`;
+  if (sec < 86400 * 7) return `${Math.floor(sec / 86400)} วันที่แล้ว`;
+  try {
+    return new Date(t).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+}
+
 class DashboardService {
   async getStats() {
     const eventsCount = await pool.query('SELECT COUNT(*) FROM events');
@@ -61,6 +77,70 @@ class DashboardService {
       ORDER BY t.task_id DESC LIMIT 5
     `);
     return result.rows;
+  }
+
+  /** ฟีดกิจกรรมล่าสุดจากเอกสาร + ทีม (มี timestamp ใน DB) */
+  async getActivityLogs(limit = 12) {
+    const [docs, teams] = await Promise.all([
+      pool.query(`
+        SELECT
+          d.document_id,
+          d.name,
+          (
+            SELECT e.title
+            FROM mapping_doc_tasks mdt
+            JOIN tasks tk ON tk.task_id = mdt.task_id
+            JOIN events e ON e.event_id = tk.event_id
+            WHERE mdt.document_id = d.document_id
+            LIMIT 1
+          ) AS project_title,
+          COALESCE(d.updated_at, d.created_at) AS at
+        FROM documents d
+        ORDER BY COALESCE(d.updated_at, d.created_at) DESC NULLS LAST
+        LIMIT 8
+      `),
+      pool.query(`
+        SELECT team_id, name, COALESCE(NULLIF(TRIM(project_name), ''), '—') AS project_name, create_at AS at
+        FROM teams
+        ORDER BY team_id DESC
+        LIMIT 8
+      `),
+    ]);
+
+    const rows = [];
+    for (const r of docs.rows) {
+      const at = r.at ? new Date(r.at) : null;
+      rows.push({
+        at,
+        action_type: 'document',
+        title: `เอกสาร: ${r.name}`,
+        description: r.project_title ? `โครงการ ${r.project_title}` : 'อัปเดตในระบบ',
+      });
+    }
+    for (const r of teams.rows) {
+      const at = r.at ? new Date(r.at) : null;
+      rows.push({
+        at,
+        action_type: 'team',
+        title: `ทีม: ${r.name}`,
+        description: `โครงการภายในทีม: ${r.project_name}`,
+      });
+    }
+
+    rows.sort((a, b) => {
+      const ta = a.at ? a.at.getTime() : 0;
+      const tb = b.at ? b.at.getTime() : 0;
+      return tb - ta;
+    });
+
+    return rows.slice(0, limit).map((r, idx) => ({
+      id: `alog_${idx}_${r.action_type}_${r.at ? r.at.getTime() : idx}`,
+      action_type: r.action_type,
+      title: r.title,
+      description: r.description,
+      user_name: 'ระบบ',
+      time_ago: timeAgoThai(r.at),
+    }));
   }
 }
 
