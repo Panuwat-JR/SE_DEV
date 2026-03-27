@@ -294,26 +294,9 @@ class EmployeeService {
   async getDashboardData(employeeIdRaw) {
     const employeeId = this._parseEmployeeScope(employeeIdRaw);
 
-    const eventsSql = employeeId
-      ? `
-      SELECT
-        e.event_id   AS id,
-        e.title,
-        COALESCE(se.name, 'ไม่ระบุ') AS status,
-        COALESCE(TO_CHAR(e.event_start_date, 'DD/MM/YYYY'), 'ยังไม่ระบุ') AS deadline,
-        (SELECT COUNT(*) FROM participant_profiles pp
-         JOIN mapping_event_teams met ON pp.team_id = met.team_id
-         WHERE met.event_id = e.event_id) AS current_participants,
-        COALESCE(l.max_participant, 100) AS max_participants,
-        e.prize_pool,
-        e.budget
-      FROM events e
-      INNER JOIN mapping_event_employees mee ON mee.event_id = e.event_id AND mee.employee_id = $1
-      LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
-      LEFT JOIN logistics l ON e.logistics_id = l.logistics_id
-      ORDER BY e.event_id ASC
-    `
-      : `
+    // รายการโครงการ: แสดงทุกกิจกรรมในระบบ (สอดคล้องกับ GET /api/activities)
+    // งานเร่งด่วนด้านล่างยังกรองตาม mapping_event_employees เมื่อมี employee_id
+    const eventsSql = `
       SELECT
         e.event_id   AS id,
         e.title,
@@ -331,7 +314,7 @@ class EmployeeService {
       ORDER BY e.event_id ASC
     `;
 
-    const eventsResult = await pool.query(eventsSql, employeeId ? [employeeId] : []);
+    const eventsResult = await pool.query(eventsSql);
 
     // --- Task stats per event ---
     const taskStatsResult = await pool.query(`

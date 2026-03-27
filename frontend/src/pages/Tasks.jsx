@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Search, Plus, Filter, Clock, AlertCircle, CheckCircle2, Calendar, X, Upload, File } from 'lucide-react';
+import { Plus, Clock, AlertCircle, CheckCircle2, Calendar, X, Upload, File } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { priorityLabel, priorityBadgeClass, priorityDotClass } from '../lib/taskPriority';
 
 function Tasks() {
   const { tasks, events, addTask, updateTask } = useApp();
@@ -39,17 +40,17 @@ function Tasks() {
       (selectedTask.due_date_iso && String(selectedTask.due_date_iso).trim()) ||
       (selectedTask.date && selectedTask.date !== 'ไม่ระบุวันที่' ? selectedTask.date : '');
     await updateTask(selectedTask.id, {
-      title: selectedTask.title,
+      title: selectedTask.title || selectedTask.task_name,
       status,
       progress: tempProgress,
-      priority: selectedTask.priority,
+      priority: priorityLabel(selectedTask),
       due_date: dueRaw,
     });
     setSelectedTask(null);
   };
 
   const [formData, setFormData] = useState({
-    task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: ''
+    task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'กลาง', category: 'ทั่วไป', due_date: '', fileName: ''
   });
   const taskFileInputRef = useRef(null);
 
@@ -81,7 +82,7 @@ function Tasks() {
       return;
     }
     setIsModalOpen(false);
-    setFormData({ task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'ปกติ', category: 'ทั่วไป', due_date: '', fileName: '' });
+    setFormData({ task_name: '', event_id: '', status: 'รอดำเนินการ', priority: 'กลาง', category: 'ทั่วไป', due_date: '', fileName: '' });
   };
 
   const getStatusIcon = (status) => {
@@ -229,9 +230,9 @@ function Tasks() {
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-gray-50 flex justify-between items-center group cursor-pointer hover:bg-gray-50">
                       <p className="text-xs text-gray-500">ความสำคัญ</p>
-                      <span className={`text-sm font-bold flex items-center gap-1.5 ${selectedTask.priority === 'สูง' ? 'text-red-600' : 'text-gray-700'}`}>
-                        <span className={`w-2 h-2 inline-block rounded-full ${selectedTask.priority === 'สูง' ? 'bg-red-500' : selectedTask.priority === 'กลาง' ? 'bg-amber-500' : 'bg-blue-400'}`}></span>
-                        {selectedTask.priority || 'ปกติ'}
+                      <span className={`text-sm font-bold flex items-center gap-1.5 ${selectedTask.priority_slug === 'urgent' || selectedTask.priority_slug === 'high' ? 'text-red-600' : 'text-gray-700'}`}>
+                        <span className={`w-2 h-2 inline-block rounded-full ${priorityDotClass(selectedTask)}`}></span>
+                        {priorityLabel(selectedTask)}
                       </span>
                     </div>
                     <div className="p-4 border-b border-gray-50 flex justify-between items-center group cursor-pointer hover:bg-gray-50">
@@ -329,9 +330,10 @@ function Tasks() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">ความสำคัญ</label>
                   <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-blue-500"
                     value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
+                    <option value="เร่งด่วนที่สุด">เร่งด่วนที่สุด</option>
                     <option value="สูง">สูง</option>
                     <option value="กลาง">กลาง</option>
-                    <option value="ปกติ">ปกติ</option>
+                    <option value="ต่ำ">ต่ำ</option>
                   </select>
                 </div>
               </div>
@@ -424,7 +426,7 @@ function TaskCard({ task, getStatusIcon, onClick }) {
           <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${task.status === 'รอดำเนินการ' ? 'bg-amber-100 text-amber-700' :
             task.status === 'กำลังดำเนินการ' ? 'bg-emerald-100 text-emerald-700' : 'bg-green-100 text-green-700'
             }`}>{task.status}</span>
-          <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${task.priority === 'สูง' ? 'text-red-600' : 'text-gray-500'}`}>{task.priority}</span>
+          <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${priorityBadgeClass(task)}`}>{priorityLabel(task)}</span>
         </div>
         <div className="flex items-center gap-1 text-xs text-gray-500">
           <Calendar size={12} /> {task.date}

@@ -64,7 +64,7 @@ export default function E_Dashboard() {
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">แดชบอร์ด</h1>
                 <p className="text-gray-500 text-sm mt-1">
-                    โครงการที่คุณได้รับมอบหมายในระบบ (จากตารางเชื่อมพนักงาน–โครงการ)
+                    โครงการทั้งหมดในระบบ (สอดคล้องกับหน้าจัดการกิจกรรม) — งานเร่งด่วนด้านล่างยังแสดงเฉพาะโครงการที่คุณผูกในตาราง mapping_event_employees
                 </p>
             </div>
 
@@ -114,9 +114,9 @@ export default function E_Dashboard() {
                             {projects.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-5 py-10 text-center text-gray-500 text-sm leading-relaxed">
-                                        ไม่มีโครงการที่ผูกกับบัญชีพนักงานของคุณในระบบ
+                                        ยังไม่มีกิจกรรม (โครงการ) ในระบบ
                                         <span className="block text-xs text-gray-400 mt-2">
-                                            ให้ผู้ดูแลฐานข้อมูลเพิ่มแถวใน mapping_event_employees (employee_id ↔ event_id)
+                                            สร้างกิจกรรมจากเมนู &quot;จัดการโครงการ&quot; หรือนำเข้าข้อมูลในตาราง events
                                         </span>
                                     </td>
                                 </tr>

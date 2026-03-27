@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Clock, Calendar, Tag, CheckCircle2, Paperclip, MessageSquare } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { priorityLabel } from '../lib/taskPriority';
 
 const TaskDetail = () => {
   const { id } = useParams();
@@ -21,7 +22,13 @@ const TaskDetail = () => {
   }
 
   const handleMarkDone = () => {
-    updateTask(task.id, { status: 'เสร็จสิ้น', progress: 100 });
+    updateTask(task.id, {
+      title: task.title || task.task_name,
+      status: 'เสร็จสิ้น',
+      progress: 100,
+      priority: priorityLabel(task),
+      due_date: task.due_date_iso || task.date,
+    });
   };
 
   const handleComment = (e) => {
@@ -110,8 +117,8 @@ const TaskDetail = () => {
             </div>
             <div>
               <span className="text-xs text-gray-400 block mb-1">ความสำคัญ</span>
-              <span className={`inline-flex items-center gap-1 text-sm font-bold ${task.priority === 'สูง' ? 'text-red-500' : 'text-gray-600'}`}>
-                <Tag size={14} /> {task.priority}
+              <span className={`inline-flex items-center gap-1 text-sm font-bold ${task.priority_slug === 'urgent' || task.priority_slug === 'high' ? 'text-red-500' : 'text-gray-600'}`}>
+                <Tag size={14} /> {priorityLabel(task)}
               </span>
             </div>
             <div>

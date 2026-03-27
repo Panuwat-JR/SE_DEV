@@ -72,6 +72,7 @@ function normalizeDocRow(row) {
         status: row.doc_status || row.status || 'ไม่ระบุ',
         date: row.date || '—',
         type: row.type || 'เอกสาร',
+        file_storage_path: row.file_storage_path || null,
     };
 }
 
@@ -206,6 +207,11 @@ export default function E_Documents() {
         setTemplateSubmitError(null);
     };
 
+    const downloadDocument = (doc) => {
+        const url = `${apiRoot()}/documents/${encodeURIComponent(String(doc.id))}/download`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -272,7 +278,14 @@ export default function E_Documents() {
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {docs.map((doc) => (
-                                    <tr key={doc.id} className="hover:bg-gray-50/30 transition-colors">
+                                    <tr
+                                        key={doc.id}
+                                        className="hover:bg-gray-50/30 transition-colors"
+                                        onClick={(e) => {
+                                            if (e.target.closest('button')) return;
+                                            setDetailDoc((d) => (d?.id === doc.id ? null : doc));
+                                        }}
+                                    >
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
@@ -292,9 +305,10 @@ export default function E_Documents() {
                                             <div className="flex items-center justify-center gap-1.5">
                                                 <button
                                                     type="button"
-                                                    onClick={() =>
-                                                        setDetailDoc((d) => (d?.id === doc.id ? null : doc))
-                                                    }
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDetailDoc((d) => (d?.id === doc.id ? null : doc));
+                                                    }}
                                                     className={`p-1.5 rounded-lg transition-colors ${
                                                         detailDoc?.id === doc.id
                                                             ? 'text-blue-600 bg-blue-50'
@@ -311,15 +325,21 @@ export default function E_Documents() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled
-                                                    className="p-1.5 text-gray-300 cursor-not-allowed rounded-lg"
-                                                    title="ดาวน์โหลด — ยังไม่มี file_storage_path ในรายการ API นี้"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        downloadDocument(doc);
+                                                    }}
+                                                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                    title="ดาวน์โหลด (ไฟล์สรุปจากระบบ หรือลิงก์ถ้ามีใน storage)"
                                                 >
                                                     <Download size={15} />
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleDeleteDocument(doc)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteDocument(doc);
+                                                    }}
                                                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="ลบเอกสารจากระบบ"
                                                 >
@@ -635,7 +655,11 @@ export default function E_Documents() {
                                     <h3 id="doc-detail-title" className="font-bold text-gray-900 text-lg break-words">
                                         {detailDoc.name}
                                     </h3>
-                                    <p className="text-xs text-gray-500 mt-1">รายการจากฐานข้อมูล — ยังไม่มีไฟล์แนบจาก API นี้</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {detailDoc.file_storage_path
+                                            ? 'มี path ไฟล์ในระบบ — ใช้ปุ่มดาวน์โหลดเพื่อเปิดหรือรับไฟล์'
+                                            : 'รายการจากฐานข้อมูล — ดาวน์โหลดจะได้ไฟล์ข้อความสรุปจากระบบ'}
+                                    </p>
                                 </div>
                             </div>
                             <button
@@ -669,13 +693,22 @@ export default function E_Documents() {
                                 <dd className="font-medium text-gray-900">{detailDoc.type}</dd>
                             </div>
                         </dl>
-                        <button
-                            type="button"
-                            onClick={() => setDetailDoc(null)}
-                            className="w-full mt-6 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl"
-                        >
-                            ปิด
-                        </button>
+                        <div className="flex gap-2 mt-6">
+                            <button
+                                type="button"
+                                onClick={() => downloadDocument(detailDoc)}
+                                className="flex-1 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl"
+                            >
+                                ดาวน์โหลด
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDetailDoc(null)}
+                                className="flex-1 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl"
+                            >
+                                ปิด
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

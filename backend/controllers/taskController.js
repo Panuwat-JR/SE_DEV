@@ -3,6 +3,43 @@
 const pool = require('../config/db');
 
 /** คืน YYYY-MM-DD หรือ null — รองรับ ISO, DD/MM/YY(YY), และข้อความ placeholder */
+/** แมปค่าจากฟอร์ม (ไทย / slug) → slug ใน priority_levels */
+function resolvePrioritySlug(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  const th = String(raw || '').trim();
+  const map = {
+    urgent: 'urgent',
+    เร่งด่วนที่สุด: 'urgent',
+    high: 'high',
+    สูง: 'high',
+    medium: 'medium',
+    กลาง: 'medium',
+    ปกติ: 'medium',
+    low: 'low',
+    ต่ำ: 'low',
+  };
+  if (map[th] != null) return map[th];
+  if (map[s] != null) return map[s];
+  return null;
+}
+
+/** คืน priority_id จาก slug หรือชื่อที่ตรงกับตาราง */
+async function lookupPriorityId(client, raw) {
+  const slug = resolvePrioritySlug(raw);
+  if (slug) {
+    const bySlug = await client.query(
+      `SELECT priority_id FROM priority_levels WHERE TRIM(LOWER(slug)) = TRIM(LOWER($1)) LIMIT 1`,
+      [slug]
+    );
+    if (bySlug.rowCount > 0) return bySlug;
+  }
+  const byName = await client.query(
+    `SELECT priority_id FROM priority_levels WHERE name = $1 OR TRIM(LOWER(slug)) = TRIM(LOWER($1)) LIMIT 1`,
+    [String(raw || '').trim()]
+  );
+  return byName;
+}
+
 function parseTaskDueDate(raw) {
   if (raw == null || raw === '') return null;
   const s = String(raw).trim();
@@ -34,6 +71,7 @@ exports.getTasks = async (req, res) => {
         END AS status,
         COALESCE(t.progress_percent, 0) AS progress,
         COALESCE(pl.name, 'ปกติ') AS priority,
+        COALESCE(TRIM(pl.slug), 'medium') AS priority_slug,
         COALESCE(TO_CHAR(t.due_date, 'DD/MM/YY'), 'ไม่ระบุวันที่') AS date,
         CASE WHEN t.due_date IS NULL THEN NULL ELSE TO_CHAR(t.due_date, 'YYYY-MM-DD') END AS due_date_iso,
         COALESCE(tc.name, 'ทั่วไป') AS category
@@ -72,10 +110,7 @@ exports.updateTask = async (req, res) => {
     if (st.rowCount === 0) {
       return res.status(400).json({ error: `ไม่พบสถานะงาน "${status}" ในระบบ` });
     }
-    const pr = await pool.query(
-      `SELECT priority_id FROM priority_levels WHERE name = $1 OR slug = $1 LIMIT 1`,
-      [priority]
-    );
+    const pr = await lookupPriorityId(pool, priority);
     if (pr.rowCount === 0) {
       return res.status(400).json({ error: `ไม่พบระดับความสำคัญ "${priority}" ในระบบ` });
     }
@@ -126,9 +161,6 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ error: 'ต้องระบุชื่องาน' });
     }
     const { event_id, status, priority, category, due_date } = body;
-    let priorityNorm = String(priority || '').trim();
-    if (priorityNorm === 'กลาง') priorityNorm = 'ปกติ';
-
     let st = await pool.query(
       `SELECT status_task_id FROM task_statuses WHERE name = $1 OR slug = $1 LIMIT 1`,
       [status]
@@ -142,10 +174,7 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ error: 'ไม่พบสถานะงานในระบบ — รัน seed / init DB' });
     }
 
-    let pr = await pool.query(
-      `SELECT priority_id FROM priority_levels WHERE name = $1 OR slug = $1 LIMIT 1`,
-      [priorityNorm]
-    );
+    let pr = await lookupPriorityId(pool, priority);
     if (pr.rowCount === 0) {
       pr = await pool.query(
         `SELECT priority_id FROM priority_levels WHERE slug = 'medium' LIMIT 1`

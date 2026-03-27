@@ -11,7 +11,8 @@ exports.listDocuments = async (req, res) => {
         TO_CHAR(d.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS date,
         COALESCE(e.title, 'ไม่ระบุ') AS project,
         '—' AS author,
-        COALESCE(d.file_type, 'เอกสาร') AS type
+        COALESCE(d.file_type, 'เอกสาร') AS type,
+        d.file_storage_path
       FROM documents d
       LEFT JOIN document_statuses ds ON ds.doc_status_id = d.doc_status_id
       LEFT JOIN mapping_doc_tasks mdt ON mdt.document_id = d.document_id
@@ -233,6 +234,58 @@ exports.deleteDocument = async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('deleteDocument:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+/** ดาวน์โหลด: ถ้ามี file_storage_path เป็น URL ให้ redirect; ไม่มีให้ส่งไฟล์ข้อความสรุปจาก DB */
+exports.downloadDocument = async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) return res.status(400).json({ error: 'รหัสเอกสารไม่ถูกต้อง' });
+  try {
+    const result = await pool.query(
+      `
+      SELECT DISTINCT ON (d.document_id)
+        d.document_id,
+        d.name,
+        COALESCE(ds.name, 'ไม่ระบุ') AS doc_status,
+        TO_CHAR(d.created_at AT TIME ZONE 'UTC', 'DD/MM/YYYY') AS date,
+        COALESCE(e.title, 'ไม่ระบุ') AS project,
+        d.file_storage_path
+      FROM documents d
+      LEFT JOIN document_statuses ds ON ds.doc_status_id = d.doc_status_id
+      LEFT JOIN mapping_doc_tasks mdt ON mdt.document_id = d.document_id
+      LEFT JOIN tasks tk ON tk.task_id = mdt.task_id
+      LEFT JOIN events e ON e.event_id = tk.event_id
+      WHERE d.document_id = $1
+      ORDER BY d.document_id, d.updated_at DESC NULLS LAST, e.event_id NULLS LAST
+    `,
+      [id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'ไม่พบเอกสาร' });
+    const row = result.rows[0];
+    const pathRaw = row.file_storage_path != null ? String(row.file_storage_path).trim() : '';
+    if (pathRaw && /^https?:\/\//i.test(pathRaw)) {
+      return res.redirect(302, pathRaw);
+    }
+    const safeBase = String(row.name || `document_${id}`).replace(/[/\\?%*:|"<>]/g, '_');
+    const lines = [
+      'NU SEED — สรุปเอกสารจากระบบ',
+      '',
+      `ชื่อ: ${row.name}`,
+      `โครงการ: ${row.project}`,
+      `สถานะ: ${row.doc_status}`,
+      `วันที่บันทึก: ${row.date}`,
+      '',
+      'หมายเหตุ: ยังไม่มีไฟล์แนบใน storage — ไฟล์นี้สร้างจากข้อมูลในฐานข้อมูลเท่านั้น',
+    ];
+    const buf = Buffer.from(lines.join('\n'), 'utf8');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeBase}_summary.txt"`);
+    res.setHeader('Content-Length', String(buf.length));
+    return res.send(buf);
+  } catch (err) {
+    console.error('downloadDocument:', err.message);
     res.status(500).json({ error: 'Server Error' });
   }
 };

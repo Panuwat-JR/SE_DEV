@@ -5,6 +5,9 @@ import { useApp } from '../context/AppContext';
 const Teams = () => {
   const { teams, events, addTeam, deleteTeam, stats } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterEventId, setFilterEventId] = useState('');
+  const [minMembers, setMinMembers] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [formData, setFormData] = useState({ name: '', project_name: '', event_id: '' });
@@ -16,10 +19,20 @@ const Teams = () => {
     setFormData({ name: '', project_name: '', event_id: '' });
   };
 
-  const filtered = teams.filter(t =>
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (t.project_name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const minN = parseInt(String(minMembers || '').trim(), 10);
+  const filtered = teams.filter((t) => {
+    const q = searchTerm.toLowerCase();
+    const matchText =
+      !q ||
+      t.name.toLowerCase().includes(q) ||
+      (t.project_name || '').toLowerCase().includes(q) ||
+      (t.event || '').toLowerCase().includes(q);
+    const matchEvent =
+      !filterEventId ||
+      (t.event_id != null && String(t.event_id) === String(filterEventId));
+    const matchMin = !Number.isFinite(minN) || minN < 0 || (t.memberCount || 0) >= minN;
+    return matchText && matchEvent && matchMin;
+  });
 
   const statsCards = [
     { id: 1, title: 'ทีมทั้งหมด', value: String(stats.registered_teams), valueColor: 'text-blue-600' },
@@ -38,15 +51,57 @@ const Teams = () => {
       </div>
       <p className="text-gray-500 mb-8 text-sm">จัดการทีมและสมาชิกในแต่ละกิจกรรม</p>
 
-      <div className="flex gap-4 mb-8">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input type="text" placeholder="ค้นหาทีม..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      <div className="flex flex-col gap-3 mb-8">
+        <div className="flex gap-4 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input type="text" placeholder="ค้นหาทีม / โครงการ / กิจกรรม..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <button
+            type="button"
+            aria-expanded={filterOpen}
+            onClick={() => setFilterOpen((o) => !o)}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg bg-white text-gray-600 hover:bg-gray-50 shrink-0 ${filterOpen || filterEventId || minMembers ? 'border-blue-400 ring-1 ring-blue-200' : 'border-gray-200'}`}
+          >
+            <Filter size={18} /> <span>ตัวกรอง</span>
+          </button>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50">
-          <Filter size={18} /> <span>ตัวกรอง</span>
-        </button>
+        {filterOpen && (
+          <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm items-end">
+            <div className="min-w-[200px]">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">กิจกรรม (โครงการ)</label>
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                value={filterEventId}
+                onChange={(e) => setFilterEventId(e.target.value)}
+              >
+                <option value="">ทั้งหมด</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={String(ev.id)}>{ev.title}</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-40">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">สมาชิกขั้นต่ำ</label>
+              <input
+                type="number"
+                min={0}
+                placeholder="เช่น 2"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                value={minMembers}
+                onChange={(e) => setMinMembers(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              onClick={() => { setFilterEventId(''); setMinMembers(''); }}
+            >
+              ล้างตัวกรอง
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -63,7 +118,7 @@ const Teams = () => {
           <div key={team.id} onClick={() => setSelectedTeam(team)} className="block bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all group relative cursor-pointer">
             <div className="flex justify-between items-start mb-1">
               <h2 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{team.name}</h2>
-              <button className="text-gray-400 hover:text-gray-600" onClick={(e) => e.preventDefault()}><MoreVertical size={20} /></button>
+              <button type="button" className="text-gray-400 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}><MoreVertical size={20} /></button>
             </div>
             <p className="text-gray-500 text-sm mb-4">{team.project_name}</p>
             <div className="mb-6">
