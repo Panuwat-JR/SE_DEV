@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
+<<<<<<< Updated upstream
 import { MessageCircle, Filter, Search, X } from 'lucide-react';
 import FeedbackCard from '../../components/executive/FeedbackCard';
 import FeedbackStats from '../../components/executive/FeedbackStats';
 import FeedbackCharts from '../../components/executive/FeedbackCharts';
+=======
+import { Filter, RefreshCw, MessageSquare } from 'lucide-react';
+import FeedbackStats from '../../components/executive/FeedbackStats';
+import FeedbackCharts from '../../components/executive/FeedbackCharts';
+import FeedbackCard from '../../components/executive/FeedbackCard';
+>>>>>>> Stashed changes
 
 export default function X_Feedback() {
     const [feedbacks, setFeedbacks] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
+<<<<<<< Updated upstream
     const [showFilters, setShowFilters] = useState(false);
     
     // Filters
@@ -37,20 +45,63 @@ export default function X_Feedback() {
         } catch (error) {
             console.error("Error fetching feedback data:", error);
             setLoading(false);
+=======
+    const [refreshing, setRefreshing] = useState(false);
+    const [data, setData] = useState({
+        summary: {},
+        projectBreakdown: [],
+        list: []
+    });
+    const [filters, setFilters] = useState({
+        academicYear: 'all',
+        projectId: 'all'
+    });
+
+    const fetchData = async () => {
+        setRefreshing(true);
+        try {
+            const [statsRes, listRes] = await Promise.all([
+                fetch(`http://localhost:5000/api/feedback/stats?academic_year=${filters.academicYear}${filters.projectId !== 'all' ? `&event_id=${filters.projectId}` : ''}`),
+                fetch(`http://localhost:5000/api/feedback?academic_year=${filters.academicYear}${filters.projectId !== 'all' ? `&event_id=${filters.projectId}` : ''}`)
+            ]);
+            
+            const stats = await statsRes.json();
+            const list = await listRes.json();
+            
+            setData({
+                summary: stats.summary || {},
+                projectBreakdown: stats.projectBreakdown || [],
+                list: list || []
+            });
+        } catch (error) {
+            console.error("Error fetching feedback:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+>>>>>>> Stashed changes
         }
     };
 
     useEffect(() => {
         fetchData();
+<<<<<<< Updated upstream
     }, [selectedYear, selectedEvent]);
 
     if (loading && !stats) return (
         <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-gray-500 animate-pulse font-medium">กำลังโหลดข้อมูล...</div>
+=======
+    }, [filters]);
+
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-gray-500 animate-pulse font-medium">กำลังรวบรวมข้อมูล Feedback...</div>
+>>>>>>> Stashed changes
         </div>
     );
 
     return (
+<<<<<<< Updated upstream
         <div className="space-y-6 pb-10">
             {/* Header */}
             <div className="flex justify-between items-start">
@@ -59,6 +110,67 @@ export default function X_Feedback() {
                     <p className="text-gray-500 text-sm mt-1 font-medium italic">
                         "เสียงสะท้อนจากนิสิต — ข้อมูลประกอบการตัดสินใจเชิงกลยุทธ์"
                     </p>
+=======
+        <div className="space-y-8 pb-10">
+            {/* Header & Filters */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Feedback & Sentiment</h1>
+                    <p className="text-gray-500 text-sm mt-1 font-medium">วิเคราะห์เสียงสะท้อนจากผู้เข้าร่วมโครงการ NU SEED</p>
+                </div>
+                
+                <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 px-2 text-gray-400">
+                        <Filter size={16} />
+                        <span className="text-xs font-bold uppercase tracking-wider">ตัวกรอง</span>
+                    </div>
+                    <select 
+                        className="bg-gray-50 border-none text-sm rounded-lg focus:ring-2 focus:ring-blue-500 px-3 py-1.5 font-medium outline-none"
+                        value={filters.academicYear}
+                        onChange={(e) => setFilters({...filters, academicYear: e.target.value})}
+                    >
+                        <option value="all">ปีการศึกษาทั้งหมด</option>
+                        <option value="2567">ปีการศึกษา 2567</option>
+                        <option value="2566">ปีการศึกษา 2566</option>
+                    </select>
+                    <button 
+                        onClick={fetchData}
+                        className={`p-2 rounded-lg hover:bg-gray-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+                    >
+                        <RefreshCw size={16} className="text-gray-600" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats Summary */}
+            <FeedbackStats summary={data.summary} />
+
+            {/* Charts Section */}
+            <FeedbackCharts 
+                summary={data.summary} 
+                projectBreakdown={data.projectBreakdown} 
+            />
+
+            {/* Feedback List */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                        <MessageSquare className="text-blue-600" size={18} />
+                        ความคิดเห็นล่าสุด ({data.list.length})
+                    </h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {data.list.length > 0 ? (
+                        data.list.map((item) => (
+                            <FeedbackCard key={item.id} feedback={item} />
+                        ))
+                    ) : (
+                        <div className="col-span-full bg-white border border-dashed border-gray-200 rounded-2xl p-12 text-center">
+                            <p className="text-gray-400 italic">ไม่พบข้อมูลความเห็นในช่วงเวลาที่เลือก</p>
+                        </div>
+                    )}
+>>>>>>> Stashed changes
                 </div>
                 <div className="flex gap-2">
                     <button 

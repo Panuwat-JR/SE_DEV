@@ -34,7 +34,7 @@ export default function X_Dashboard() {
         { label: 'โครงการทั้งหมด', value: data?.stats?.total_activities || '0', sub: 'ชิ้นงานทั้งหมด', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-50' },
         { label: 'ทีมรวม', value: data?.stats?.registered_teams || '0', sub: 'ทีมที่ลงทะเบียน', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         { label: 'งบฯ ที่ใช้', value: data?.stats?.total_budget?.toLocaleString() || '0', sub: 'บาท', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
-        { label: 'Feedback', value: '-', sub: 'รอการเปิดใช้งาน', icon: Star, color: 'text-purple-600', bg: 'bg-purple-50' },
+        { label: 'Feedback', value: data?.stats?.avg_feedback || '0.0', sub: 'คะแนนความพึงพอใจ', icon: Star, color: 'text-purple-600', bg: 'bg-purple-50' },
     ];
 
     return (
