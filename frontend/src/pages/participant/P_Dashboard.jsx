@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CheckCircle2, AlertCircle, Bell, Trophy, Users, FileText, Star, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useParticipantPortal } from '../../context/ParticipantPortalContext';
-import { API_BASE } from '../../config/api';
+import { getParticipantFirstname, participantFetch } from '../../lib/participantApi';
 
 function formatNotifTime(iso) {
     if (!iso) return '';
@@ -18,7 +18,7 @@ function formatNotifTime(iso) {
 }
 
 export default function P_Dashboard() {
-    const { teamRole } = useAuth();
+    const { teamRole, participantProfile, participantProfileLoading } = useAuth();
     const { notifications, unreadCount, readIds } = useParticipantPortal();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -28,7 +28,7 @@ export default function P_Dashboard() {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`${API_BASE}/api/participants-data/dashboard`);
+                const response = await participantFetch('/api/participants-data/dashboard');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
                 setProjects(data);
@@ -58,7 +58,13 @@ export default function P_Dashboard() {
             {/* Welcome */}
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">สวัสดี ปิยะ 👋</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                        สวัสดี{' '}
+                        {participantProfileLoading
+                            ? '…'
+                            : participantProfile?.firstname || getParticipantFirstname()}{' '}
+                        👋
+                    </h1>
                     <p className="text-gray-500 text-sm mt-1">
                         {loading
                             ? 'กำลังโหลดข้อมูล...'

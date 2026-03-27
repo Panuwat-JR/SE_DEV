@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, Trophy, Users, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { API_BASE } from '../../config/api';
+import { participantFetch } from '../../lib/participantApi';
 
 export default function P_ProjectDetail() {
     const { id } = useParams();
@@ -14,7 +14,7 @@ export default function P_ProjectDetail() {
         const fetchProjectDetail = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`${API_BASE}/api/participants-data/projects/${id}`);
+                const response = await participantFetch(`/api/participants-data/projects/${id}`);
                 if (!response.ok) {
                     // ดึงข้อความ error จากฝั่ง backend มาแสดง เพื่อช่วยชี้สาเหตุ (404/500 ฯลฯ)
                     const errData = await response.json().catch(() => null);

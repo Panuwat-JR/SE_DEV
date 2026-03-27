@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, UserCog, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import {
+    getDefaultParticipantFirstname,
+    setParticipantFirstname,
+} from '../lib/participantApi';
 
 const ROLES = [
   {
@@ -46,10 +50,16 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [selectedRole, setSelectedRole] = useState('employee');
+  const [participantFirstname, setParticipantFirstnameInput] = useState(
+    () => getDefaultParticipantFirstname()
+  );
 
   const handleLogin = (e) => {
     e.preventDefault();
     const role = ROLES.find(r => r.id === selectedRole);
+    if (selectedRole === 'participant') {
+      setParticipantFirstname(participantFirstname);
+    }
     login(selectedRole);
     navigate(role.redirect);
   };
@@ -111,6 +121,25 @@ const Login = () => {
               })}
             </div>
 
+            {selectedRole === 'participant' && (
+              <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 space-y-2">
+                <label className="block text-xs font-medium text-sky-200">
+                  ชื่อจริงในฐานข้อมูล (firstname)
+                </label>
+                <input
+                  type="text"
+                  value={participantFirstname}
+                  onChange={(e) => setParticipantFirstnameInput(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#0f172a]/80 px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  placeholder={getDefaultParticipantFirstname()}
+                  autoComplete="given-name"
+                />
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  ต้องตรงกับคอลัมน์ <span className="text-gray-400">participant_profiles.firstname</span> เพื่อดึงทีมและโครงการให้ตรง
+                </p>
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
@@ -121,7 +150,7 @@ const Login = () => {
             </button>
 
             <p className="text-center text-xs text-gray-500 pt-2">
-              Demo Mode — ข้อมูลจะ reset เมื่อรีเฟรชหน้า
+              Demo — role รีเซ็ตเมื่อรีเฟรช; ชื่อผู้เข้าร่วมเก็บในเบราว์เซอร์สำหรับเรียก API
             </p>
           </form>
         </div>

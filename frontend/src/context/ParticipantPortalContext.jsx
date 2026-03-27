@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { API_BASE } from '../config/api';
+import { participantFetch } from '../lib/participantApi';
 
 const LS_KEY = 'nu_seed_participant_notif_read_v1';
 
@@ -29,7 +29,7 @@ export function ParticipantPortalProvider({ children }) {
     try {
       setLoading(true);
       setErr(null);
-      const res = await fetch(`${API_BASE}/api/participants-data/notifications`);
+      const res = await participantFetch('/api/participants-data/notifications');
       if (!res.ok) throw new Error('โหลดการแจ้งเตือนไม่สำเร็จ');
       const data = await res.json();
       setNotifications(Array.isArray(data) ? data : []);

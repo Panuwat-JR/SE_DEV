@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-/** ชื่อตัวอย่างเดียวกับ controller — จนกว่าจะมี JWT/session */
+/** ค่าเริ่มต้นเมื่อไม่มี header/query — กำหนดทับด้วย DEMO_PARTICIPANT_FIRSTNAME ใน .env */
 const DEMO_PARTICIPANT_FIRSTNAME = 'ปิยะ';
 
 function formatBytes(n) {
@@ -291,7 +291,79 @@ class ParticipantService {
   }
 
   getDemoParticipantFirstname() {
+    const env = process.env.DEMO_PARTICIPANT_FIRSTNAME;
+    if (env != null && String(env).trim() !== '') return String(env).trim();
     return DEMO_PARTICIPANT_FIRSTNAME;
+  }
+
+  /** โปรไฟล์สำหรับพอร์ทัล — ชื่อจากฐานข้อมูล + isTeamLeader ตามกฎเดียวกับ getTeamForParticipant */
+  async getProfileForParticipant(participantName) {
+    const profileRes = await pool.query(
+      `
+      SELECT
+        pp.participant_profile_id,
+        TRIM(BOTH FROM COALESCE(pp.firstname, '')) AS firstname,
+        TRIM(BOTH FROM COALESCE(pp.lastname, '')) AS lastname,
+        pp.year_of_study,
+        pp.team_id,
+        COALESCE(f.name, '') AS faculty,
+        COALESCE(t.name, '') AS team_name,
+        COALESCE(t.project_name, '') AS project_name,
+        COALESCE(p.email, '') AS email
+      FROM participant_profiles pp
+      LEFT JOIN faculties f ON f.faculty_id = pp.faculty_id
+      LEFT JOIN teams t ON t.team_id = pp.team_id
+      LEFT JOIN participants p ON p.participant_profile_id = pp.participant_profile_id
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      ORDER BY pp.participant_profile_id ASC
+      LIMIT 1
+      `,
+      [participantName]
+    );
+    const row = profileRes.rows[0];
+    if (!row) return null;
+
+    const first = row.firstname || '';
+    const last = row.lastname || '';
+    const displayName = `${first}${last ? ` ${last}` : ''}`.trim() || participantName;
+
+    let isTeamLeader = false;
+    const tid = row.team_id;
+    if (tid != null) {
+      const leaderR = await pool.query(
+        `
+        WITH ranked AS (
+          SELECT
+            pp.participant_profile_id,
+            ROW_NUMBER() OVER (ORDER BY pp.participant_profile_id ASC) AS rn
+          FROM participant_profiles pp
+          INNER JOIN participants p ON p.participant_profile_id = pp.participant_profile_id
+          WHERE pp.team_id = $1
+        )
+        SELECT participant_profile_id FROM ranked WHERE rn = 1
+        LIMIT 1
+        `,
+        [tid]
+      );
+      const leaderId = leaderR.rows[0]?.participant_profile_id;
+      isTeamLeader = leaderId != null && leaderId === row.participant_profile_id;
+    }
+
+    const initial = (displayName || '?').charAt(0);
+
+    return {
+      participantProfileId: row.participant_profile_id,
+      firstname: first,
+      lastname: last,
+      displayName,
+      email: row.email,
+      year: row.year_of_study,
+      faculty: row.faculty,
+      teamName: row.team_name || null,
+      projectLabel: row.project_name || null,
+      isTeamLeader,
+      initial,
+    };
   }
 
   async resolveParticipantId(participantName) {
@@ -322,29 +394,47 @@ class ParticipantService {
   }
 
   async getProjectList(participantName) {
-    const result = await pool.query(`
-      SELECT 
+    const result = await pool.query(
+      `
+      WITH team_leaders AS (
+        SELECT DISTINCT ON (ppx.team_id)
+          ppx.team_id,
+          ppx.participant_profile_id AS leader_profile_id
+        FROM participant_profiles ppx
+        INNER JOIN participants px ON px.participant_profile_id = ppx.participant_profile_id
+        WHERE ppx.team_id IS NOT NULL
+        ORDER BY ppx.team_id, ppx.participant_profile_id ASC
+      )
+      SELECT
         e.event_id AS id,
         e.title,
         COALESCE(se.name, 'กำลังดำเนินการ') AS status,
         se.slug AS "statusSlug",
-        CASE 
+        CASE
           WHEN se.slug = 'completed' THEN 'bg-gray-100 text-gray-600 border-gray-200'
           WHEN se.slug = 'in_progress' THEN 'bg-emerald-100 text-emerald-700 border-emerald-200'
           ELSE 'bg-blue-100 text-blue-700 border-blue-200'
         END AS "statusColor",
         t.name AS team,
-        'หัวหน้าทีม' AS role,
+        CASE
+          WHEN tl.leader_profile_id IS NOT NULL
+            AND pp.participant_profile_id = tl.leader_profile_id
+          THEN 'หัวหน้าทีม'
+          ELSE 'สมาชิกทีม'
+        END AS role,
         COALESCE(CAST(e.prize_pool AS TEXT) || ' บาท', 'ไม่ระบุ') AS prize,
-        TO_CHAR(e.event_start_date, 'DD/MM/YYYY') as start_date,
-        TO_CHAR(e.event_end_date, 'DD/MM/YYYY') as end_date
+        TO_CHAR(e.event_start_date, 'DD/MM/YYYY') AS start_date,
+        TO_CHAR(e.event_end_date, 'DD/MM/YYYY') AS end_date
       FROM events e
       JOIN mapping_event_teams met ON e.event_id = met.event_id
       JOIN teams t ON met.team_id = t.team_id
       JOIN participant_profiles pp ON t.team_id = pp.team_id
+      LEFT JOIN team_leaders tl ON tl.team_id = t.team_id
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
       WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
-    `, [participantName]);
+    `,
+      [participantName]
+    );
     return result.rows;
   }
 

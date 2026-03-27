@@ -11,7 +11,7 @@ import {
     Trophy
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { API_BASE } from '../../config/api';
+import { participantFetch } from '../../lib/participantApi';
 
 /** ตรงกับ status_events.name ใน seed (เช่น "เสร็จสิ้น") และข้อความเดิมใน UI */
 const COMPLETED_STATUS_LABELS = new Set(['เสร็จสิ้น', 'ดำเนินการสำเร็จ']);
@@ -65,7 +65,7 @@ export default function P_Projects() {
         const fetchProjects = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`${API_BASE}/api/participants-data/dashboard`);
+                const response = await participantFetch('/api/participants-data/dashboard');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
                 setProjects(data);

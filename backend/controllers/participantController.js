@@ -2,13 +2,35 @@ const participantService = require('../services/participantService');
 const fs = require('fs');
 const path = require('path');
 
-function demoParticipant() {
+/** ระบุตัวผู้เข้าร่วม: header X-Participant-Firstname → query ?as= → env DEMO_PARTICIPANT_FIRSTNAME */
+function participantFromRequest(req) {
+  const h = typeof req.get === 'function' ? req.get('x-participant-firstname') : req.headers['x-participant-firstname'];
+  const fromHeader = h != null ? String(h).trim() : '';
+  const q = req.query?.as != null ? String(req.query.as).trim() : '';
+  const raw = fromHeader || q;
+  if (raw) return raw;
   return participantService.getDemoParticipantFirstname();
 }
 
+exports.getProfile = async (req, res) => {
+  try {
+    const participantName = participantFromRequest(req);
+    const profile = await participantService.getProfileForParticipant(participantName);
+    if (!profile) {
+      return res.status(404).json({
+        error: 'ไม่พบผู้เข้าร่วมในฐานข้อมูล — ตรวจสอบชื่อ (firstname) ให้ตรงกับ participant_profiles',
+      });
+    }
+    res.json(profile);
+  } catch (err) {
+    console.error('Participant profile:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.getParticipantDashboardData = async (req, res) => {
   try {
-    const participantName = demoParticipant();
+    const participantName = participantFromRequest(req);
     
     // 1. Get raw projects
     const projects = await participantService.getProjectList(participantName);
@@ -45,7 +67,7 @@ exports.getParticipantDashboardData = async (req, res) => {
 exports.getProjectDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    const participantName = demoParticipant();
+    const participantName = participantFromRequest(req);
 
     const project = await participantService.getProjectDetail(id, participantName);
     if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -71,7 +93,7 @@ exports.getProjectDetail = async (req, res) => {
 // ===== Documents (DB) =====
 exports.listDocuments = async (req, res) => {
   try {
-    const docs = await participantService.listDocumentsForParticipant(demoParticipant());
+    const docs = await participantService.listDocumentsForParticipant(participantFromRequest(req));
     res.json(docs);
   } catch (err) {
     console.error('List Documents Error:', err.message);
@@ -81,7 +103,7 @@ exports.listDocuments = async (req, res) => {
 
 exports.getDocuments = async (req, res) => {
   try {
-    const rows = await participantService.getDocumentsForParticipant(demoParticipant());
+    const rows = await participantService.getDocumentsForParticipant(participantFromRequest(req));
     res.json(rows);
   } catch (err) {
     console.error('Participant documents:', err.message);
@@ -91,7 +113,7 @@ exports.getDocuments = async (req, res) => {
 
 exports.uploadDocument = async (req, res) => {
   try {
-    const participantName = demoParticipant();
+    const participantName = participantFromRequest(req);
     const { project, name } = req.body || {};
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'File is required' });
@@ -111,7 +133,7 @@ exports.uploadDocument = async (req, res) => {
 
 exports.deleteDocument = async (req, res) => {
   try {
-    const participantName = demoParticipant();
+    const participantName = participantFromRequest(req);
     const docId = parseInt(req.params.id, 10);
     if (Number.isNaN(docId)) return res.status(400).json({ error: 'Invalid document id' });
 
@@ -137,7 +159,7 @@ exports.createDocument = async (req, res) => {
     if (!eid || Number.isNaN(eid)) {
       return res.status(400).json({ error: 'ต้องระบุโครงการ (eventId)' });
     }
-    const doc = await participantService.createParticipantDocument(demoParticipant(), {
+    const doc = await participantService.createParticipantDocument(participantFromRequest(req), {
       name,
       eventId: eid,
       fileName,
@@ -160,7 +182,7 @@ exports.createDocument = async (req, res) => {
 
 exports.getTeam = async (req, res) => {
   try {
-    const team = await participantService.getTeamForParticipant(demoParticipant());
+    const team = await participantService.getTeamForParticipant(participantFromRequest(req));
     if (!team) return res.json(null);
     res.json(team);
   } catch (err) {
@@ -171,7 +193,7 @@ exports.getTeam = async (req, res) => {
 
 exports.getNotifications = async (req, res) => {
   try {
-    const items = await participantService.getNotificationsForParticipant(demoParticipant());
+    const items = await participantService.getNotificationsForParticipant(participantFromRequest(req));
     res.json(items);
   } catch (err) {
     console.error('Participant notifications:', err.message);
@@ -181,7 +203,7 @@ exports.getNotifications = async (req, res) => {
 
 exports.getContacts = async (req, res) => {
   try {
-    const rows = await participantService.getContactsForParticipant(demoParticipant());
+    const rows = await participantService.getContactsForParticipant(participantFromRequest(req));
     res.json(rows);
   } catch (err) {
     console.error('Participant contacts:', err.message);
@@ -195,7 +217,7 @@ exports.postContactMessage = async (req, res) => {
     if (!body || !String(body).trim()) {
       return res.status(400).json({ error: 'กรุณากรอกข้อความ' });
     }
-    await participantService.saveContactMessage(demoParticipant(), {
+    await participantService.saveContactMessage(participantFromRequest(req), {
       employeeId: employeeId != null ? Number(employeeId) : null,
       subject,
       body: String(body).trim(),
@@ -214,7 +236,7 @@ exports.postContactMessage = async (req, res) => {
 
 exports.getCalendar = async (req, res) => {
   try {
-    const events = await participantService.getCalendarForParticipant(demoParticipant());
+    const events = await participantService.getCalendarForParticipant(participantFromRequest(req));
     res.json(events);
   } catch (err) {
     console.error('Participant calendar:', err.message);
@@ -224,7 +246,7 @@ exports.getCalendar = async (req, res) => {
 
 exports.addTeamMember = async (req, res) => {
   try {
-    const participantName = demoParticipant();
+    const participantName = participantFromRequest(req);
     const { name, email, faculty, year } = req.body || {};
     const created = await participantService.addTeamMemberWithAccount({
       participantName,
@@ -250,7 +272,7 @@ exports.addTeamMember = async (req, res) => {
 
 exports.removeTeamMember = async (req, res) => {
   try {
-    const participantName = demoParticipant();
+    const participantName = participantFromRequest(req);
     const memberId = req.params.id;
     const result = await participantService.removeTeamMember({ participantName, memberProfileId: memberId });
     if (!result.deleted) return res.status(404).json({ error: 'Member not found' });
@@ -271,7 +293,7 @@ exports.removeTeamMember = async (req, res) => {
 
 exports.listFeedbacks = async (req, res) => {
   try {
-    const rows = await participantService.listFeedbacksForParticipant(demoParticipant());
+    const rows = await participantService.listFeedbacksForParticipant(participantFromRequest(req));
     res.json(rows);
   } catch (err) {
     console.error('Participant feedbacks:', err.message);
@@ -286,7 +308,7 @@ exports.createFeedback = async (req, res) => {
     if (!r || r < 1 || r > 5) {
       return res.status(400).json({ error: 'คะแนนไม่ถูกต้อง' });
     }
-    await participantService.createFeedbackForParticipant(demoParticipant(), {
+    await participantService.createFeedbackForParticipant(participantFromRequest(req), {
       rating: r,
       comment: comment != null ? String(comment) : '',
       aspects: aspects && typeof aspects === 'object' ? aspects : {},

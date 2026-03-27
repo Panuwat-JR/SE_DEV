@@ -1,7 +1,7 @@
 // pages/participant/P_Feedback.jsx
 import React, { useEffect, useState } from 'react';
 import { Star, Send, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
-import { API_BASE } from '../../config/api';
+import { participantFetch } from '../../lib/participantApi';
 
 const ASPECTS = [
     'การจัดการโครงการ',
@@ -52,8 +52,8 @@ export default function P_Feedback() {
             setLoading(true);
             setListError(null);
             const [pRes, fRes] = await Promise.all([
-                fetch(`${API_BASE}/api/participants-data/dashboard`),
-                fetch(`${API_BASE}/api/participants-data/feedbacks`),
+                participantFetch('/api/participants-data/dashboard'),
+                participantFetch('/api/participants-data/feedbacks'),
             ]);
             if (!pRes.ok) throw new Error('โหลดโครงการไม่สำเร็จ');
             if (!fRes.ok) throw new Error('โหลด Feedback ไม่สำเร็จ');
@@ -84,7 +84,7 @@ export default function P_Feedback() {
         setSubmitError(null);
         setSubmitting(true);
         try {
-            const res = await fetch(`${API_BASE}/api/participants-data/feedbacks`, {
+            const res = await participantFetch('/api/participants-data/feedbacks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

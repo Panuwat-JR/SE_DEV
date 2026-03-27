@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, Download, Eye, X, Upload, Loader2, AlertCircle } from 'lucide-react';
 import { API_BASE } from '../../config/api';
+import { participantFetch } from '../../lib/participantApi';
 
 const STATUS_STYLE = {
     อนุมัติแล้ว: 'bg-emerald-100 text-emerald-700',
@@ -39,8 +40,8 @@ export default function P_Documents() {
             setLoading(true);
             setError(null);
             const [dRes, pRes] = await Promise.all([
-                fetch(`${API_BASE}/api/participants-data/documents`),
-                fetch(`${API_BASE}/api/participants-data/dashboard`),
+                participantFetch('/api/participants-data/documents'),
+                participantFetch('/api/participants-data/dashboard'),
             ]);
             if (!dRes.ok) {
                 const errData = await dRes.json().catch(() => ({}));
@@ -75,7 +76,7 @@ export default function P_Documents() {
         if (!eventId) return;
         try {
             setSaving(true);
-            const res = await fetch(`${API_BASE}/api/participants-data/documents`, {
+            const res = await participantFetch('/api/participants-data/documents', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

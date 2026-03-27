@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Crown, Mail, Loader2, AlertCircle, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { API_BASE } from '../../config/api';
+import { participantFetch } from '../../lib/participantApi';
 
 function pickColor(idx) {
     const colors = [
@@ -29,7 +29,7 @@ export default function P_Team() {
             try {
                 setLoading(true);
                 setError(null);
-                const res = await fetch(`${API_BASE}/api/participants-data/team`);
+                const res = await participantFetch('/api/participants-data/team');
                 if (!res.ok) {
                     const errBody = await res.json().catch(() => ({}));
                     throw new Error(errBody.error || `โหลดข้อมูลทีมไม่สำเร็จ (${res.status})`);
@@ -93,14 +93,14 @@ export default function P_Team() {
                 <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
                     <Shield size={16} />{' '}
                     <span>
-                        คุณเป็น <strong>สมาชิก</strong> — ดูข้อมูลทีมจากระบบได้อย่างเดียว (บทบาทหัวหน้า/สมาชิกปรับจากแถบด้านข้างสำหรับสาธิต)
+                        คุณเป็น <strong>สมาชิกทีม</strong> ตามข้อมูลในระบบ — ดูรายชื่อและรายละเอียดทีมได้อย่างเดียว
                     </span>
                 </div>
             )}
 
             {isLeader && (
                 <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                    เพิ่ม/ถอนสมาชิกทีมให้ดำเนินการผ่านผู้จัดงาน — พอร์ทัลนี้แสดงข้อมูลจากฐานข้อมูลเท่านั้น
+                    คุณเป็นหัวหน้าทีมตามลำดับในฐานข้อมูล — การเพิ่ม/ถอนสมาชิกให้ดำเนินการผ่านผู้จัดงาน
                 </div>
             )}
 

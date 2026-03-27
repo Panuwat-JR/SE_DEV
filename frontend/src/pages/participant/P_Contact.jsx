@@ -1,7 +1,7 @@
 // pages/participant/P_Contact.jsx
 import React, { useEffect, useState } from 'react';
 import { Mail, Phone, Send, MessageSquare, Building, Loader2, AlertCircle } from 'lucide-react';
-import { API_BASE } from '../../config/api';
+import { participantFetch } from '../../lib/participantApi';
 
 const COLORS = ['bg-blue-600', 'bg-indigo-600', 'bg-violet-600', 'bg-teal-600'];
 
@@ -21,7 +21,7 @@ export default function P_Contact() {
             try {
                 setLoading(true);
                 setError(null);
-                const res = await fetch(`${API_BASE}/api/participants-data/contacts`);
+                const res = await participantFetch('/api/participants-data/contacts');
                 if (!res.ok) throw new Error('โหลดรายชื่อผู้รับผิดชอบไม่สำเร็จ');
                 const data = await res.json();
                 const list = Array.isArray(data) ? data : [];
@@ -48,7 +48,7 @@ export default function P_Contact() {
         setSending(true);
         setSendError(null);
         try {
-            const res = await fetch(`${API_BASE}/api/participants-data/contact-messages`, {
+            const res = await participantFetch('/api/participants-data/contact-messages', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

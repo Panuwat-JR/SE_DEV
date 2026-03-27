@@ -5,6 +5,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// โปรไฟล์ผู้เข้าร่วม (ซิงค์ UI กับ DB)
+router.get('/profile', participantController.getProfile);
+
 // ดึงข้อมูล Dashboard ของนิสิต
 router.get('/dashboard', participantController.getParticipantDashboardData);
 
