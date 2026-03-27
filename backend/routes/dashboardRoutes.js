@@ -3,11 +3,8 @@ const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboardController');
 
-// เฉพาะเส้นทางของผู้บริหาร
+// เฉพาะเส้นทางของผู้บริหาร (GET /api/dashboard-data)
+// พอร์ทัลผู้เข้าร่วมใช้ GET /api/participants-data/dashboard แทน — อย่าลงทะเบียนซ้ำที่นี่
 router.get('/', dashboardController.getDashboardData);
-
-// เส้นทางสำหรับ Participant (หน้า /participant/dashboard, /participant/projects)
-router.get('/participant-data', dashboardController.getParticipantDashboardData);
-
 
 module.exports = router;
