@@ -20,7 +20,7 @@ class ParticipantService {
       JOIN teams t ON met.team_id = t.team_id
       JOIN participant_profiles pp ON t.team_id = pp.team_id
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
-      WHERE pp.firstname = $1
+      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
     `, [participantName]);
     return result.rows;
   }
@@ -71,7 +71,7 @@ class ParticipantService {
       JOIN teams t ON met.team_id = t.team_id
       JOIN participant_profiles pp ON t.team_id = pp.team_id
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
-      WHERE e.event_id = $1 AND pp.firstname = $2
+      WHERE e.event_id = $1 AND TRIM(pp.firstname) ILIKE '%' || TRIM($2) || '%'
       LIMIT 1
     `, [projectId, participantName]);
     return result.rows[0];
