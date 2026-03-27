@@ -11,6 +11,28 @@ router.patch('/profile', participantController.patchProfile);
 
 router.patch('/account/password', participantController.patchPassword);
 
+// อัปโหลดรูปโปรไฟล์
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const safeBase = path.basename(file.originalname)
+      .replace(/[^\w.\-() ]+/g, '_')
+      .slice(0, 80);
+    cb(null, `avatar-${Date.now()}-${safeBase}`);
+  },
+});
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('ไฟล์ต้องเป็นรูปภาพเท่านั้น'));
+    }
+    cb(null, true);
+  },
+});
+router.post('/profile/avatar', avatarUpload.single('avatar'), participantController.uploadAvatar);
+
 // ดึงข้อมูล Dashboard ของนิสิต
 router.get('/dashboard', participantController.getParticipantDashboardData);
 

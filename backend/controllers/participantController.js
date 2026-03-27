@@ -98,6 +98,26 @@ exports.patchProfile = async (req, res) => {
   }
 };
 
+exports.uploadAvatar = async (req, res) => {
+  try {
+    const participantName = participantFromRequest(req);
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'ไม่พบไฟล์รูปภาพ' });
+
+    const imagePath = `/uploads/${file.filename}`;
+    const profile = await participantService.updateParticipantProfileImage(participantName, imagePath);
+    if (!profile) {
+      fs.unlink(file.path, () => {});
+      return res.status(404).json({ error: 'ไม่พบบัญชีผู้เข้าร่วม' });
+    }
+    res.json({ profileImage: imagePath, profile });
+  } catch (err) {
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
+    console.error('uploadAvatar:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
 exports.patchPassword = async (req, res) => {
   try {
     const participantName = participantFromRequest(req);
@@ -256,11 +276,6 @@ exports.createDocument = async (req, res) => {
   } catch (err) {
     if (err.code === 'FORBIDDEN_EVENT') {
       return res.status(403).json({ error: 'ไม่มีสิทธิ์อัปโหลดในโครงการนี้' });
-    }
-    if (err.code === 'NO_TASKS_FOR_EVENT') {
-      return res.status(400).json({
-        error: 'โครงการนี้ยังไม่มีงานในระบบ — ต้องมีงานอย่างน้อย 1 รายการจึงจะผูกเอกสารได้',
-      });
     }
     console.error('Create participant document:', err.message);
     res.status(500).json({ error: 'Server Error' });

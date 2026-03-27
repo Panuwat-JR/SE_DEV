@@ -350,7 +350,7 @@ class EmployeeService {
         t.event_id,
         COUNT(*)                                   AS total_tasks,
         COUNT(*) FILTER (WHERE TRIM(ts.slug) = 'completed') AS done_tasks,
-        COUNT(*) FILTER (WHERE TRIM(ts.slug) = 'pending') AS pending_tasks
+        COUNT(*) FILTER (WHERE TRIM(ts.slug) NOT IN ('completed', 'cancelled')) AS pending_tasks
       FROM tasks t
       LEFT JOIN task_statuses ts ON t.status_task_id = ts.status_task_id
       GROUP BY t.event_id
@@ -422,9 +422,9 @@ class EmployeeService {
 
     // --- งานเร่งด่วน: priority สูง/เร่งด่วนที่สุด หรือมีกำหนดส่งภายใน 7 วัน (รวมเลยกำหนดแล้วยังไม่เสร็จ) ---
     const urgentWhere = `
-      COALESCE(TRIM(ts.slug), '') <> 'completed'
+      COALESCE(TRIM(ts.slug), '') NOT IN ('completed', 'cancelled')
       AND (
-        LOWER(TRIM(BOTH FROM COALESCE(pl.slug, ''))) IN ('high', 'urgent')
+        LOWER(TRIM(pl.slug)) IN ('high', 'urgent')
         OR (
           t.due_date IS NOT NULL
           AND t.due_date::date <= (CURRENT_DATE + INTERVAL '7 days')
@@ -480,6 +480,11 @@ class EmployeeService {
       LIMIT 8
     `;
     const urgentResult = await pool.query(urgentSql, employeeId ? [employeeId] : []);
+    if (urgentResult.rowCount === 0) {
+      console.log(`[Dashboard] No urgent tasks found for employee_id=${employeeId}.`);
+    } else {
+      console.log(`[Dashboard] Found ${urgentResult.rowCount} urgent tasks for employee_id=${employeeId}.`);
+    }
 
     // --- KPI stats ---
     // จำนวนโครงการ = ความยาวรายการเดียวกับตารางด้านล่าง (ไม่ยิง COUNT แยก — กันค่า KPI กับแถวไม่ตรง)

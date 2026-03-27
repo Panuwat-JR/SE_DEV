@@ -21,6 +21,31 @@ async function ensureDb(pool) {
       ADD COLUMN IF NOT EXISTS committee_members TEXT
   `);
 
+  // เพิ่มสถานะโครงการที่ขาดหายใน status_events (ON CONFLICT ป้องกันซ้ำ)
+  await pool.query(`
+    INSERT INTO status_events (name, slug) VALUES
+      ('เปิดรับสมัคร', 'open_registration'),
+      ('ปิดรับสมัคร', 'closed_registration'),
+      ('ประกาศผล', 'announced'),
+      ('ยกเลิก', 'cancelled')
+    ON CONFLICT (name) DO NOTHING
+  `).catch(async () => {
+    // ถ้า status_events ไม่มี unique constraint บน name ให้ fallback แทรกทีละรายการ
+    for (const [name, slug] of [
+      ['เปิดรับสมัคร', 'open_registration'],
+      ['ปิดรับสมัคร', 'closed_registration'],
+      ['ประกาศผล', 'announced'],
+      ['ยกเลิก', 'cancelled'],
+    ]) {
+      const exists = await pool.query(
+        'SELECT 1 FROM status_events WHERE name = $1 LIMIT 1', [name]
+      );
+      if (exists.rowCount === 0) {
+        await pool.query('INSERT INTO status_events (name, slug) VALUES ($1, $2)', [name, slug]);
+      }
+    }
+  });
+
   const migrationsDir = path.join(__dirname, 'migrations');
   for (const name of MIGRATION_FILES) {
     const filePath = path.join(migrationsDir, name);

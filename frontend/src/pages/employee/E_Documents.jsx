@@ -100,6 +100,8 @@ export default function E_Documents() {
     const [selectedSize, setSelectedSize] = useState('16');
     const [detailDoc, setDetailDoc] = useState(null);
     const [approvingId, setApprovingId] = useState(null);
+    const [previewDoc, setPreviewDoc] = useState(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     const loadDocuments = useCallback(async () => {
         setListLoading(true);
@@ -239,29 +241,25 @@ export default function E_Documents() {
     };
 
     const downloadDocument = async (doc) => {
-        const url = `${apiRoot()}/documents/${encodeURIComponent(String(doc.id))}/download`;
+        // หากมี path ไฟล์ที่เป็น URL ให้ทำแบบเดิม (Redirect ไปโหลดไฟล์จริง)
+        if (doc.file_storage_path && /^https?:\/\//i.test(doc.file_storage_path)) {
+            const url = `${apiRoot()}/documents/${encodeURIComponent(String(doc.id))}/download`;
+            window.open(url, '_blank');
+            return;
+        }
+
+        // หากไม่มีไฟล์ใน storage ให้เปิดหน้า Preview เพื่อ "พิมพ์เป็น PDF"
+        setPreviewLoading(true);
         try {
-            const res = await fetch(url);
-            if (!res.ok) {
-                const errText = await res.text().catch(() => '');
-                throw new Error(errText || `ดาวน์โหลดไม่สำเร็จ (${res.status})`);
-            }
-            const cd = res.headers.get('Content-Disposition');
-            let filename = `${String(doc.name || 'document').replace(/[/\\?%*:|"<>]/g, '_')}_summary.txt`;
-            const m = cd && /filename\*?=(?:UTF-8'')?["']?([^"';]+)/i.exec(cd);
-            if (m?.[1]) filename = decodeURIComponent(m[1].replace(/["']/g, ''));
-            const blob = await res.blob();
-            const href = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = href;
-            a.download = filename;
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(href);
+            const res = await fetch(`${apiRoot()}/documents/${encodeURIComponent(String(doc.id))}/preview`);
+            if (!res.ok) throw new Error('โหลดข้อมูลพรีวิวไม่สำเร็จ');
+            const data = await res.json();
+            setPreviewDoc(data);
+            setDetailDoc(null); // ปิดหน้าต่างรายละเอียดถ้าเปิดอยู่
         } catch (e) {
-            alert(e?.message || 'ดาวน์โหลดไม่สำเร็จ — ตรวจสอบว่า Backend รันและ proxy /api ถูกต้อง');
+            alert(e.message);
+        } finally {
+            setPreviewLoading(false);
         }
     };
 
@@ -396,14 +394,19 @@ export default function E_Documents() {
                                                 )}
                                                 <button
                                                     type="button"
+                                                    disabled={previewLoading && approvingId !== doc.id}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         downloadDocument(doc);
                                                     }}
-                                                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
                                                     title="ดาวน์โหลด (ไฟล์สรุปจากระบบ หรือลิงก์ถ้ามีใน storage)"
                                                 >
-                                                    <Download size={15} />
+                                                    {previewLoading && approvingId !== doc.id ? (
+                                                        <Loader2 className="animate-spin" size={15} />
+                                                    ) : (
+                                                        <Download size={15} />
+                                                    )}
                                                 </button>
                                                 <button
                                                     type="button"
@@ -800,6 +803,148 @@ export default function E_Documents() {
                     </div>
                 </div>
             )}
+
+            {previewDoc && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                                    <Eye size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900">ตัวอย่างก่อนพิมพ์</h3>
+                                    <p className="text-xs text-gray-500">ตรวจสอบความถูกต้องก่อนบันทึกเป็น PDF</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => window.print()}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition-all hover:-translate-y-0.5"
+                                >
+                                    <Download size={16} /> พิมพ์เป็น PDF
+                                </button>
+                                <button
+                                    onClick={() => setPreviewDoc(null)}
+                                    className="p-2.5 text-gray-400 hover:text-gray-700 hover:bg-white rounded-xl transition-all"
+                                >
+                                    <X size={22} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Scrollable Document Area */}
+                        <div className="flex-1 overflow-y-auto p-12 bg-gray-100/50">
+                            {/* The ACTUAL printable document */}
+                            <div id="printable-document" className="bg-white shadow-2xl mx-auto w-full max-w-[210mm] min-h-[297mm] p-[20mm] text-gray-900 flex flex-col print:shadow-none print:m-0 print:p-0 print:w-full">
+                                {/* Letterhead */}
+                                <div className="flex justify-between items-start border-b-2 border-blue-600 pb-8 mb-10">
+                                    <div>
+                                        <div className="text-3xl font-black text-blue-600 tracking-tighter mb-1">NU SEED</div>
+                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Innovation Challenge 2026</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-lg font-bold text-gray-900">เอกสารสรุปโครงการ</div>
+                                        <div className="text-xs text-gray-500">รหัสเอกสาร: #DOC-{previewDoc.document_id}</div>
+                                    </div>
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-1 space-y-8">
+                                    <div className="grid grid-cols-2 gap-12">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">ชื่อเอกสาร</label>
+                                                <div className="text-md font-bold text-gray-900 leading-tight">{previewDoc.name}</div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">ชื่อโครงการ</label>
+                                                <div className="text-sm font-semibold text-gray-700">{previewDoc.project}</div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between border-b border-gray-100 pb-2">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase">วันที่ออกเอกสาร</span>
+                                                <span className="text-xs font-bold text-gray-900">{previewDoc.date}</span>
+                                            </div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-2">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase">สถานะ</span>
+                                                <span className="text-xs font-bold text-blue-600">{previewDoc.doc_status}</span>
+                                            </div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-2">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase">ผู้จัดทำ</span>
+                                                <span className="text-xs font-bold text-gray-900">{previewDoc.author}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-12 py-10 border-t border-b border-gray-100 italic text-gray-600 text-sm leading-relaxed text-center quote">
+                                        "เอกสารนี้จัดทำขึ้นโดยระบบอัตโนมัติ เพื่อสรุปข้อมูลโครงการและการดำเนินงานเบื้องต้น
+                                        เป็นหลักฐานการบันทึกข้อมูลในระบบ NU SEED Portal"
+                                    </div>
+
+                                    <div className="pt-8 grid grid-cols-3 gap-8">
+                                        <div className="h-32 border border-dashed border-gray-200 rounded-xl flex items-center justify-center bg-gray-50 opacity-40">
+                                            <span className="text-[8px] text-gray-400">QR CODE VERIFICATION</span>
+                                        </div>
+                                        <div className="col-span-2 space-y-6">
+                                            <div className="space-y-2">
+                                                <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-blue-600/20 w-3/4"></div>
+                                                </div>
+                                                <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-blue-600/20 w-1/2"></div>
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end pt-10">
+                                                <div className="text-center">
+                                                    <div className="w-40 border-b border-gray-300 mb-2"></div>
+                                                    <div className="text-[10px] text-gray-400">ตราประทับโครงการ (Digital)</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="mt-auto pt-10 border-t border-gray-100 flex justify-between items-end">
+                                    <div className="text-[8px] text-gray-300 max-w-xs uppercase">
+                                        This document is intended for internal project tracking and reference only.
+                                        Generated via NU SEED Smart Portal.
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-bold text-gray-400">NU SEED 2026 OFFICIAL DOCUMENT</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Print Styling */}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    #printable-document, #printable-document * {
+                        visibility: visible;
+                    }
+                    #printable-document {
+                        position: fixed;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: 100%;
+                        margin: 0;
+                        padding: 20mm;
+                        box-shadow: none;
+                    }
+                }
+            `}} />
         </div>
     );
 }
+

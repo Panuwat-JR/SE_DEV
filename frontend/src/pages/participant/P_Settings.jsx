@@ -55,6 +55,7 @@ export default function P_Settings() {
   const [year, setYear] = useState('');
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const [notify, setNotify] = useState(() =>
     loadJson(LS_NOTIFY, {
@@ -110,6 +111,34 @@ export default function P_Settings() {
     setErr(null);
     setMsg(text);
     setTimeout(() => setMsg(null), 4000);
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setErr('ไฟล์ต้องเป็นรูปภาพเท่านั้น');
+      return;
+    }
+    setErr(null);
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await participantFetch('/api/participants-data/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      await refreshParticipantProfile();
+      flashOk('เปลี่ยนรูปโปรไฟล์แล้ว');
+    } catch (e) {
+      setErr(getParticipantFetchErrorMessage(e, e.message || 'อัปโหลดรูปไม่สำเร็จ'));
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
   };
 
   const saveProfile = async (e) => {
@@ -314,13 +343,33 @@ export default function P_Settings() {
             <div className="bg-white rounded-xl border border-sky-100 shadow-sm p-6 md:p-8">
               <h2 className="text-lg font-bold text-slate-900 mb-6">โปรไฟล์</h2>
               <div className="flex items-center gap-4 mb-8 pb-6 border-b border-sky-100">
-                <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center border border-sky-200 text-sky-700 font-bold text-xl">
-                  {(firstname || participantProfile?.initial || '?').toString().charAt(0)}
-                </div>
+                <label className="relative cursor-pointer group shrink-0">
+                  {participantProfile?.profileImage ? (
+                    <img
+                      src={participantProfile.profileImage}
+                      alt="โปรไฟล์"
+                      className="w-16 h-16 rounded-full object-cover border border-sky-200"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center border border-sky-200 text-sky-700 font-bold text-xl">
+                      {(firstname || participantProfile?.initial || '?').toString().charAt(0)}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-white text-xs font-medium">{avatarUploading ? '…' : 'เปลี่ยนรูป'}</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={avatarUploading}
+                    onChange={handleAvatarChange}
+                  />
+                </label>
                 <div>
                   <p className="text-sm font-medium text-slate-800">ผู้เข้าร่วมโครงการ</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    ชื่อจริง (firstname) ใช้เป็นตัวระบุตัวตนกับ API — ถ้าเปลี่ยนชื่อ ระบบจะอัปเดตคีย์ล็อกอินให้อัตโนมัติ
+                    คลิกที่รูปเพื่อเปลี่ยนรูปโปรไฟล์ (ไม่เกิน 5 MB) — ชื่อจริง (firstname) ใช้เป็นตัวระบุตัวตนกับ API
                   </p>
                 </div>
               </div>
