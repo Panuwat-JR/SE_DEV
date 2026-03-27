@@ -1,6 +1,7 @@
 // pages/executive/X_Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Activity, Users, TrendingUp, Star } from 'lucide-react';
+import { API_BASE } from '../../config/api';
 import StatsCard from '../../components/executive/StatsCard';
 import ActivityTable from '../../components/executive/ActivityTable';
 import TaskTimeline from '../../components/executive/TaskTimeline';
@@ -12,7 +13,7 @@ export default function X_Dashboard() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/dashboard-data');
+                const response = await fetch(`${API_BASE}/api/dashboard-data`);
                 const result = await response.json();
                 setData(result);
                 setLoading(false);

@@ -72,15 +72,14 @@ exports.updateActivity = async (req, res) => {
   try {
     const query = `
       UPDATE events
-      SET 
+      SET
         title = $1,
         status_event_id = (SELECT status_event_id FROM status_events WHERE name = $2 LIMIT 1),
         event_start_date = CASE WHEN $3 = '' THEN NULL ELSE $3::DATE END,
-        max_participants = $4,
-        prize_pool = $5
-      WHERE event_id = $6
+        prize_pool = $4
+      WHERE event_id = $5
     `;
-    await pool.query(query, [title, status, date_text || null, max_participants, prize_pool, id]);
+    await pool.query(query, [title, status, date_text || null, prize_pool, id]);
     res.json({ message: 'อัปเดตกิจกรรมสำเร็จ' });
   } catch (err) {
     console.error('updateActivity Error:', err.message);

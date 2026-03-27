@@ -332,6 +332,9 @@ exports.createFeedback = async (req, res) => {
     if (err.code === 'PARTICIPANT_NOT_FOUND') {
       return res.status(404).json({ error: 'ไม่พบบัญชีผู้เข้าร่วมในระบบ (seed ผู้ใช้ก่อน)' });
     }
+    if (err.code === 'PROJECT_NOT_FOUND') {
+      return res.status(400).json({ error: 'โครงการที่เลือกไม่พบในระบบ หรือคุณไม่ได้เข้าร่วมโครงการนี้' });
+    }
     console.error('Create feedback:', err.message);
     res.status(500).json({ error: 'Server Error' });
   }

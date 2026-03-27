@@ -11,8 +11,9 @@ import {
     INITIAL_PARTICIPANTS,
     INITIAL_LOGS,
 } from '../data/mockData';
+import { API_BASE as _API_ORIGIN } from '../config/api';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = `${_API_ORIGIN}/api`;
 
 const AppContext = createContext(null);
 

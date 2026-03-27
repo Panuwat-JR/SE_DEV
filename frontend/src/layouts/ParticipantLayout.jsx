@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { ParticipantPortalProvider } from '../context/ParticipantPortalContext';
 import { getParticipantFirstname } from '../lib/participantApi';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const MENUS = [
     { name: 'แดชบอร์ด', icon: LayoutDashboard, path: '/participant/dashboard' },
@@ -117,9 +118,11 @@ export default function ParticipantLayout() {
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-8">
-                    <ParticipantPortalProvider>
-                        <Outlet />
-                    </ParticipantPortalProvider>
+                    <ErrorBoundary>
+                        <ParticipantPortalProvider>
+                            <Outlet />
+                        </ParticipantPortalProvider>
+                    </ErrorBoundary>
                 </main>
             </div>
         </div>

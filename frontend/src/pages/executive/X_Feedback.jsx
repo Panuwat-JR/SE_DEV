@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, RefreshCw, MessageSquare, Search, X, MessageCircle } from 'lucide-react';
+import { API_BASE } from '../../config/api';
 import FeedbackStats from '../../components/executive/FeedbackStats';
 import FeedbackCharts from '../../components/executive/FeedbackCharts';
 import FeedbackCard from '../../components/executive/FeedbackCard';
@@ -25,8 +26,8 @@ export default function X_Feedback() {
             const projectIdParam = filters.projectId !== 'all' ? `&event_id=${filters.projectId}` : '';
             
             const [statsRes, listRes] = await Promise.all([
-                fetch(`http://localhost:5000/api/feedback/stats?${academicYearParam}${projectIdParam}`),
-                fetch(`http://localhost:5000/api/feedback?${academicYearParam}${projectIdParam}`)
+                fetch(`${API_BASE}/api/feedback/stats?${academicYearParam}${projectIdParam}`),
+                fetch(`${API_BASE}/api/feedback?${academicYearParam}${projectIdParam}`)
             ]);
             
             const stats = await statsRes.json();

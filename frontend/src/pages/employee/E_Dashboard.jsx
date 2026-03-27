@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, AlertCircle, Clock, TrendingUp, Users, ChevronRight, Calendar } from 'lucide-react';
-
-const API_BASE = 'http://localhost:5000';
+import { API_BASE } from '../../config/api';
 
 export default function E_Dashboard() {
     const [stats, setStats] = useState({ totalProjects: 0, activeProjects: 0, totalParticipants: 0, totalIssues: 0 });

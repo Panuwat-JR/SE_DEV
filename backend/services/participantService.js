@@ -18,7 +18,7 @@ class ParticipantService {
       SELECT pp.team_id
       FROM participant_profiles pp
       WHERE pp.team_id IS NOT NULL
-        AND TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+        AND TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
       LIMIT 1
       `,
       [participantName]
@@ -169,12 +169,12 @@ class ParticipantService {
     const id = parseInt(memberProfileId, 10);
     if (Number.isNaN(id)) throw new Error('Invalid member id');
 
-    // กันลบตัวเอง (ปิยะ) ในโหมด demo
+    // กันลบตัวเอง — ใช้ exact match เพื่อป้องกันชื่อซ้ำกัน
     const selfRes = await pool.query(
       `
       SELECT participant_profile_id
       FROM participant_profiles
-      WHERE team_id = $1 AND TRIM(firstname) ILIKE '%' || TRIM($2) || '%'
+      WHERE team_id = $1 AND TRIM(LOWER(firstname)) = TRIM(LOWER($2))
       LIMIT 1
       `,
       [teamId, participantName]
@@ -314,7 +314,7 @@ class ParticipantService {
       LEFT JOIN faculties f ON f.faculty_id = pp.faculty_id
       LEFT JOIN teams t ON t.team_id = pp.team_id
       LEFT JOIN participants p ON p.participant_profile_id = pp.participant_profile_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
       ORDER BY pp.participant_profile_id ASC
       LIMIT 1
       `,
@@ -372,7 +372,7 @@ class ParticipantService {
       SELECT p.participant_id
       FROM participants p
       JOIN participant_profiles pp ON pp.participant_profile_id = p.participant_profile_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
       LIMIT 1
     `,
       [participantName]
@@ -385,7 +385,7 @@ class ParticipantService {
       `
       SELECT pp.team_id
       FROM participant_profiles pp
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%' AND pp.team_id IS NOT NULL
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1)) AND pp.team_id IS NOT NULL
       LIMIT 1
     `,
       [participantName]
@@ -431,7 +431,7 @@ class ParticipantService {
       JOIN participant_profiles pp ON t.team_id = pp.team_id
       LEFT JOIN team_leaders tl ON tl.team_id = t.team_id
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
     `,
       [participantName]
     );
@@ -491,7 +491,7 @@ class ParticipantService {
       JOIN teams t ON met.team_id = t.team_id
       JOIN participant_profiles pp ON t.team_id = pp.team_id
       LEFT JOIN status_events se ON e.status_event_id = se.status_event_id
-      WHERE e.event_id = $1 AND TRIM(pp.firstname) ILIKE '%' || TRIM($2) || '%'
+      WHERE e.event_id = $1 AND TRIM(LOWER(pp.firstname)) = TRIM(LOWER($2))
       LIMIT 1
     `, [projectId, participantName]);
     return result.rows[0];
@@ -531,7 +531,7 @@ class ParticipantService {
       JOIN mapping_doc_tasks mdt ON mdt.task_id = tk.task_id
       JOIN documents d ON d.document_id = mdt.document_id
       LEFT JOIN document_statuses ds ON ds.doc_status_id = d.doc_status_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
       ORDER BY d.document_id, d.updated_at DESC NULLS LAST
     `,
       [participantName]
@@ -548,7 +548,7 @@ class ParticipantService {
       SELECT 1
       FROM participant_profiles pp
       JOIN mapping_event_teams met ON met.team_id = pp.team_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%' AND met.event_id = $2
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1)) AND met.event_id = $2
       LIMIT 1
     `,
       [participantName, eventId]
@@ -623,7 +623,7 @@ class ParticipantService {
         )) AS "projectLabel"
       FROM participant_profiles pp
       JOIN teams t ON t.team_id = pp.team_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
       LIMIT 1
     `,
       [participantName]
@@ -716,7 +716,7 @@ class ParticipantService {
       JOIN events e ON e.event_id = met.event_id
       JOIN tasks tk ON tk.event_id = e.event_id
       LEFT JOIN task_statuses ts ON ts.status_task_id = tk.status_task_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
         AND COALESCE(ts.slug, '') != 'completed'
       ORDER BY tk.due_date ASC NULLS LAST
     `,
@@ -779,7 +779,7 @@ class ParticipantService {
       LEFT JOIN employee_roles er ON er.role_employee_id = ep.role_employee_id
       LEFT JOIN departments dp ON dp.department_id = ep.department_id
       JOIN events ev ON ev.event_id = met.event_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
       ORDER BY em.employee_id, ev.event_id
     `,
       [participantName]
@@ -806,7 +806,7 @@ class ParticipantService {
       JOIN mapping_event_teams met ON met.team_id = pp.team_id
       JOIN events e ON e.event_id = met.event_id
       JOIN tasks tk ON tk.event_id = e.event_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
         AND tk.due_date IS NOT NULL
     `,
       [participantName]
@@ -821,7 +821,7 @@ class ParticipantService {
       FROM participant_profiles pp
       JOIN mapping_event_teams met ON met.team_id = pp.team_id
       JOIN events e ON e.event_id = met.event_id
-      WHERE TRIM(pp.firstname) ILIKE '%' || TRIM($1) || '%'
+      WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
         AND (e.event_start_date IS NOT NULL OR e.event_end_date IS NOT NULL)
     `,
       [participantName]
@@ -929,8 +929,32 @@ class ParticipantService {
       err.code = 'PARTICIPANT_NOT_FOUND';
       throw err;
     }
+
+    // ตรวจว่า projectTitle เป็นโครงการที่ participant เข้าร่วมจริง (ถ้ามีส่งมา)
+    let resolvedProjectTitle = null;
+    if (projectTitle && String(projectTitle).trim()) {
+      const check = await pool.query(
+        `
+        SELECT e.title
+        FROM participant_profiles pp
+        JOIN mapping_event_teams met ON met.team_id = pp.team_id
+        JOIN events e ON e.event_id = met.event_id
+        WHERE TRIM(LOWER(pp.firstname)) = TRIM(LOWER($1))
+          AND TRIM(e.title) = TRIM($2)
+        LIMIT 1
+        `,
+        [participantName, String(projectTitle).trim()]
+      );
+      if (check.rows.length === 0) {
+        const err = new Error('PROJECT_NOT_FOUND');
+        err.code = 'PROJECT_NOT_FOUND';
+        throw err;
+      }
+      resolvedProjectTitle = check.rows[0].title;
+    }
+
     const meta = {
-      projectTitle: projectTitle || null,
+      projectTitle: resolvedProjectTitle,
       aspects: aspects || {},
       comment: comment || '',
     };

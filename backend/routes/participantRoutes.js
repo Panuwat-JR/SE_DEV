@@ -26,7 +26,10 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const safeBase = path.basename(file.originalname).replace(/[^\w.\-() ]+/g, '_');
+    // path.basename กัน path traversal, replace กัน special chars, slice กันชื่อยาวเกิน
+    const safeBase = path.basename(file.originalname)
+      .replace(/[^\w.\-() ]+/g, '_')
+      .slice(0, 100);
     const stamp = Date.now();
     cb(null, `${stamp}-${safeBase}`);
   },
