@@ -36,8 +36,8 @@ INSERT INTO mapping_event_teams (event_id, team_id) VALUES
 (1, 1);
 
 -- 7. โปรไฟล์ผู้เข้าร่วม (participant_profiles)
-INSERT INTO participant_profiles (participant_type_id, major_id, faculty_id, gender, prefix, firstname, lastname, phone, student_id, admission_year, team_id, birthday_date) VALUES
-(NULL, NULL, NULL, 'ชาย', 'นาย', 'กิตติกร', 'แม่กัวะดี', '0902376913', '66310493', 2566, NULL, '2005-01-11');
+INSERT INTO participant_profiles (participant_type_id, major_id, gender, prefix, firstname, lastname, phone_number, student_id, year_of_study, team_id, birthday_date) VALUES
+(NULL, NULL, 'ชาย', 'นาย', 'กิตติกร', 'แม่กัวะดี', '0902376913', '66310493', 3, NULL, '2005-01-11');
 
 -- 8. บัญชีผู้เข้าร่วม (participants)
 INSERT INTO participants (participant_profile_id, email, password_hash, status) VALUES
