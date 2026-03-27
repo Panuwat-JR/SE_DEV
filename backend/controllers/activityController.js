@@ -130,8 +130,8 @@ exports.createActivity = async (req, res) => {
     } catch {
       /* ignore */
     }
-    console.error('เกิดข้อผิดพลาดในการบันทึก:', err.message);
-    res.status(500).json({ error: 'Server Error' });
+    console.error('createActivity Error:', err.message);
+    res.status(500).json({ error: err.message || 'Server Error' });
   } finally {
     client.release();
   }
@@ -292,7 +292,7 @@ exports.updateActivity = async (req, res) => {
       /* ignore */
     }
     console.error('updateActivity Error:', err.message);
-    res.status(500).json({ error: 'Server Error' });
+    res.status(500).json({ error: err.message || 'Server Error' });
   } finally {
     client.release();
   }

@@ -16,6 +16,11 @@ async function ensureDb(pool) {
       ADD COLUMN IF NOT EXISTS portal_access VARCHAR(32) NOT NULL DEFAULT 'employee'
   `);
 
+  await pool.query(`
+    ALTER TABLE events
+      ADD COLUMN IF NOT EXISTS committee_members TEXT
+  `);
+
   const migrationsDir = path.join(__dirname, 'migrations');
   for (const name of MIGRATION_FILES) {
     const filePath = path.join(migrationsDir, name);

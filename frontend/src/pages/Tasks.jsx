@@ -227,26 +227,21 @@ function Tasks() {
                   <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                     <Upload size={18} className="text-amber-500" /> ไฟล์แนบ
                   </h3>
-                  <div className="flex gap-3">
-                    <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white shadow-sm hover:border-blue-300 hover:shadow-md cursor-pointer group transition-all">
-                      <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-500 group-hover:bg-red-100 transition-colors">
+                  {selectedTask.fileName ? (
+                    <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white shadow-sm">
+                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
                         <File size={20} />
                       </div>
                       <div className="overflow-hidden">
-                        <p className="text-sm font-semibold text-gray-700 truncate pr-4">รายละเอียดเบื้องต้น.pdf</p>
-                        <p className="text-xs text-gray-400">1.2 MB</p>
+                        <p className="text-sm font-semibold text-gray-700 truncate pr-4">{selectedTask.fileName}</p>
+                        <p className="text-xs text-gray-400">ไฟล์ที่แนบมากับงาน</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white shadow-sm hover:border-blue-300 hover:shadow-md cursor-pointer group transition-all">
-                      <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600 group-hover:bg-green-100 transition-colors">
-                        <File size={20} />
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="text-sm font-semibold text-gray-700 truncate pr-4">ข้อมูลสรุปจากที่ประชุม.xlsx</p>
-                        <p className="text-xs text-gray-400">345 KB</p>
-                      </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+                      ยังไม่มีไฟล์แนบสำหรับงานนี้
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -463,7 +458,7 @@ function Tasks() {
                     <Upload className="mx-auto h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
                     <div className="flex text-sm text-gray-600 justify-center">
                       <label htmlFor="task-file-upload" className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-700">
-                        <span>คลิกเพื่ออัปโหลดไฟล์</span>
+                        <span>คลิกเพื่อเลือกไฟล์</span>
                         <input
                           ref={taskFileInputRef}
                           id="task-file-upload"
@@ -476,11 +471,12 @@ function Tasks() {
                       <p className="pl-1">หรือลากไฟล์มาวาง</p>
                     </div>
                     <p className="text-xs text-gray-500">รองรับ PDF, DOCX, XLSX ขนาดไม่เกิน 10MB</p>
-                    {formData.fileName && (
+                    {formData.fileName ? (
                       <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium border border-emerald-200">
                         <File size={14} /> {formData.fileName}
                       </div>
-                    )}
+                    ) : null}
+                    <p className="text-xs text-amber-600 mt-1">⚠ ขณะนี้ระบบบันทึกเฉพาะชื่อไฟล์ — ยังไม่รองรับการอัปโหลดไฟล์จริง</p>
                   </div>
                 </div>
               </div>

@@ -844,11 +844,12 @@ function Activities() {
                       <p className="pl-1">หรือลากไฟล์มาวาง</p>
                     </div>
                     <p className="text-xs text-gray-500">รองรับ PDF, DOCX, XLSX ขนาดไม่เกิน 10MB</p>
-                    {newActivity.fileName && (
+                    {newActivity.fileName ? (
                       <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium border border-emerald-200">
                         <File size={14} /> {newActivity.fileName}
                       </div>
-                    )}
+                    ) : null}
+                    <p className="text-xs text-amber-600 mt-1">⚠ ขณะนี้ระบบบันทึกเฉพาะชื่อไฟล์ — ยังไม่รองรับการอัปโหลดไฟล์จริง</p>
                   </div>
                 </div>
               </div>

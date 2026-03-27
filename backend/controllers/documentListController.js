@@ -238,8 +238,10 @@ exports.deleteDocument = async (req, res) => {
   }
 };
 
-/** ดาวน์โหลด: ถ้ามี file_storage_path เป็น URL ให้ redirect; ไม่มีให้ส่งไฟล์ข้อความสรุปจาก DB */
+/** ดาวน์โหลด: ถ้ามี file_storage_path เป็น URL ให้ redirect; เป็น local path ให้ส่งไฟล์จริง; ไม่มีให้ส่งไฟล์ข้อความสรุปจาก DB */
 exports.downloadDocument = async (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) return res.status(400).json({ error: 'รหัสเอกสารไม่ถูกต้อง' });
   try {
@@ -265,9 +267,25 @@ exports.downloadDocument = async (req, res) => {
     if (result.rowCount === 0) return res.status(404).json({ error: 'ไม่พบเอกสาร' });
     const row = result.rows[0];
     const pathRaw = row.file_storage_path != null ? String(row.file_storage_path).trim() : '';
+
+    // HTTP/HTTPS URL — redirect
     if (pathRaw && /^https?:\/\//i.test(pathRaw)) {
       return res.redirect(302, pathRaw);
     }
+
+    // Local file path (e.g. /uploads/filename.pdf or uploads/filename.pdf)
+    if (pathRaw) {
+      // Resolve against the backend root (one level up from controllers/)
+      const uploadsDir = path.resolve(__dirname, '..', 'uploads');
+      const fileName = path.basename(pathRaw);
+      // Prevent path traversal: only allow files inside the uploads directory
+      const absPath = path.join(uploadsDir, fileName);
+      if (absPath.startsWith(uploadsDir) && fs.existsSync(absPath)) {
+        return res.download(absPath, fileName);
+      }
+    }
+
+    // No real file — send text summary
     const safeBase = String(row.name || `document_${id}`).replace(/[/\\?%*:|"<>]/g, '_');
     const lines = [
       'NU SEED — สรุปเอกสารจากระบบ',
