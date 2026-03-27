@@ -524,6 +524,9 @@ export const AppProvider = ({ children }) => {
                     phone: data.phone,
                     email: data.email,
                     type: data.type,
+                    organization: data.organization,
+                    occupation: data.occupation,
+                    national_id: data.national_id,
                 }),
             });
             const payload = await res.json().catch(() => ({}));

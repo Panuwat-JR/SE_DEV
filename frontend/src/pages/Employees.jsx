@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Plus, Search, Filter, Mail, Building2, Circle, X, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -8,6 +8,11 @@ const Employees = () => {
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [deptFilter, setDeptFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const filterWrapRef = useRef(null);
   const [createError, setCreateError] = useState('');
   const [newEmp, setNewEmp] = useState({
     first_name: '',
@@ -47,9 +52,35 @@ const Employees = () => {
     }
   };
 
-  const filtered = employees.filter(emp => {
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (!filterOpen) return;
+      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [filterOpen]);
+
+  const departments = useMemo(
+    () => [...new Set(employees.map((e) => e.department).filter(Boolean))].sort(),
+    [employees]
+  );
+  const roles = useMemo(
+    () => [...new Set(employees.map((e) => e.role).filter(Boolean))].sort(),
+    [employees]
+  );
+
+  const filtered = employees.filter((emp) => {
     const name = `${emp.first_name} ${emp.last_name}`.toLowerCase();
-    return name.includes(searchTerm.toLowerCase()) || emp.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const q = searchTerm.toLowerCase();
+    if (!name.includes(q) && !emp.email.toLowerCase().includes(q)) return false;
+    if (deptFilter && String(emp.department || '') !== deptFilter) return false;
+    if (roleFilter && String(emp.role || '') !== roleFilter) return false;
+    if (statusFilter === 'online' && emp.online_status !== 'online') return false;
+    if (statusFilter === 'offline' && emp.online_status !== 'offline') return false;
+    return true;
   });
 
   const stats = [
@@ -81,15 +112,84 @@ const Employees = () => {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
-          <div className="relative w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+        <div className="p-5 border-b border-gray-100 flex flex-wrap gap-3 justify-between items-center bg-gray-50/50 shrink-0 relative z-20">
+          <div className="relative w-full sm:w-80 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
             <input type="text" placeholder="ค้นหาพนักงาน..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
               value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium">
-            <Filter size={16} /> กรองข้อมูล
-          </button>
+          <div className="relative" ref={filterWrapRef}>
+            <button
+              type="button"
+              onClick={() => setFilterOpen((o) => !o)}
+              className={`flex items-center gap-2 px-4 py-2 border rounded-lg bg-white text-sm font-medium transition-colors ${
+                filterOpen || deptFilter || roleFilter || statusFilter !== 'all'
+                  ? 'border-blue-500 text-blue-700 bg-blue-50/80'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+              aria-expanded={filterOpen}
+              aria-haspopup="true"
+            >
+              <Filter size={16} /> กรองข้อมูล
+            </button>
+            {filterOpen && (
+              <div
+                className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white shadow-xl p-4 space-y-3 z-30"
+                role="dialog"
+                aria-label="ตัวกรองพนักงาน"
+              >
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">แผนก</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                    value={deptFilter}
+                    onChange={(e) => setDeptFilter(e.target.value)}
+                  >
+                    <option value="">ทุกแผนก</option>
+                    {departments.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">ตำแหน่ง</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                  >
+                    <option value="">ทุกตำแหน่ง</option>
+                    {roles.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">สถานะออนไลน์</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">ทั้งหมด</option>
+                    <option value="online">ออนไลน์</option>
+                    <option value="offline">ออฟไลน์</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="w-full py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  onClick={() => {
+                    setDeptFilter('');
+                    setRoleFilter('');
+                    setStatusFilter('all');
+                  }}
+                >
+                  ล้างตัวกรอง
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="overflow-x-auto flex-1">

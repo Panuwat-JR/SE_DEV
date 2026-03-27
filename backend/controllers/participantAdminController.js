@@ -55,7 +55,10 @@ exports.listParticipants = async (req, res) => {
         COALESCE(p.email, '') AS email,
         COALESCE(t.name, 'ไม่ระบุทีม') AS team_name,
         pp.team_id,
-        COALESCE(pt.name, 'นิสิต/นักศึกษา') AS type
+        COALESCE(pt.name, 'นิสิต/นักศึกษา') AS type,
+        COALESCE(pp.organization, '') AS organization,
+        COALESCE(pp.occupation, '') AS occupation,
+        COALESCE(pp.national_id, '') AS national_id
       FROM participant_profiles pp
       LEFT JOIN faculties f ON f.faculty_id = pp.faculty_id
       LEFT JOIN majors m ON m.major_id = pp.major_id
@@ -83,6 +86,9 @@ exports.createParticipant = async (req, res) => {
     phone,
     email,
     type,
+    organization,
+    occupation,
+    national_id,
   } = req.body;
 
   const fn = String(firstname || '').trim();
@@ -110,9 +116,18 @@ exports.createParticipant = async (req, res) => {
       }
     }
 
-    const facultyId = await resolveFacultyId(client, faculty);
-    const majorId = await resolveMajorId(client, major);
-    const typeId = await resolveParticipantTypeId(client, type);
+    const typeLabel = String(type || '').trim();
+    const isGeneral =
+      typeLabel.includes('บุคคลทั่วไป') ||
+      typeLabel.includes('ทั่วไป') ||
+      typeLabel === 'general';
+
+    const facultyId = isGeneral ? null : await resolveFacultyId(client, faculty);
+    const majorId = isGeneral ? null : await resolveMajorId(client, major);
+    const typeId = await resolveParticipantTypeId(
+      client,
+      isGeneral ? 'บุคคลทั่วไป' : typeLabel || 'นิสิต/นักศึกษา'
+    );
 
     const yr =
       year_of_study === '' || year_of_study === null || year_of_study === undefined
@@ -120,13 +135,20 @@ exports.createParticipant = async (req, res) => {
         : parseInt(year_of_study, 10);
     const yearVal = Number.isNaN(yr) ? null : yr;
 
+    const sid = isGeneral ? null : String(student_id || '').trim() || null;
+    const yearFinal = isGeneral ? null : yearVal;
+    const org = String(organization || '').trim() || null;
+    const occ = String(occupation || '').trim() || null;
+    const nid = String(national_id || '').trim() || null;
+
     const insP = await client.query(
       `
       INSERT INTO participant_profiles (
         team_id, faculty_id, major_id, participant_type_id,
-        firstname, lastname, student_id, year_of_study, phone_number
+        firstname, lastname, student_id, year_of_study, phone_number,
+        organization, occupation, national_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING participant_profile_id AS id
     `,
       [
@@ -136,9 +158,12 @@ exports.createParticipant = async (req, res) => {
         typeId,
         fn,
         String(lastname || '').trim() || null,
-        String(student_id || '').trim() || null,
-        yearVal,
+        sid,
+        yearFinal,
         String(phone || '').trim() || null,
+        org,
+        occ,
+        nid,
       ]
     );
     const profileId = insP.rows[0].id;
@@ -167,7 +192,10 @@ exports.createParticipant = async (req, res) => {
         COALESCE(p.email, '') AS email,
         COALESCE(t.name, 'ไม่ระบุทีม') AS team_name,
         pp.team_id,
-        COALESCE(pt.name, 'นิสิต/นักศึกษา') AS type
+        COALESCE(pt.name, 'นิสิต/นักศึกษา') AS type,
+        COALESCE(pp.organization, '') AS organization,
+        COALESCE(pp.occupation, '') AS occupation,
+        COALESCE(pp.national_id, '') AS national_id
       FROM participant_profiles pp
       LEFT JOIN faculties f ON f.faculty_id = pp.faculty_id
       LEFT JOIN majors m ON m.major_id = pp.major_id

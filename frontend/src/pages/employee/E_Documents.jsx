@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     FileText, Plus, Download, Eye, Trash2, ChevronRight, ArrowLeft, Send, CheckCircle2, Calendar,
-    LayoutTemplate, PenTool, Hash, Info, MapPin, Type, CaseSensitive, Loader2, AlertCircle,
+    LayoutTemplate, PenTool, Hash, Info, MapPin, Type, CaseSensitive, Loader2, AlertCircle, X,
 } from 'lucide-react';
 import { API_BASE } from '../../config/api';
 import { DOCUMENTS_CHANGED_EVENT } from '../../context/AppContext';
@@ -91,6 +91,7 @@ export default function E_Documents() {
 
     const [selectedFont, setSelectedFont] = useState('Sarabun');
     const [selectedSize, setSelectedSize] = useState('16');
+    const [detailDoc, setDetailDoc] = useState(null);
 
     const loadDocuments = useCallback(async () => {
         setListLoading(true);
@@ -291,8 +292,20 @@ export default function E_Documents() {
                                             <div className="flex items-center justify-center gap-1.5">
                                                 <button
                                                     type="button"
-                                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                    title="ดูรายละเอียด (ยังไม่มีไฟล์แนบจากระบบรายการนี้)"
+                                                    onClick={() =>
+                                                        setDetailDoc((d) => (d?.id === doc.id ? null : doc))
+                                                    }
+                                                    className={`p-1.5 rounded-lg transition-colors ${
+                                                        detailDoc?.id === doc.id
+                                                            ? 'text-blue-600 bg-blue-50'
+                                                            : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                                                    }`}
+                                                    title={
+                                                        detailDoc?.id === doc.id
+                                                            ? 'คลิกอีกครั้งเพื่อปิดรายละเอียด'
+                                                            : 'ดูรายละเอียดเอกสาร'
+                                                    }
+                                                    aria-expanded={detailDoc?.id === doc.id}
                                                 >
                                                     <Eye size={15} />
                                                 </button>
@@ -596,6 +609,73 @@ export default function E_Documents() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {detailDoc && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+                    role="presentation"
+                    onClick={() => setDetailDoc(null)}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="doc-detail-title"
+                        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-gray-100"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-start gap-4 mb-4">
+                            <div className="flex items-start gap-3 min-w-0">
+                                <div className="w-10 h-10 shrink-0 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                                    <FileText size={18} />
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 id="doc-detail-title" className="font-bold text-gray-900 text-lg break-words">
+                                        {detailDoc.name}
+                                    </h3>
+                                    <p className="text-xs text-gray-500 mt-1">รายการจากฐานข้อมูล — ยังไม่มีไฟล์แนบจาก API นี้</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setDetailDoc(null)}
+                                className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                                aria-label="ปิด"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <dl className="space-y-3 text-sm border-t border-gray-100 pt-4">
+                            <div className="flex justify-between gap-4">
+                                <dt className="text-gray-500">โครงการ</dt>
+                                <dd className="font-medium text-gray-900 text-right">{detailDoc.project}</dd>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <dt className="text-gray-500">สถานะ</dt>
+                                <dd>
+                                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${statusBadgeClass(detailDoc.status)}`}>
+                                        {detailDoc.status}
+                                    </span>
+                                </dd>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <dt className="text-gray-500">วันที่</dt>
+                                <dd className="font-medium text-gray-900">{detailDoc.date}</dd>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <dt className="text-gray-500">ประเภท</dt>
+                                <dd className="font-medium text-gray-900">{detailDoc.type}</dd>
+                            </div>
+                        </dl>
+                        <button
+                            type="button"
+                            onClick={() => setDetailDoc(null)}
+                            className="w-full mt-6 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl"
+                        >
+                            ปิด
+                        </button>
                     </div>
                 </div>
             )}

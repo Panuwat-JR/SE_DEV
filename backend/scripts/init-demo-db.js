@@ -196,6 +196,7 @@ async function seedReference(client) {
     `INSERT INTO majors (name) SELECT 'วิทยาการคอมพิวเตอร์และเทคโนโลยีสารสนเทศ'
      WHERE NOT EXISTS (SELECT 1 FROM majors WHERE name = 'วิทยาการคอมพิวเตอร์และเทคโนโลยีสารสนเทศ')`,
     `INSERT INTO participant_types (name) SELECT 'นิสิต/นักศึกษา' WHERE NOT EXISTS (SELECT 1 FROM participant_types WHERE name = 'นิสิต/นักศึกษา')`,
+    `INSERT INTO participant_types (name) SELECT 'บุคคลทั่วไป' WHERE NOT EXISTS (SELECT 1 FROM participant_types WHERE name = 'บุคคลทั่วไป')`,
     `INSERT INTO employee_roles (name, description) SELECT 'ผู้จัดการโครงการ', 'ดูแลโครงการ'
      WHERE NOT EXISTS (SELECT 1 FROM employee_roles WHERE name = 'ผู้จัดการโครงการ')`,
     `INSERT INTO employee_roles (name, description) SELECT 'ผู้ประสานงาน', 'ประสานงาน'
