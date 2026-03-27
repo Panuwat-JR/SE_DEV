@@ -1,37 +1,95 @@
 // pages/participant/P_Team.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Users, Crown, Mail, Phone, Plus, X, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const INIT_TEAM = {
-    name: 'GreenBridge',
-    project: 'Startup Thailand League 2026',
-    members: [
-        { id: 1, name: 'ปิยะ วงศ์ดี', email: 'piya@nu.ac.th', phone: '081-000-1111', faculty: 'วิศวกรรมศาสตร์', year: 3, initial: 'ป', color: 'bg-emerald-600', isLeader: true },
-        { id: 2, name: 'อรทัย แก้วใส', email: 'orathai@nu.ac.th', phone: '082-222-3333', faculty: 'บริหารธุรกิจ', year: 2, initial: 'อ', color: 'bg-blue-500', isLeader: false },
-        { id: 3, name: 'ธีรภัทร สมบัติ', email: 'theeraphat@nu.ac.th', phone: '083-444-5555', faculty: 'วิทยาศาสตร์', year: 3, initial: 'ธ', color: 'bg-purple-500', isLeader: false },
-        { id: 4, name: 'สุภาวดี ใจกล้า', email: 'supawadee@nu.ac.th', phone: '084-666-7777', faculty: 'มนุษยศาสตร์', year: 2, initial: 'ส', color: 'bg-pink-500', isLeader: false },
-    ],
-};
+function pickColor(idx) {
+    const colors = ['bg-emerald-600', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-amber-500', 'bg-sky-500', 'bg-gray-500'];
+    return colors[idx % colors.length];
+}
 
 export default function P_Team() {
     const { teamRole } = useAuth();
     const isLeader = teamRole === 'leader';
-    const [team, setTeam] = useState(INIT_TEAM);
+    const [team, setTeam] = useState({ name: '', project: '', members: [] });
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [newMember, setNewMember] = useState({ name: '', email: '', faculty: '', year: 1 });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const hydratedMembers = useMemo(() => {
+        return (team.members || []).map((m, idx) => {
+            const initial = (m.name || '').trim().charAt(0) || '?';
+            const isLeaderMember = String(m.name || '').includes('ปิยะ'); // demo
+            return {
+                ...m,
+                initial,
+                color: m.color || pickColor(idx),
+                isLeader: Boolean(m.isLeader) || isLeaderMember,
+                email: m.email || '-',
+                phone: m.phone || '-'
+            };
+        });
+    }, [team.members]);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const res = await fetch('http://localhost:5000/api/participants-data/team');
+                if (!res.ok) throw new Error(`Failed to fetch team (HTTP ${res.status})`);
+                const data = await res.json();
+                setTeam({
+                    name: data.name || '',
+                    project: data.project || '',
+                    members: data.members || []
+                });
+            } catch (e) {
+                setError(e.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, []);
 
     const handleAddMember = (e) => {
         e.preventDefault();
-        setTeam(prev => ({
-            ...prev,
-            members: [...prev.members, {
-                id: Date.now(), ...newMember, year: Number(newMember.year),
-                initial: newMember.name.charAt(0), color: 'bg-gray-500', isLeader: false, phone: '-',
-            }],
-        }));
-        setIsAddOpen(false);
-        setNewMember({ name: '', email: '', faculty: '', year: 1 });
+        (async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/participants-data/team/members', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newMember.name,
+                        faculty: newMember.faculty,
+                        year: Number(newMember.year)
+                    })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => null);
+                    throw new Error(err?.error || `Add member failed (HTTP ${res.status})`);
+                }
+                const created = await res.json();
+                const memberName = `${created.firstname}${created.lastname ? ` ${created.lastname}` : ''}`.trim();
+                setTeam(prev => ({
+                    ...prev,
+                    members: [...(prev.members || []), {
+                        id: created.id,
+                        name: memberName,
+                        faculty: newMember.faculty,
+                        year: created.year ?? Number(newMember.year) ?? null,
+                        email: newMember.email || '-',
+                        phone: '-'
+                    }]
+                }));
+                setIsAddOpen(false);
+                setNewMember({ name: '', email: '', faculty: '', year: 1 });
+            } catch (e2) {
+                alert(e2.message);
+            }
+        })();
     };
 
     const handleRemove = (id) => {
@@ -45,8 +103,8 @@ export default function P_Team() {
             {/* Header */}
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">ทีม {team.name}</h1>
-                    <p className="text-gray-500 text-sm mt-1">{team.project}</p>
+                    <h1 className="text-2xl font-bold text-gray-900">ทีม {team.name || '—'}</h1>
+                    <p className="text-gray-500 text-sm mt-1">{team.project || '—'}</p>
                 </div>
                 {isLeader && (
                     <button onClick={() => setIsAddOpen(true)}
@@ -66,11 +124,11 @@ export default function P_Team() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-                    <div className="text-3xl font-bold text-emerald-600">{team.members.length}</div>
+                    <div className="text-3xl font-bold text-emerald-600">{hydratedMembers.length}</div>
                     <div className="text-xs text-gray-500 mt-1">สมาชิกทั้งหมด</div>
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-                    <div className="text-3xl font-bold text-blue-600">1</div>
+                    <div className="text-3xl font-bold text-blue-600">{hydratedMembers.filter(m => m.isLeader).length || 1}</div>
                     <div className="text-xs text-gray-500 mt-1">หัวหน้าทีม</div>
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
@@ -82,8 +140,13 @@ export default function P_Team() {
             {/* Members */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h2 className="font-bold text-gray-900 mb-5 flex items-center gap-2"><Users size={18} className="text-emerald-600" /> สมาชิก</h2>
-                <div className="space-y-3">
-                    {team.members.map(member => (
+                {loading ? (
+                    <div className="py-10 text-center text-sm text-gray-400">กำลังโหลดข้อมูลทีม...</div>
+                ) : error ? (
+                    <div className="py-10 text-center text-sm text-red-500">{error}</div>
+                ) : (
+                    <div className="space-y-3">
+                    {hydratedMembers.map(member => (
                         <div key={member.id} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${member.isLeader ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-50 border-gray-100'
                             }`}>
                             <div className={`w-11 h-11 ${member.color} rounded-full flex items-center justify-center text-white font-bold shrink-0`}>
@@ -112,6 +175,7 @@ export default function P_Team() {
                         </div>
                     ))}
                 </div>
+                )}
             </div>
 
             {/* Add Member Modal */}

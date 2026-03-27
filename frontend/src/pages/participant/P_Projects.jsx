@@ -23,6 +23,22 @@ function normalizeText(v) {
     return String(v ?? '').toLowerCase().trim();
 }
 
+function computeProgressPercent(proj) {
+    // ใช้ progress จาก backend เป็นหลัก (backend อาจมี logic เพิ่มเติมให้ % ต่างกัน)
+    const p = Number(proj?.progress);
+    if (Number.isFinite(p)) {
+        return Math.max(0, Math.min(100, Math.round(p)));
+    }
+
+    const done = parseInt(proj?.doneItems ?? proj?.done, 10);
+    const total = parseInt(proj?.totalItems ?? proj?.total, 10);
+    if (Number.isFinite(done) && Number.isFinite(total) && total > 0) {
+        return Math.max(0, Math.min(100, Math.round((done / total) * 100)));
+    }
+
+    return 0;
+}
+
 function parseDDMMYYYY(s) {
     // Expect "DD/MM/YYYY"
     const m = String(s ?? '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -96,7 +112,7 @@ export default function P_Projects() {
         }
 
         if (sort === 'progress_desc') {
-            list.sort((a, b) => (Number(b.progress) || 0) - (Number(a.progress) || 0));
+            list.sort((a, b) => computeProgressPercent(b) - computeProgressPercent(a));
         } else if (sort === 'deadline_asc') {
             list.sort((a, b) => {
                 const da = parseDDMMYYYY(a.nextDeadline)?.getTime() ?? Number.POSITIVE_INFINITY;
@@ -233,7 +249,7 @@ export default function P_Projects() {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                     {filtered.map((proj) => {
-                        const progress = Math.max(0, Math.min(100, Number(proj.progress) || 0));
+                        const progress = computeProgressPercent(proj);
                         const hasNext = proj.nextTask && proj.nextTask !== '—';
                         const statusBadge = proj.statusColor || 'bg-gray-100 text-gray-700 border-gray-200';
                         return (
@@ -243,13 +259,14 @@ export default function P_Projects() {
                                 className="group relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-emerald-200 transition-all"
                             >
                                 <div className="relative p-6 space-y-4">
+                                    <div className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-emerald-100/40 blur-2xl group-hover:bg-emerald-100/60 transition-colors" />
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusBadge}`}>
+                                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${statusBadge}`}>
                                                     {proj.status}
                                                 </span>
-                                                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-gray-50 text-gray-600 border-gray-200">
+                                                <span className="text-xs font-bold px-2.5 py-1 rounded-full border bg-gray-50 text-gray-600 border-gray-200">
                                                     ทีม: {proj.team}
                                                 </span>
                                             </div>
@@ -262,8 +279,8 @@ export default function P_Projects() {
                                         </div>
 
                                         <div className="shrink-0 text-right">
-                                            <p className="text-[10px] text-gray-400 font-bold">ความคืบหน้า</p>
-                                            <p className="text-2xl font-bold text-gray-900 leading-tight">{progress}%</p>
+                                            <p className="text-xs text-gray-400 font-bold">ความคืบหน้า</p>
+                                            <p className="text-2xl font-bold text-gray-900 tabular-nums">{progress}%</p>
                                         </div>
                                     </div>
 
@@ -275,7 +292,11 @@ export default function P_Projects() {
                                             />
                                         </div>
                                         <div className="flex items-center justify-between text-xs text-gray-500">
-                                            <span>เสร็จแล้ว <span className="font-bold text-gray-700">{proj.doneItems}</span> / {proj.totalItems}</span>
+                                            <span>
+                                                เสร็จแล้ว <span className="font-bold text-gray-700 tabular-nums">{proj.doneItems}</span>
+                                                <span className="text-gray-300"> / </span>
+                                                <span className="tabular-nums">{proj.totalItems}</span>
+                                            </span>
                                             <span className="inline-flex items-center gap-1 text-gray-400">
                                                 <Trophy size={12} className="text-amber-500" />
                                                 <span className="font-bold text-gray-600">{proj.prize}</span>
@@ -289,7 +310,7 @@ export default function P_Projects() {
                                                 {hasNext ? <Clock size={18} className="text-amber-600" /> : <Calendar size={18} className="text-gray-400" />}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[10px] text-gray-400 font-bold mb-1">งานถัดไป</p>
+                                                <p className="text-xs text-gray-400 font-bold mb-1">งานถัดไป</p>
                                                 <p className="text-sm font-bold text-gray-800 truncate">
                                                     {hasNext ? proj.nextTask : 'ยังไม่มีงานที่ต้องทำ'}
                                                 </p>
@@ -304,7 +325,7 @@ export default function P_Projects() {
                                         <span className="text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
                                             เปิดรายละเอียด →
                                         </span>
-                                        <span className="text-[10px] font-bold text-gray-400">
+                                        <span className="text-xs font-bold text-gray-400">
                                             ID: {proj.id}
                                         </span>
                                     </div>

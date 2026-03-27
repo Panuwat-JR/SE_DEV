@@ -1,6 +1,58 @@
 const dashboardService = require('../services/dashboardService');
 const participantService = require('../services/participantService');
 
+function parseDDMMYYYYToDate(s) {
+  const m = String(s ?? '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  const yyyy = Number(m[3]);
+  const d = new Date(yyyy, mm - 1, dd);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function clampInt(n, min, max) {
+  const x = Math.round(Number(n) || 0);
+  return Math.max(min, Math.min(max, x));
+}
+
+function computeBlendedProgress({ done, total, start_date, end_date }) {
+  const totalN = parseInt(total, 10) || 0;
+  const doneN = parseInt(done, 10) || 0;
+  const taskProgress = totalN > 0 ? (doneN / totalN) : 0;
+
+  const start = parseDDMMYYYYToDate(start_date);
+  let end = parseDDMMYYYYToDate(end_date);
+  const now = Date.now();
+  let timeProgress = 0;
+  // ถ้า DB ไม่มีวันสิ้นสุด ให้ประมาณเป็น +90 วันจากวันเริ่ม (สำหรับ demo)
+  if (start && !end) {
+    end = new Date(start.getTime() + 90 * 24 * 60 * 60 * 1000);
+  }
+
+  if (start && end && end.getTime() > start.getTime()) {
+    if (now <= start.getTime()) timeProgress = 0;
+    else if (now >= end.getTime()) timeProgress = 1;
+    else timeProgress = (now - start.getTime()) / (end.getTime() - start.getTime());
+  }
+
+  // ให้ % ต่างกันอย่างสมเหตุสมผล: งาน 70% + เวลา 30%
+  return clampInt((taskProgress * 0.7 + timeProgress * 0.3) * 100, 0, 100);
+}
+
+function statusBaselineProgress(statusSlug) {
+  switch (String(statusSlug || '')) {
+    case 'planning': return 10;
+    case 'open_registration': return 15;
+    case 'closed_registration': return 20;
+    case 'announced': return 25;
+    case 'in_progress': return 35;
+    case 'completed': return 100;
+    case 'cancelled': return 0;
+    default: return 15;
+  }
+}
+
 exports.getDashboardData = async (req, res) => {
   try {
     const [stats, upcomingActivities, recentTasks] = await Promise.all([
@@ -34,7 +86,15 @@ exports.getParticipantDashboardData = async (req, res) => {
 
       const total = parseInt(summary.total) || 0;
       const done = parseInt(summary.done) || 0;
-      const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+      const blended = computeBlendedProgress({
+        done,
+        total,
+        start_date: proj.start_date,
+        end_date: proj.end_date
+      });
+      const baseline = statusBaselineProgress(proj.statusSlug);
+      // ทำให้ % แตกต่างกันตามสถานะ แม้ task จะเหมือนกัน (สำหรับ demo)
+      const progress = clampInt(blended + (baseline - 15), 0, 100);
 
       return {
         ...proj,
